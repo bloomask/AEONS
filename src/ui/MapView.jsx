@@ -316,9 +316,9 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
           const placed = [];
           ctx.textAlign = "center";
           for (const { f, fp, cx, cy } of cands) {
-            const size = clamp(9 + Math.sqrt(fp) * 0.35, 10, 22) * clamp(v.scale / 0.55, 0.8, 1.5);
+            const size = clamp(8 + Math.sqrt(fp) * 0.2, 9, 13.5) * clamp(v.scale / 0.55, 0.75, 1.15);
             ctx.font = `700 ${size.toFixed(1)}px 'Chakra Petch', sans-serif`;
-            try { ctx.letterSpacing = `${(size * 0.18).toFixed(1)}px`; } catch { /* older engines */ }
+            try { ctx.letterSpacing = `${(size * 0.14).toFixed(1)}px`; } catch { /* older engines */ }
             const label = f.name.toUpperCase();
             const tw = ctx.measureText(label).width;
             const X = tx(cx), Y = ty(cy) - size * 0.8;

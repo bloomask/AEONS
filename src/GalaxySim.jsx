@@ -5,6 +5,7 @@ import { simulateYear } from "./sim/simulate.js";
 import { buildStats } from "./sim/stats.js";
 import { downloadFile } from "./ui/download.js";
 import MapView from "./ui/MapView.jsx";
+import Ticker from "./ui/Ticker.jsx";
 import Timeline from "./ui/Timeline.jsx";
 import TopBar from "./ui/TopBar.jsx";
 import StatsStrip from "./ui/StatsStrip.jsx";
@@ -137,7 +138,7 @@ export default function GalaxySim() {
       <StatsStrip w={w} liveSystems={liveSystems} totalPop={totalPop} liveFactions={liveFactions} wars={wars} />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="relative flex-1 flex flex-col min-h-0">
           <MapView
             worldRef={worldRef}
             selected={selected}
@@ -147,6 +148,15 @@ export default function GalaxySim() {
             burn={burn}
             mapApi={mapApi}
           />
+          {w && !burn && (
+            <Ticker
+              worldRef={worldRef}
+              onOpen={(ev) => {
+                if (ev.sysId !== null) openSystem(ev.sysId);
+                else setTab("chronicle");
+              }}
+            />
+          )}
           {w && !burn && <Timeline w={w} onScrub={scrubTo} focusYear={focusYear} />}
         </div>
 

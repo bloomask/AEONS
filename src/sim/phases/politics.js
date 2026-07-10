@@ -1,7 +1,8 @@
 import { T } from "../constants.js";
 import { clamp, dist2, cultDist, avgCult } from "../util.js";
-import { log, relKey, getRel } from "../events.js";
+import { log, fx, relKey, getRel } from "../events.js";
 import { foundFaction, relocateCapital, killFaction } from "../factions.js";
+import { majorityFaith } from "./faith.js";
 
 // --- faction economics & politics, diplomacy & war, new powers ---
 export function runPolitics(w, rng, alive) {
@@ -114,10 +115,13 @@ export function runPolitics(w, rng, alive) {
       const mB = w.systems.filter((s) => s.fid === B.id && s.pop > 0);
       if (!mA.length || !mB.length) continue;
       const cd = cultDist(avgCult(mA), avgCult(mB));
+      // shared creeds calm the frontier; rival creeds inflame it
+      const holy = majorityFaith(mA) !== majorityFaith(mB);
 
       if (!rel.war) {
         rel.rivalry = clamp(
-          rel.rivalry + 0.8 + cd * 1.4 + border.length * 0.2 - mutualTrade * 0.25,
+          rel.rivalry + 0.8 + cd * 1.4 + border.length * 0.2 - mutualTrade * 0.25
+            + (holy ? 0.35 : -0.35),
           0, 100
         );
         const wasAllied = rel.allied;
@@ -148,11 +152,16 @@ export function runPolitics(w, rng, alive) {
           });
           w.stats.c.warsDeclared++;
           w.warCount++;
-          log(w, "war", rng.pick([
-            `The ${A.name} and the ${B.name} go to war. Jumpgates between them fall silent.`,
-            `War. ${A.name} warships mass along the ${B.name} frontier, and the trade lanes empty overnight.`,
-            `Old grievances boil over: the ${A.name} and the ${B.name} take up arms.`,
-          ]));
+          log(w, "war", rng.pick(holy
+            ? [
+              `Holy war. The ${A.name} and the ${B.name} take up arms, each certain heaven rides with their fleets.`,
+              `The creeds collide: the ${A.name} declares the ${B.name} apostate, and the gates between them fall silent.`,
+            ]
+            : [
+              `The ${A.name} and the ${B.name} go to war. Jumpgates between them fall silent.`,
+              `War. ${A.name} warships mass along the ${B.name} frontier, and the trade lanes empty overnight.`,
+              `Old grievances boil over: the ${A.name} and the ${B.name} take up arms.`,
+            ]));
         }
       } else {
         // --- war as geography: battles at gates, sieges, fronts that move ---
@@ -184,6 +193,7 @@ export function runPolitics(w, rng, alive) {
           rel.war.score += winF === A ? 1 : -1;
           w.stats.c.battle++;
           if (rec) rec.battles++;
+          fx(w, { t: "battle", a: e.a, b: e.b });
           sa.pop *= 0.985; sb.pop *= 0.985;
           sa.lastWar = w.year; sb.lastWar = w.year;
           const gate = `${sa.name}–${sb.name}`;
@@ -196,6 +206,7 @@ export function runPolitics(w, rng, alive) {
             log(w, "siege", `The siege of ${winSys.name} is broken at the ${gate} gate. Relief convoys pour in.`, winSys.id);
           } else if (!lostSys.siege && lostSys.fid === loseF.id) {
             lostSys.siege = { by: winF.id, since: w.year, pair: key };
+            fx(w, { t: "siege", sys: lostSys.id });
             log(w, "siege", rng.pick([
               `${winF.name} forces win the ${gate} gate and lay siege to ${lostSys.name}. Nothing flies in or out.`,
               `Victory at ${gate}: the ${winF.name} throws a blockade around ${lostSys.name}.`,

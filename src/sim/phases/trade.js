@@ -9,7 +9,9 @@ export function runTrade(w, rng) {
   const ecap = w.edges.map(() => T.TRAMP_CAP);
   const eassign = w.edges.map(() => []);
   const eprofit = w.edges.map(() => 0);
-  const gateDisc = (A, B) => Math.max(0.5, 1 - 0.12 * (A.infra.gate + B.infra.gate));
+  // a gate nexus counts as three extra dock levels
+  const gateLv = (s) => s.infra.gate + (s.mega.nexus ? 3 : 0);
+  const gateDisc = (A, B) => Math.max(0.4, 1 - 0.12 * (gateLv(A) + gateLv(B)));
   const margins = w.edges.map((e) => {
     const A = w.systems[e.a], B = w.systems[e.b];
     if (A.pop <= 0.05 || B.pop <= 0.05) return -1;
@@ -20,6 +22,7 @@ export function runTrade(w, rng) {
     return m;
   });
   const liveHouses = w.houses.filter((h) => !h.dead);
+  for (const h of liveHouses) { h.incFreight = 0; h.incDepots = 0; h.incColonies = 0; }
   for (let i = liveHouses.length - 1; i > 0; i--) {
     const j = Math.floor(rng.n() * (i + 1));
     [liveHouses[i], liveHouses[j]] = [liveHouses[j], liveHouses[i]];
@@ -60,7 +63,7 @@ export function runTrade(w, rng) {
       rel2 = getRel(w, A.fid, B.fid);
       if (rel2.war || rel2.embargo) continue; // war and embargo sever the lane
     }
-    let cap = ecap[ei];
+    let cap = ecap[ei] + (A.mega.nexus || B.mega.nexus ? 2 : 0);
     const gf = gateDisc(A, B);
     const dutyRate = (dst) => {
       if (!rel2 || dst.fid === null) return 0;
@@ -98,13 +101,65 @@ export function runTrade(w, rng) {
     for (const [h, take] of eassign[ei]) {
       const share = (eprofit[ei] * take) / (tot + T.TRAMP_CAP);
       h.wealth += share * 0.85;
+      h.incFreight += share * 0.85;
       w.systems[h.home].wealth += share * 0.15; // the house spends at home
     }
   }
   for (const h of liveHouses) {
+    // incorporation: a house grown past a threshold becomes a megacorp
+    if (!h.corp && h.wealth > T.CORP_WEALTH && h.ships > T.CORP_FLEET) {
+      h.corp = true; h.corpYear = w.year;
+      const base = h.name.split(" ").find(
+        (word) => !["House", "The", "&", "Sons", "Combine", "Freightways", "Starlift"].includes(word)
+      ) || h.name.split(" ")[0];
+      const oldName = h.name;
+      h.name = rng.pick([
+        `${base} Interstellar`, `${base} Galactic`, `${base} Consolidated`,
+        `${base} TransStellar`, `The ${base} Group`,
+      ]);
+      w.stats.c.corpFounded++;
+      log(w, "corp", `${oldName} incorporates as ${h.name}. Its charters now span half the lanes of the galaxy.`, h.home);
+    }
+
+    // megacorps run depots at busy ports: the port gets docks, the corp a cut
+    if (h.corp) {
+      if (h.wealth > 200 && h.depots.length < 4 && rng.chance(0.1)) {
+        const home = w.systems[h.home];
+        const cand = w.systems
+          .filter((s) =>
+            s.pop > 0.05 && s.tradeIn > 6 && !h.depots.includes(s.id) &&
+            dist2(s, home) < T.HOUSE_RANGE)
+          .sort((a, b) => b.tradeIn - a.tradeIn)[0];
+        if (cand) {
+          h.wealth -= 60;
+          h.depots.push(cand.id);
+          cand.depots.push(h.id);
+          cand.infra.gate = Math.min(3, cand.infra.gate + 1);
+          w.stats.c.depotBuilt++;
+          log(w, "corp", `${h.name} opens a freight depot at ${cand.name}; new docks rise over the port.`, cand.id);
+        }
+      }
+      for (const sid of h.depots) {
+        const s = w.systems[sid];
+        if (s.pop > 0.05) h.incDepots += s.tradeIn * 0.04;
+      }
+      h.sponsored = h.sponsored.filter((sp) => sp.until > w.year);
+      for (const sp of h.sponsored) {
+        const s = w.systems[sp.sys];
+        if (s.pop > 0.05 && s.sponsor === h.id)
+          h.incColonies += (s.tradeIn + s.tradeOut) * 0.05;
+      }
+      h.wealth += h.incDepots + h.incColonies;
+    }
+    h.income = h.incFreight + h.incDepots + h.incColonies;
+
     h.wealth -= h.ships * T.SHIP_UPKEEP;
     h.ships *= 0.99; // wear
     h.peakWealth = Math.max(h.peakWealth, h.wealth);
+    h.trace.push({
+      w: +h.wealth.toFixed(1), s: +h.ships.toFixed(1), inc: +h.income.toFixed(2),
+    });
+    if (h.trace.length > 240) h.trace.shift();
     if (h.wealth > w.records.richestHouse) {
       w.records.richestHouse = h.wealth;
       log(w, "house", `${h.name} now commands the greatest fortune in galactic history.`, h.home);

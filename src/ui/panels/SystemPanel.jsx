@@ -32,7 +32,17 @@ export default function SystemPanel({ w, sel }) {
                 ? <span><span style={{ color: w.factions[sel.fid].color }}>■</span> {w.factions[sel.fid].name}{w.factions[sel.fid].capital === sel.id ? " · CAPITAL" : ""}</span>
                 : "Independent"}
           {" · "}{sel.cultName} culture
+          {w.faiths[sel.faith] && (
+            <> · <span style={{ color: w.faiths[sel.faith].color }}>{w.faiths[sel.faith].name}</span></>
+          )}
         </div>
+        {(sel.mega.nexus || sel.mega.arcology || sel.mega.terraformed) && (
+          <div className="mt-0.5" style={{ color: "#4FD0A5" }}>
+            {sel.mega.nexus && <span title="Freight moves almost for free through its grand gates">◈ Gate Nexus </span>}
+            {sel.mega.arcology && <span title="Ring habitats carry millions beyond the world's natural limit">◍ Orbital Arcology </span>}
+            {sel.mega.terraformed && <span title="Terraformed — the rains came, and the rock turned green">❋ Terraformed</span>}
+          </div>
+        )}
       </div>
 
       {sel.pop > 0.05 && (
@@ -54,7 +64,11 @@ export default function SystemPanel({ w, sel }) {
           {(() => {
             const i = sel.infra;
             const seat = w.houses.filter((h) => !h.dead && h.home === sel.id);
-            if (!i.gran && !i.gate && !i.mine && !seat.length) return null;
+            const depotOwners = sel.depots
+              .map((hid) => w.houses[hid])
+              .filter((h) => h && !h.dead);
+            const backer = sel.sponsor !== null ? w.houses[sel.sponsor] : null;
+            if (!i.gran && !i.gate && !i.mine && !seat.length && !depotOwners.length && !backer) return null;
             const pips = (n, max) => "●".repeat(n) + "○".repeat(max - n);
             return (
               <div style={{ color: "#7C8798" }} className="space-y-0.5">
@@ -68,6 +82,12 @@ export default function SystemPanel({ w, sel }) {
                 {seat.map((h) => (
                   <div key={h.id}>seat of <b style={{ color: "#E8B04B" }}>{h.name}</b> ({h.ships.toFixed(0)} hulls)</div>
                 ))}
+                {depotOwners.map((h) => (
+                  <div key={`d${h.id}`}>▪ freight depot of <b style={{ color: "#E8B04B" }}>{h.name}</b></div>
+                ))}
+                {backer && !backer.dead && (
+                  <div>colony charter held by <b style={{ color: "#E8B04B" }}>{backer.name}</b></div>
+                )}
               </div>
             );
           })()}

@@ -14,13 +14,15 @@ export const EV_STYLE = {
   era: { c: "#E6E1D3", tag: "ERA" }, cap: { c: "#7B8CE8", tag: "SEAT" },
   house: { c: "#E8B04B", tag: "HOUSE" }, embargo: { c: "#F2A93B", tag: "EMBARGO" },
   build: { c: "#6FBF73", tag: "BUILD" }, accord: { c: "#5CC8DA", tag: "ACCORD" },
+  mega: { c: "#4FD0A5", tag: "WONDER" }, faith: { c: "#B79BE8", tag: "FAITH" },
+  corp: { c: "#E8B04B", tag: "CORP" },
 };
 
 export const EV_FILTERS = {
   all: null,
   war: new Set(["war", "peace", "battle", "siege", "capture", "cede"]),
-  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era"]),
-  economy: new Set(["house", "embargo", "build", "accord", "strike", "gate", "flare"]),
+  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith"]),
+  economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare"]),
   life: new Set(["famine", "plague", "colony", "death"]),
 };
 
@@ -37,7 +39,7 @@ export function wbColor(wb) {
     : mixHex("#F2A93B", "#6FBF73", clamp((wb - 0.55) / 0.45, 0, 1));
 }
 
-export const OVERLAYS = ["realm", "wealth", "life", "trade", "culture"];
+export const OVERLAYS = ["realm", "wealth", "life", "trade", "faith", "culture"];
 
 // Chart series colors — darker steps of the app palette, validated against
 // the dark panel surface (OKLCH lightness band 0.48–0.67, chroma floor,

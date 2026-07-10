@@ -32,7 +32,34 @@ export const T = {
   HOUSE_RANGE: 280,
   EMBARGO_RIVALRY: 45,
   BUILD_WEALTH: 60,
+  CORP_WEALTH: 350,
+  CORP_FLEET: 80,
+  MAX_FAITHS: 8,
 };
+
+// faction-funded works of generations; cost is treasury paid in over decades
+export const PROJECT_TYPES = {
+  nexus: {
+    name: "Gate Nexus",
+    cost: 560,
+    blurb: "a lattice of grand gates — freight moves almost for free",
+  },
+  arcology: {
+    name: "Orbital Arcology",
+    cost: 700,
+    blurb: "ring habitats that let a world carry millions more",
+  },
+  terraform: {
+    name: "Terraforming Array",
+    cost: 500,
+    blurb: "mirrors and seed-ships that turn rock into farmland",
+  },
+};
+
+export const FAITH_COLORS = [
+  "#E8B04B", "#5CC8DA", "#C05DD6", "#6FBF73",
+  "#E4708A", "#7B8CE8", "#E8D14B", "#4FD0A5",
+];
 
 export const GOODS = ["food", "ore", "fuel", "goods"];
 export const BASE_PRICE = { food: 1.0, ore: 1.3, fuel: 1.6, goods: 3.2 };

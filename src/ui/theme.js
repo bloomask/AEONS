@@ -38,3 +38,15 @@ export function wbColor(wb) {
 }
 
 export const OVERLAYS = ["realm", "wealth", "life", "trade", "culture"];
+
+// Chart series colors — darker steps of the app palette, validated against
+// the dark panel surface (OKLCH lightness band 0.48–0.67, chroma floor,
+// CVD adjacent-pair separation, ≥3:1 contrast). Multi-series charts must
+// also direct-label their lines (red↔green sits in the CVD floor band).
+export const CHART = {
+  amber: "#C68018",
+  cyan: "#2E9DB1",
+  green: "#459C4E",
+  purple: "#C05DD6",
+  red: "#E4572E",
+};

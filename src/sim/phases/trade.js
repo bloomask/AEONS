@@ -51,6 +51,7 @@ export function runTrade(w, rng) {
   for (const ei of order) {
     const e = w.edges[ei];
     e.vol *= 0.7;
+    e.net *= 0.7; // signed a→b flow, for direction of lane animation
     const A = w.systems[e.a], B = w.systems[e.b];
     if (A.pop <= 0.05 || B.pop <= 0.05) continue;
     if (A.siege || B.siege) continue; // blockade severs all trade
@@ -86,6 +87,7 @@ export function runTrade(w, rng) {
       if (to.fid !== null && duty > 0) w.factions[to.fid].treasury += duty;
       eprofit[ei] += q * (to.price[g] - from.price[g]) - q * cost;
       e.vol += q;
+      e.net += from === A ? q : -q;
     }
   }
 

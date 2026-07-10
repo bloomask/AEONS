@@ -34,12 +34,28 @@ export function recordYear(w, rng) {
     if (s.trace.length > 120) s.trace.shift();
   }
 
+  // per-faction traces for the detail view (last 240 years)
+  const sysByF = {};
+  for (const s of live) if (s.fid !== null) sysByF[s.fid] = (sysByF[s.fid] || 0) + 1;
+  for (const f of w.factions) {
+    if (f.dead) continue;
+    if (!f.trace) f.trace = [];
+    f.trace.push({
+      p: +(byF[f.id] || 0).toFixed(1),
+      s: sysByF[f.id] || 0,
+      t: +f.treasury.toFixed(1),
+      st: +f.stability.toFixed(3),
+    });
+    if (f.trace.length > 240) f.trace.shift();
+  }
+
   // era detection: the galaxy names its own ages
   w.peaceYears = activeWars === 0 ? w.peaceYears + 1 : 0;
   w.popPeak100 = Math.max(tp, w.popPeak100 * 0.995); // slowly forgetting peak
   const eraAge = w.year - w.era.since;
   const setEra = (name) => {
     w.era = { name, since: w.year };
+    w.eras.push(w.era);
     log(w, "era", `A new age is spoken of across the lanes: ${name}.`);
   };
   if (eraAge > 40) {

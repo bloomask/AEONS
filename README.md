@@ -50,13 +50,17 @@ src/
       chronicle.js      yearly statistics snapshot and era detection
     stats.js            statistics export (JSON summary)
   ui/                   React presentation layer
-    theme.js            event styling, overlay palettes
+    theme.js            event styling, overlay palettes, chart colors
     widgets.jsx         Btn, Bar, Spark
+    format.js           number formatting (population, money)
+    charts.jsx          small-multiple time-series chart (hover, era bands)
     download.js         browser file download helper
-    MapView.jsx         canvas renderer, pan/zoom/selection, overlays
+    MapView.jsx         canvas renderer: territory regions, faction labels,
+                        event pulses, hover cards, pan/zoom/fly-to camera
+    Timeline.jsx        history scrubber under the map (pop, eras, wars)
     TopBar.jsx          clock controls and exports
     StatsStrip.jsx      galaxy-wide counters
-    panels/             side-panel tabs: System, Powers, Trade, Chronicle
+    panels/             side-panel tabs: System, Powers, Trade, Galaxy, Chronicle
 scripts/
   run-sim.js            headless CLI runner (npm run sim)
 ```

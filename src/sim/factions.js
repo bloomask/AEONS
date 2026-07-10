@@ -1,4 +1,4 @@
-import { FACTION_COLORS, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM } from "./constants.js";
+import { factionColor, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM } from "./constants.js";
 import { log } from "./events.js";
 
 export function foundFaction(w, rng, cap, spread) {
@@ -6,11 +6,12 @@ export function foundFaction(w, rng, cap, spread) {
   const f = {
     id: w.nextFid++, capital: cap.id,
     name: `${cap.name.split(" ")[0]} ${aggr > 0.55 ? rng.pick(FACTION_SUFFIX_AGGR) : rng.pick(FACTION_SUFFIX_CALM)}`,
-    color: FACTION_COLORS[w.nextFid % FACTION_COLORS.length],
+    color: factionColor(w.nextFid - 1),
     aggr, expans: rng.n(), treasury: 60, stability: 0.8,
     dead: false, foundedYear: w.year,
     peakSystems: 1, peakPop: cap.pop,
     tariff: rng.range(0.05, 0.25),
+    trace: [],
   };
   w.stats.c.factionsFounded++;
   cap.fid = f.id;

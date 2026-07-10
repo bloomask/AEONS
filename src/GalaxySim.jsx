@@ -5,17 +5,20 @@ import { simulateYear } from "./sim/simulate.js";
 import { buildStats } from "./sim/stats.js";
 import { downloadFile } from "./ui/download.js";
 import MapView from "./ui/MapView.jsx";
+import Timeline from "./ui/Timeline.jsx";
 import TopBar from "./ui/TopBar.jsx";
 import StatsStrip from "./ui/StatsStrip.jsx";
 import SystemPanel from "./ui/panels/SystemPanel.jsx";
 import PowersPanel from "./ui/panels/PowersPanel.jsx";
 import TradePanel from "./ui/panels/TradePanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
+import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
 
-const TABS = ["system", "powers", "trade", "chronicle"];
+const TABS = ["system", "powers", "trade", "galaxy", "chronicle"];
 
 export default function GalaxySim() {
   const worldRef = useRef(null);
+  const mapApi = useRef(null);
 
   const [, setVersion] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -25,6 +28,8 @@ export default function GalaxySim() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
   const [overlay, setOverlay] = useState("realm");
   const [evFilter, setEvFilter] = useState("all");
+  const [facFilter, setFacFilter] = useState("all");
+  const [focusYear, setFocusYear] = useState(null);
 
   const bump = useCallback(() => setVersion((v) => v + 1), []);
 
@@ -48,6 +53,8 @@ export default function GalaxySim() {
     const w = genGalaxy(seed);
     worldRef.current = w;
     setSelected(null);
+    setFacFilter("all");
+    setFocusYear(null);
     runBurn(w, T.BURN_YEARS, () => setSpeed(1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed]);
@@ -74,9 +81,24 @@ export default function GalaxySim() {
     : [];
   const sel = w && selected !== null ? w.systems[selected] : null;
 
+  // selecting a system opens its panel AND flies the camera there
   const openSystem = useCallback((id) => {
     setSelected(id);
+    if (id !== null) {
+      setTab("system");
+      mapApi.current?.focus(id);
+    }
+  }, []);
+
+  // plain map clicks select without yanking the camera around
+  const selectOnMap = useCallback((id) => {
+    setSelected(id);
     if (id !== null) setTab("system");
+  }, []);
+
+  const scrubTo = useCallback((year) => {
+    setFocusYear(year);
+    setTab("chronicle");
   }, []);
 
   const exportJson = () => {
@@ -115,14 +137,18 @@ export default function GalaxySim() {
       <StatsStrip w={w} liveSystems={liveSystems} totalPop={totalPop} liveFactions={liveFactions} wars={wars} />
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
-        <MapView
-          worldRef={worldRef}
-          selected={selected}
-          onSelect={openSystem}
-          overlay={overlay}
-          setOverlay={setOverlay}
-          burn={burn}
-        />
+        <div className="flex-1 flex flex-col min-h-0">
+          <MapView
+            worldRef={worldRef}
+            selected={selected}
+            onSelect={selectOnMap}
+            overlay={overlay}
+            setOverlay={setOverlay}
+            burn={burn}
+            mapApi={mapApi}
+          />
+          {w && !burn && <Timeline w={w} onScrub={scrubTo} focusYear={focusYear} />}
+        </div>
 
         {/* side panel */}
         <div
@@ -148,9 +174,21 @@ export default function GalaxySim() {
 
           <div className="flex-1 overflow-y-auto p-3 text-xs leading-relaxed">
             {tab === "system" && <SystemPanel w={w} sel={sel} />}
-            {tab === "powers" && w && <PowersPanel w={w} liveFactions={liveFactions} wars={wars} />}
+            {tab === "powers" && w && (
+              <PowersPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
+            )}
             {tab === "trade" && w && <TradePanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
-            {tab === "chronicle" && w && <ChroniclePanel w={w} evFilter={evFilter} setEvFilter={setEvFilter} onOpenSystem={openSystem} />}
+            {tab === "galaxy" && w && <GalaxyPanel w={w} />}
+            {tab === "chronicle" && w && (
+              <ChroniclePanel
+                w={w}
+                evFilter={evFilter} setEvFilter={setEvFilter}
+                facFilter={facFilter} setFacFilter={setFacFilter}
+                onOpenSystem={openSystem}
+                focusYear={focusYear}
+                onBackToLive={() => setFocusYear(null)}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -29,6 +29,7 @@ export const T = {
   START_HOUSES: 5,
   START_SHIPS: 30,
   TRAMP_CAP: 1.5,
+  HOUSE_RANGE: 280,
   EMBARGO_RIVALRY: 45,
   BUILD_WEALTH: 60,
 };
@@ -55,3 +56,20 @@ export const CULTURES = [
 
 export const FACTION_SUFFIX_CALM = ["League", "Compact", "Union", "Concord", "Assembly"];
 export const FACTION_SUFFIX_AGGR = ["Hegemony", "Mandate", "Ascendancy", "Dominion", "Combine"];
+
+function hslToHex(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.round(255 * c).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// the fixed palette covers the founding powers; later factions get a
+// golden-angle hue so neighbors never share a color, however many rise
+export function factionColor(id) {
+  if (id < FACTION_COLORS.length) return FACTION_COLORS[id];
+  return hslToHex((id * 137.508) % 360, 0.6, 0.62);
+}

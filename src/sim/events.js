@@ -1,6 +1,9 @@
 // world event log + inter-faction relation records
 export function log(w, t, s, sysId = null) {
-  w.events.push({ y: w.year, t, s, sysId });
+  // monotonic sequence number so the UI can detect fresh events even
+  // after the log's front has been trimmed
+  w.eventSeq = (w.eventSeq || 0) + 1;
+  w.events.push({ y: w.year, t, s, sysId, i: w.eventSeq });
   if (sysId !== null) {
     const sys = w.systems[sysId];
     sys.history.push({ y: w.year, t, s });

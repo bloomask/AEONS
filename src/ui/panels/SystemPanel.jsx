@@ -1,5 +1,13 @@
 import { GOODS, BASE_PRICE } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
+import { fmtPop, fmtMoney } from "../format.js";
+
+const Tile = ({ label, value }) => (
+  <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
+    <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700 }} className="text-base leading-tight">{value}</div>
+    <div style={{ color: "#7C8798", fontSize: 10 }} className="uppercase tracking-wider">{label}</div>
+  </div>
+);
 
 export default function SystemPanel({ w, sel }) {
   if (!sel) {
@@ -34,10 +42,10 @@ export default function SystemPanel({ w, sel }) {
               UNDER SIEGE by the {w.factions[sel.siege.by].name} since {sel.siege.since} — all trade severed
             </div>
           )}
-          <div className="grid grid-cols-3 gap-2">
-            <div><div style={{ color: "#7C8798" }}>pop</div><b>{sel.pop.toFixed(1)}M</b></div>
-            <div><div style={{ color: "#7C8798" }}>wealth</div><b>{sel.wealth.toFixed(0)}</b></div>
-            <div><div style={{ color: "#7C8798" }}>dev</div><b>{sel.dev.toFixed(2)}</b></div>
+          <div className="grid grid-cols-3 gap-1.5">
+            <Tile label="population" value={fmtPop(sel.pop)} />
+            <Tile label="wealth" value={fmtMoney(sel.wealth)} />
+            <Tile label="industry" value={`×${sel.dev.toFixed(2)}`} />
           </div>
           <div>
             <div className="flex justify-between"><span style={{ color: "#7C8798" }}>wellbeing</span><span>{(sel.wb * 100).toFixed(0)}%</span></div>
@@ -78,7 +86,7 @@ export default function SystemPanel({ w, sel }) {
           {sel.trace.length > 5 && (
             <div className="space-y-1">
               <div style={{ color: "#7C8798" }}>last {sel.trace.length} years</div>
-              <Spark data={sel.trace.map((t) => t.p)} color="#E6E1D3" label="pop" fmt={(v) => v.toFixed(1) + "M"} />
+              <Spark data={sel.trace.map((t) => t.p)} color="#E6E1D3" label="pop" fmt={fmtPop} />
               <Spark data={sel.trace.map((t) => t.f)} color="#6FBF73" label="food ¤" fmt={(v) => v.toFixed(2)} />
               <Spark data={sel.trace.map((t) => t.g)} color="#C05DD6" label="goods ¤" fmt={(v) => v.toFixed(2)} />
             </div>
@@ -96,18 +104,24 @@ export default function SystemPanel({ w, sel }) {
 
       {sel.pop > 0.05 && (
         <div>
-          <div style={{ color: "#7C8798" }} className="mb-1">market (stock · price)</div>
+          <div style={{ color: "#7C8798" }} className="mb-1">market (stock · price vs galactic norm)</div>
           <table className="w-full">
             <tbody>
-              {GOODS.map((g) => (
-                <tr key={g}>
-                  <td className="capitalize">{g}</td>
-                  <td className="text-right">{sel.stock[g].toFixed(1)}</td>
-                  <td className="text-right" style={{ color: sel.price[g] > BASE_PRICE[g] * 1.8 ? "#E4572E" : sel.price[g] < BASE_PRICE[g] * 0.6 ? "#6FBF73" : "#E6E1D3" }}>
-                    {sel.price[g].toFixed(2)}
-                  </td>
-                </tr>
-              ))}
+              {GOODS.map((g) => {
+                const ratio = sel.price[g] / BASE_PRICE[g];
+                const c = ratio > 1.8 ? "#E4572E" : ratio < 0.6 ? "#6FBF73" : "#E6E1D3";
+                const arrow = ratio > 1.8 ? "▲" : ratio > 1.25 ? "△" : ratio < 0.6 ? "▼" : ratio < 0.8 ? "▽" : "·";
+                return (
+                  <tr key={g}>
+                    <td className="capitalize">{g}</td>
+                    <td className="text-right" style={{ color: "#7C8798" }}>{sel.stock[g].toFixed(1)}</td>
+                    <td className="text-right" style={{ color: c }}>{sel.price[g].toFixed(2)}</td>
+                    <td className="text-right" style={{ color: c, width: 52 }} title={`${(ratio * 100).toFixed(0)}% of base price`}>
+                      {arrow} ×{ratio.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

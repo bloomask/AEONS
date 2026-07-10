@@ -13,6 +13,7 @@ export function genGalaxy(seed) {
     seed, year: 0, systems: [], edges: [], factions: [],
     events: [], relations: {}, nextFid: 0, warCount: 0,
     era: { name: "The Age of Foundation", since: 0 },
+    eras: [{ name: "The Age of Foundation", since: 0 }],
     peaceYears: 0, popPeak100: 0,
     records: { longestWar: 0, largestRealm: 7, worstFamine: 4, richestHouse: 250 },
     houses: [],
@@ -74,7 +75,7 @@ export function genGalaxy(seed) {
   const addEdge = (a, b) => {
     if (a === b) return;
     if (w.edges.some((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a))) return;
-    w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0 });
+    w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0, net: 0 });
   };
   for (const s of w.systems) {
     const near = w.systems

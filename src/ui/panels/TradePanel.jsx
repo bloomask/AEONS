@@ -1,4 +1,5 @@
 import { GOODS } from "../../sim/constants.js";
+import { fmtMoney } from "../format.js";
 
 export default function TradePanel({ w, liveSystems, onOpenSystem }) {
   return (
@@ -12,7 +13,7 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
               <b>{h.name}</b> <span style={{ color: "#7C8798" }}>of {w.systems[h.home].name}</span>
             </span>
             <span className="ml-auto" style={{ color: "#7C8798" }}>
-              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "#E4572E" : "#E6E1D3" }}>{h.wealth.toFixed(0)}¤</span>
+              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "#E4572E" : "#E6E1D3" }}>{fmtMoney(h.wealth)}</span>
             </span>
           </div>
         ))}

@@ -35,7 +35,7 @@ export function runShocks(w, rng, alive) {
       const a = rng.int(0, T.N_SYSTEMS - 1), b = rng.int(0, T.N_SYSTEMS - 1);
       if (a !== b && dist2(w.systems[a], w.systems[b]) < 260 &&
         !w.edges.some((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
-        w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0 });
+        w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0, net: 0 });
         rebuildAdj(w);
         w.stats.c.gateOpen++;
         log(w, "gate", `A new jumpgate opens between ${w.systems[a].name} and ${w.systems[b].name}.`);

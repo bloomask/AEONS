@@ -8,7 +8,7 @@ const RAID_RANGE = 150;
 export function runPirates(w, rng, alive) {
   // desperation breeds havens: poor free systems raise the black flag
   const havens = w.factions.filter((f) => !f.dead && f.gov === "pirate");
-  if (havens.length < 5 && rng.chance(0.05)) {
+  if (havens.length < 5 && rng.chance(0.05 * w.cfg.piracy)) {
     const cands = alive.filter((s) => s.fid === null && s.wb < 0.55 && s.pop > 0.8);
     if (cands.length) foundPirateHaven(w, rng, rng.pick(cands));
   }
@@ -26,7 +26,7 @@ export function runPirates(w, rng, alive) {
       const A = w.systems[e.a], B = w.systems[e.b];
       if (A.fid === f.id || B.fid === f.id) continue; // don't eat your own port
       if (!members.some((m) => dist2(m, A) < RAID_RANGE || dist2(m, B) < RAID_RANGE)) continue;
-      const take = e.vol * 0.05;
+      const take = e.vol * 0.05 * w.cfg.piracy;
       loot += take;
       A.wealth = Math.max(-20, A.wealth - take * 0.5);
       B.wealth = Math.max(-20, B.wealth - take * 0.5);
@@ -46,7 +46,7 @@ export function runPirates(w, rng, alive) {
     f.stability = clamp(f.stability + (loot > 1.5 ? 0.04 : -0.05), 0, 1);
 
     // hungry neighbors join the black banner
-    if (loot > 3 && rng.chance(0.06)) {
+    if (loot > 3 && rng.chance(0.06 * w.cfg.piracy)) {
       for (const m of members) {
         const o = w.adj[m.id]
           .map(({ to }) => w.systems[to])

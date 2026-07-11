@@ -80,9 +80,10 @@ export function socialMobility(s) {
 }
 
 // unrest: how loudly the bottom notices the gap to the top. Fed by
-// inequality of outcomes and by outright worker misery.
-export function computeUnrest(s) {
+// inequality of outcomes and by outright worker misery; `mult` is the
+// configured class-anger multiplier (w.cfg.unrest).
+export function computeUnrest(s, mult = 1) {
   const gap = Math.max(0, s.classWb.elite - s.classWb.worker);
   const misery = Math.max(0, 0.55 - s.classWb.worker);
-  return clamp(s.unrest * 0.8 + (gap * 0.7 + misery * 1.0) * 0.2, 0, 1);
+  return clamp(s.unrest * 0.8 + (gap * 0.7 + misery * 1.0) * 0.2 * mult, 0, 1);
 }

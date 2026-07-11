@@ -13,13 +13,14 @@ export function runTrade(w, rng) {
   // a gate nexus counts as three extra dock levels
   const gateLv = (s) => s.infra.gate + (s.mega.nexus ? 3 : 0);
   const gateDisc = (A, B) => Math.max(0.4, 1 - 0.12 * (gateLv(A) + gateLv(B)));
+  const fr = w.cfg.freight; // configured freight-cost multiplier
   const margins = w.edges.map((e) => {
     const A = w.systems[e.a], B = w.systems[e.b];
     if (A.pop <= 0.05 || B.pop <= 0.05) return -1;
     const gf = gateDisc(A, B);
     let m = -1;
     for (const g of GOODS)
-      m = Math.max(m, Math.abs(B.price[g] - A.price[g]) - (e.d / 220) * FREIGHT_COST[g] * gf);
+      m = Math.max(m, Math.abs(B.price[g] - A.price[g]) - (e.d / 220) * FREIGHT_COST[g] * gf * fr);
     return m;
   });
   const liveHouses = w.houses.filter((h) => !h.dead);
@@ -73,7 +74,7 @@ export function runTrade(w, rng) {
     };
     for (const g of GOODS) {
       if (cap <= 0.01) break;
-      const cost = (e.d / 220) * FREIGHT_COST[g] * gf + 0.05;
+      const cost = (e.d / 220) * FREIGHT_COST[g] * gf * fr + 0.05;
       let from = null, to = null;
       if (B.price[g] - A.price[g] > cost + dutyRate(B) * B.price[g]) { from = A; to = B; }
       else if (A.price[g] - B.price[g] > cost + dutyRate(A) * A.price[g]) { from = B; to = A; }

@@ -1,4 +1,5 @@
 import { T, GOODS, BASE_PRICE, RECIPES, MFG_YIELD, CLASSES, CLASS_DEF } from "../constants.js";
+import { carryCap } from "../config.js";
 import { clamp } from "../util.js";
 import { log } from "../events.js";
 import { laborForce, skewDeaths, socialMobility, computeUnrest } from "../society.js";
@@ -34,7 +35,7 @@ export function runEconomy(w, rng, alive) {
     // the elite do not work; the labor pool is what the lower strata supply
     const L = s.pop * Math.max(0.3, laborForce(s.classes));
     const prod = {
-      grain: T.FOOD_YIELD * s.fert * L * s.shares.grain,
+      grain: T.FOOD_YIELD * w.cfg.fertility * s.fert * L * s.shares.grain,
       metals: T.ORE_YIELD * mq * L * s.shares.metals,
       rares: T.RARE_YIELD * mq * s.rare * L * s.shares.rares,
       fuel: T.FUEL_YIELD * eq * L * s.shares.fuel,
@@ -83,7 +84,7 @@ export function runEconomy(w, rng, alive) {
     }
     const fs = grainNeed > 0 ? grainAte / grainNeed : 1;
     let wb = CLASSES.reduce((a, c) => a + s.classWb[c] * s.classes[c], 0);
-    const capPop = s.hab * 120 + s.fert * 80 + 8 + (s.mega.arcology ? 100 : 0);
+    const capPop = carryCap(w, s);
     if (s.pop > capPop) {
       const crowd = capPop / s.pop;
       wb *= crowd;
@@ -93,10 +94,10 @@ export function runEconomy(w, rng, alive) {
 
     // the pyramid shifts: prosperity climbs, misery slides, anger simmers
     socialMobility(s);
-    s.unrest = computeUnrest(s);
+    s.unrest = computeUnrest(s, w.cfg.unrest);
 
     // demography — no rubber-banding
-    s.pop *= 1 + clamp((wb - T.GROWTH_THRESHOLD) * 0.05, -0.05, 0.025);
+    s.pop *= 1 + clamp((wb - T.GROWTH_THRESHOLD) * 0.05, -0.05, 0.025) * w.cfg.growth;
     s.peakPop = Math.max(s.peakPop, s.pop);
     if (fs < 0.45) {
       const before = s.pop;

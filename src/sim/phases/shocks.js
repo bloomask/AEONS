@@ -1,4 +1,4 @@
-import { T, GOODS } from "../constants.js";
+import { GOODS } from "../constants.js";
 import { clamp, dist2 } from "../util.js";
 import { log } from "../events.js";
 import { rebuildAdj } from "../galaxy.js";
@@ -7,7 +7,7 @@ import { skewDeaths } from "../society.js";
 // --- random shocks, gate shifts, and culture drift ---
 export function runShocks(w, rng, alive) {
   for (const s of alive) {
-    if (rng.chance(0.004)) {
+    if (rng.chance(0.004 * w.cfg.plague)) {
       // a stocked pharmacopoeia blunts the death toll — and is spent doing it
       const med = clamp(s.stock.medicine / (s.pop * 0.25 + 0.01), 0, 1);
       const before = s.pop;
@@ -22,27 +22,27 @@ export function runShocks(w, rng, alive) {
           : `Plague sweeps ${s.name}. Quarantine beacons burn for a generation.`,
         s.id);
     }
-    if (rng.chance(0.005)) {
+    if (rng.chance(0.005 * w.cfg.oreStrikes)) {
       s.minRes += s.minRes0 * rng.range(0.4, 1.2);
       w.stats.c.strike++;
       log(w, "strike", `Vast new ore seams discovered at ${s.name}. Prospectors flood in.`, s.id);
     }
-    if (rng.chance(0.002)) {
+    if (rng.chance(0.002 * w.cfg.flare)) {
       for (const g of GOODS) s.stock[g] *= 0.5;
       w.stats.c.flare++;
       log(w, "flare", `A stellar flare scours the orbitals of ${s.name}; stockpiles are lost.`, s.id);
     }
   }
-  if (rng.chance(0.02) && w.edges.length > T.N_SYSTEMS) {
+  if (rng.chance(0.02 * w.cfg.gateFlux) && w.edges.length > w.systems.length) {
     const ei = rng.int(0, w.edges.length - 1);
     const e = w.edges[ei];
     w.stats.c.gateClose++;
     log(w, "gate", `The jumpgate between ${w.systems[e.a].name} and ${w.systems[e.b].name} collapses.`);
     w.edges.splice(ei, 1); rebuildAdj(w);
   }
-  if (rng.chance(0.02)) {
+  if (rng.chance(0.02 * w.cfg.gateFlux)) {
     for (let tries = 0; tries < 20; tries++) {
-      const a = rng.int(0, T.N_SYSTEMS - 1), b = rng.int(0, T.N_SYSTEMS - 1);
+      const a = rng.int(0, w.systems.length - 1), b = rng.int(0, w.systems.length - 1);
       if (a !== b && dist2(w.systems[a], w.systems[b]) < 260 &&
         !w.edges.some((e) => (e.a === a && e.b === b) || (e.a === b && e.b === a))) {
         w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0, net: 0 });

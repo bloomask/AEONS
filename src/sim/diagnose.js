@@ -1,4 +1,5 @@
 import { T, GOOD_LABEL, BASE_PRICE } from "./constants.js";
+import { carryCap } from "./config.js";
 import { relKey } from "./events.js";
 import { clamp, dist2 } from "./util.js";
 
@@ -94,7 +95,7 @@ export function diagnoseSystem(w, s) {
   }
 
   // --- crowding against the world's carrying capacity ---
-  const capPop = s.hab * 120 + s.fert * 80 + 8 + (s.mega.arcology ? 100 : 0);
+  const capPop = carryCap(w, s);
   if (s.pop > capPop * 1.25) {
     add(SEV_CRISIS, "crowding",
       `${(s.pop / capPop).toFixed(1)}× more people than this world can carry — crowding crushes wellbeing across every class.`);

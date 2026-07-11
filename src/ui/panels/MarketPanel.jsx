@@ -26,7 +26,7 @@ function bestRuns(w) {
       rel = w.relations[relKey(A.fid, B.fid)];
       if (rel && (rel.war || rel.embargo)) continue;
     }
-    const gf = gateDisc(A, B);
+    const gf = gateDisc(A, B) * (w.cfg?.freight ?? 1);
     const duty = (dst) => {
       if (!rel || dst.fid === null) return 0;
       if (rel.allied) return 0;

@@ -31,7 +31,7 @@ export function buildStats(w) {
   const fLifespans = S.factionDeaths.map((f) => f.lifespan);
 
   return {
-    meta: { seed: w.seed, exportedAtYear: w.year, tuning: T },
+    meta: { seed: w.seed, exportedAtYear: w.year, config: w.cfg, tuning: T },
     summary: {
       systemDeaths: {
         totalDeaths: S.deaths.length,

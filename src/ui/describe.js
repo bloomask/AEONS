@@ -2,9 +2,12 @@ import { GOODS, GOOD_LABEL, GOVS } from "../sim/constants.js";
 import { fmtPop } from "./format.js";
 
 // ---------- the gazetteer: a wiki-style lede for any system ----------
-// Everything here is read straight off the world state. Phrasing variants
-// are picked by a hash of the system's identity, so a given world keeps
-// its "voice" between frames while the facts underneath stay live.
+// Everything here is read straight off the world state, but the prose is
+// deliberately broad and slow: facts are bucketed coarsely, and a system's
+// paragraph is regenerated at most once a decade — a chronicler's summary,
+// not a ticker. Structural changes (a new flag, a siege, going dark) force
+// an immediate rewrite. Phrasing variants are picked by a hash of the
+// system's identity, so each world keeps a stable voice.
 
 function hashOf(s) {
   let h = s.id + 1;
@@ -20,12 +23,31 @@ const CAUSE_TEXT = {
   "economic decline": "slowly forgotten by the trade lanes",
 };
 
+function sizeClause(pop) {
+  if (pop < 1) return "fewer than a million souls";
+  if (pop < 10) return "several million souls";
+  if (pop < 60) return "tens of millions";
+  if (pop < 300) return "well over a hundred million";
+  return "hundreds of millions";
+}
+
 export function describeSystem(w, s) {
+  // the slow-refresh cache: same fate, same flag, same siege → keep the
+  // text for up to a decade before restating it
+  const fate = s.ruined ? "ruin" : s.pop <= 0.05 ? "empty" : "live";
+  const key = `${fate}|${s.fid}|${s.freePort ? 1 : 0}|${s.siege ? 1 : 0}|${(s.mega.nexus ? 1 : 0) + (s.mega.arcology ? 2 : 0) + (s.mega.terraformed ? 4 : 0)}`;
+  if (s._lede && s._lede.key === key && w.year - s._lede.year < 10) return s._lede.text;
+  const text = compose(w, s);
+  s._lede = { year: w.year, key, text };
+  return text;
+}
+
+function compose(w, s) {
   const h = hashOf(s);
   const p = (salt, arr) => arr[((h ^ Math.imul(salt + 1, 2654435761)) >>> 0) % arr.length];
   const mineLeft = s.minRes / s.minRes0;
 
-  // natural character, shared by all three fates
+  // natural character, from (nearly) permanent endowments
   const traits = [];
   if (s.fert > 0.6) traits.push(p(1, ["broad grain belts", "rich farmland", "fertile lowlands"]));
   if (s.min > 0.55 && mineLeft > 0.25) traits.push(p(2, ["deep ore veins", "a mineral-heavy crust", "rich metal lodes"]));
@@ -67,17 +89,17 @@ export function describeSystem(w, s) {
   // --- a living world ---
   const f = s.fid !== null ? w.factions[s.fid] : null;
 
-  const character = s.tradeIn > 15
-    ? p(8, ["a bustling port world", "a crossroads of the freight lanes", "a thriving entrepôt"])
-    : s.dev > 1.2
-      ? p(9, ["an industrial world", "a forge world of stacks and shipyards", "a heavily industrialized world"])
-      : s.fert > 0.6
-        ? p(10, ["an agrarian world", "a breadbasket world", "a farming world"])
-        : s.min > 0.55
-          ? p(11, ["a mining world", "a pit-and-smelter world"])
-          : barren
-            ? p(12, ["a hardscrabble world", "a marginal world on a thin ledger"])
-            : p(13, ["a quiet world", "an unhurried backwater", "a modest world"]);
+  // character comes from endowments and long-run development, never from
+  // this year's traffic
+  const character = s.dev > 1.25
+    ? p(9, ["an industrial world", "a forge world of stacks and shipyards", "a heavily industrialized world"])
+    : s.fert > 0.6
+      ? p(10, ["an agrarian world", "a breadbasket world", "a farming world"])
+      : s.min > 0.55
+        ? p(11, ["a mining world", "a pit-and-smelter world"])
+        : barren
+          ? p(12, ["a hardscrabble world", "a marginal world on a thin ledger"])
+          : p(13, ["a quiet world", "an unhurried backwater", "a modest world"]);
 
   const age = s.settledYear === null || s.settledYear <= 0
     ? p(14, ["settled in the first age of expansion", "counted among the galaxy's founding worlds"])
@@ -93,20 +115,17 @@ export function describeSystem(w, s) {
 
   let t = `${s.name} is ${character} of the ${s.cultName} culture, ${age} and today ${polity}. `;
 
-  // economy: what actually moves through its docks this year
-  const exp = GOODS.filter((g) => s.flow[g] < -0.3).sort((a, b) => s.flow[a] - s.flow[b]).slice(0, 2).map((g) => GOOD_LABEL[g]);
-  const imp = GOODS.filter((g) => s.flow[g] > 0.3).sort((a, b) => s.flow[b] - s.flow[a]).slice(0, 2).map((g) => GOOD_LABEL[g]);
-  if (exp.length && imp.length) t += `Its docks ship out ${exp.join(" and ")} and take in ${imp.join(" and ")}`;
-  else if (exp.length) t += `Its docks ship out ${exp.join(" and ")}`;
-  else if (imp.length) t += `It produces little the lanes want, importing ${imp.join(" and ")}`;
-  else t += p(15, ["It trades little, living off its own fields and pits", "The lanes mostly pass it by"]);
+  // economy: name only the single defining export, if there clearly is one
+  const topExp = GOODS.filter((g) => s.flow[g] < -0.5).sort((a, b) => s.flow[a] - s.flow[b])[0];
+  if (topExp) t += `On the lanes it is known chiefly for its ${GOOD_LABEL[topExp]}`;
+  else t += p(15, ["Its economy is largely its own affair", "The great lanes mostly pass it by"]);
   if (s.min > 0.4 && mineLeft < 0.25) t += `, though its great mines are nearly played out`;
   t += ". ";
 
-  // society: who lives there and how the pyramid sits
-  const popPhrase = s.pop < s.peakPop * 0.55 && s.peakPop > 1
-    ? `Home to ${fmtPop(s.pop)} — a shadow of the ${fmtPop(s.peakPop)} it once held — `
-    : `Home to ${fmtPop(s.pop)}, `;
+  // society, in strokes broad enough to hold for a generation
+  const popPhrase = s.pop < s.peakPop * 0.5 && s.peakPop > 1
+    ? `Home to ${sizeClause(s.pop)} — a fraction of what it once held — `
+    : `Home to ${sizeClause(s.pop)}, `;
   const social = s.classes.elite >= 0.045
     ? p(16, ["it is ruled in practice by a gilded elite", "its towers belong to a narrow, gilded elite"])
     : s.classes.middle > 0.42
@@ -114,13 +133,11 @@ export function describeSystem(w, s) {
       : s.classes.worker > 0.55
         ? p(18, ["it is a laboring world of dock crews and field hands", "its people are overwhelmingly working folk"])
         : "its classes sit in rough balance";
-  const mood = s.unrest > 0.6
-    ? p(19, ["; the lower quarters simmer near revolt", "; unrest runs a knife-edge below the surface"])
-    : s.unrest > 0.35
-      ? "; resentment is stirring in the lower quarters"
-      : s.wb > 0.75
-        ? p(20, [", and the years have been kind", ", in one of its better ages"])
-        : "";
+  const mood = s.unrest > 0.55
+    ? p(19, ["; its lower quarters have a long habit of unrest", "; order there is kept, not given"])
+    : s.wb > 0.72
+      ? p(20, [", and the years have been kind", ", in one of its better ages"])
+      : "";
   t += popPhrase + social + mood + ". ";
 
   // one notable, in rough order of narrative weight
@@ -128,9 +145,9 @@ export function describeSystem(w, s) {
   else if (s.mega.nexus) t += `Its Gate Nexus makes it a fixed star of galactic freight.`;
   else if (s.mega.arcology) t += `The ring-cities of its Orbital Arcology carry millions above the old world.`;
   else if (s.mega.terraformed) t += `Terraforming mirrors turned its rock green within living memory.`;
-  else if (w.year - s.lastPlague <= 12) t += `It is still recovering from the plague of ${s.lastPlague}.`;
-  else if (w.year - s.lastFamine <= 12) t += `The hunger years of ${s.lastFamine} are a fresh memory.`;
-  else if (w.year - s.lastWar <= 8) t += `The scars of the last war have not yet healed.`;
+  else if (w.year - s.lastPlague <= 15) t += `It is still recovering from the plague of ${s.lastPlague}.`;
+  else if (w.year - s.lastFamine <= 15) t += `The hunger years of ${s.lastFamine} are a fresh memory.`;
+  else if (w.year - s.lastWar <= 10) t += `The scars of the last war have not yet healed.`;
 
   return t.trim();
 }

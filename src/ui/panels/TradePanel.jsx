@@ -101,7 +101,7 @@ export default function TradePanel({ w, onOpenSystem }) {
   const dead = w.houses.filter((h) => h.dead);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {corps.length > 0 && (
         <div>
           <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">megacorporations</div>

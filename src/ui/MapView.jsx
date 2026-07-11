@@ -633,76 +633,45 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
       />
       <div
         ref={tooltipRef}
-        className="absolute pointer-events-none px-2 py-1.5 text-xs rounded"
-        style={{
-          display: "none", maxWidth: 220, zIndex: 10,
-          background: "rgba(12,18,28,0.94)", color: "#E6E1D3",
-          border: "1px solid rgba(230,225,211,0.18)", lineHeight: 1.5,
-        }}
+        className="absolute pointer-events-none px-2.5 py-2 text-xs glass"
+        style={{ display: "none", maxWidth: 230, zIndex: 10, color: "var(--text)", lineHeight: 1.55 }}
       />
       {burn && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(6,9,15,0.85)", zIndex: 20 }}>
-          <div style={{ fontFamily: "'Chakra Petch', sans-serif", letterSpacing: "0.2em" }} className="text-sm">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(4,7,12,0.88)", zIndex: 20 }}>
+          <div className="display text-sm" style={{ letterSpacing: "0.25em", color: "var(--bright)" }}>
             SIMULATING HISTORY
           </div>
-          <div className="w-48 h-1.5 rounded" style={{ background: "rgba(230,225,211,0.1)" }}>
-            <div className="h-1.5 rounded" style={{ width: `${(burn.done / burn.total) * 100}%`, background: "#F2A93B" }} />
+          <div className="w-56 h-1.5 rounded-full" style={{ background: "rgba(233,228,214,0.1)" }}>
+            <div className="h-1.5 rounded-full" style={{ width: `${(burn.done / burn.total) * 100}%`, background: "var(--amber)" }} />
           </div>
-          <div className="text-xs" style={{ color: "#7C8798" }}>year {burn.done} of {burn.total}</div>
+          <div className="text-xs muted">year {burn.done} of {burn.total}</div>
         </div>
       )}
-      <div className="absolute top-2 left-2 flex gap-1">
+      <div className="absolute top-3 left-3 glass glass-seg">
         {OVERLAYS.map((o) => (
-          <button
-            key={o}
-            onClick={() => setOverlay(o)}
-            className="px-2 py-0.5 text-xs rounded uppercase tracking-wider"
-            style={{
-              fontFamily: "'Chakra Petch', sans-serif",
-              background: overlay === o ? "#F2A93B" : "rgba(12,18,28,0.85)",
-              color: overlay === o ? "#06090F" : "#7C8798",
-              border: "1px solid rgba(230,225,211,0.15)",
-            }}
-          >
+          <button key={o} className={overlay === o ? "on" : ""} onClick={() => setOverlay(o)}>
             {o}
           </button>
         ))}
       </div>
-      <button
-        onClick={fitView}
-        title="Fit galaxy in view"
-        className="absolute top-2 right-2 px-2 py-0.5 text-xs rounded"
-        style={{
-          fontFamily: "'Chakra Petch', sans-serif",
-          background: "rgba(12,18,28,0.85)", color: "#7C8798",
-          border: "1px solid rgba(230,225,211,0.15)",
-        }}
-      >
-        ⛶ fit
-      </button>
-      <div className="absolute bottom-2 left-2 flex items-end gap-1.5">
-        <button
-          onClick={() => setShowLegend((s) => !s)}
-          className="px-2 py-1 text-xs rounded"
-          style={{
-            background: showLegend ? "#E6E1D3" : "rgba(12,18,28,0.85)",
-            color: showLegend ? "#06090F" : "#7C8798",
-            border: "1px solid rgba(230,225,211,0.15)",
-          }}
-        >
-          ? legend
+      <div className="absolute top-3 right-3 glass glass-seg">
+        <button onClick={fitView} title="Fit galaxy in view">⛶ fit</button>
+        <button className={showLegend ? "on" : ""} onClick={() => setShowLegend((s) => !s)} title="Toggle legend">
+          ? key
         </button>
+      </div>
+      <div className="absolute bottom-3 left-3 flex items-end gap-1.5" style={{ zIndex: 15 }}>
         {showLegend ? (
-          <div className="text-xs px-2.5 py-2 rounded space-y-1" style={{ background: "rgba(12,18,28,0.92)", color: "#7C8798", border: "1px solid rgba(230,225,211,0.12)", maxWidth: 340 }}>
+          <div className="text-xs px-3 py-2.5 glass space-y-1" style={{ color: "var(--muted)", maxWidth: 350 }}>
             {legendEntries.map(([c, t], i) => (
-              <div key={i} className="flex items-baseline gap-1.5">
+              <div key={i} className="flex items-baseline gap-2">
                 <span style={{ color: c }}>●</span><span>{t}</span>
               </div>
             ))}
-            <div style={{ color: "#5A6472" }}>drag pan · wheel zoom · click select · ⛶ resets view</div>
+            <div className="faint pt-0.5">drag pan · wheel zoom · click select · ⛶ resets view</div>
           </div>
         ) : (
-          <div className="text-xs px-2 py-1 rounded" style={{ background: "rgba(12,18,28,0.8)", color: "#5A6472" }}>
+          <div className="text-xs px-2.5 py-1.5 glass faint" style={{ border: "none" }}>
             drag · wheel · click
           </div>
         )}

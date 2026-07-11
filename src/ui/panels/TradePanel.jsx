@@ -1,88 +1,80 @@
 import { useState } from "react";
+import { Spark, Section, Tile } from "../widgets.jsx";
 import { fmtCredits } from "../format.js";
-import { Spark } from "../widgets.jsx";
-
-const Tile = ({ label, value, color = "#E6E1D3" }) => (
-  <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
-    <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, color }} className="text-base leading-tight">{value}</div>
-    <div style={{ color: "#7C8798", fontSize: 10 }} className="uppercase tracking-wider">{label}</div>
-  </div>
-);
 
 function HouseDetail({ w, h, onBack, onOpenSystem }) {
   const trace = h.trace || [];
   const inc = h.income || 0;
   return (
-    <div className="space-y-3">
-      <button onClick={onBack} className="text-xs" style={{ color: "#5CC8DA" }}>← all commerce</button>
+    <div className="space-y-5">
+      <button onClick={onBack} className="text-xs link" style={{ color: "var(--cyan)" }}>← all commerce</button>
       <div>
-        <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, color: "#E8B04B" }} className="text-lg leading-tight">
+        <div className="display text-lg leading-tight" style={{ fontWeight: 700, color: "var(--gold)" }}>
           {h.corp ? "◆◆" : "◆"} {h.name}
         </div>
-        <div style={{ color: "#7C8798" }}>
+        <div className="muted">
           {h.corp ? `megacorporation · incorporated ${h.corpYear}` : "merchant house"} · est. {h.foundedYear}
           {" · seat at "}
-          <span className="cursor-pointer underline" onClick={() => onOpenSystem(h.home)}>
+          <span className="link" onClick={() => onOpenSystem(h.home)}>
             {w.systems[h.home].name}
           </span>
         </div>
         {h.dead && (
-          <div className="mt-1 px-2 py-1 rounded" style={{ background: "rgba(228,87,46,0.12)", color: "#E4572E", border: "1px solid rgba(228,87,46,0.35)" }}>
+          <div className="mt-2 px-3 py-2 rounded-lg" style={{ background: "rgba(228,87,46,0.12)", color: "var(--red)", border: "1px solid rgba(228,87,46,0.35)" }}>
             BANKRUPT — hulls seized in {h.diedYear}
           </div>
         )}
       </div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-2">
         <Tile label="fleet" value={`${h.ships.toFixed(0)} hulls`} />
-        <Tile label="wealth" value={fmtCredits(h.wealth)} color={h.wealth < 0 ? "#E4572E" : "#E6E1D3"} />
-        <Tile label="income / yr" value={fmtCredits(inc)} color={inc > 0 ? "#6FBF73" : "#7C8798"} />
+        <Tile label="wealth" value={fmtCredits(h.wealth)} color={h.wealth < 0 ? "var(--red)" : undefined} />
+        <Tile label="income / yr" value={fmtCredits(inc)} color={inc > 0 ? "var(--green)" : "var(--muted)"} />
       </div>
       {h.corp && (
-        <div style={{ color: "#7C8798" }}>
-          income: freight <b style={{ color: "#E6E1D3" }}>{fmtCredits(h.incFreight || 0)}</b>
-          {" · "}depots <b style={{ color: "#E8B04B" }}>{fmtCredits(h.incDepots || 0)}</b>
-          {" · "}colony charters <b style={{ color: "#6FBF73" }}>{fmtCredits(h.incColonies || 0)}</b>
+        <div className="muted">
+          income: freight <b style={{ color: "var(--text)" }}>{fmtCredits(h.incFreight || 0)}</b>
+          {" · "}depots <b style={{ color: "var(--gold)" }}>{fmtCredits(h.incDepots || 0)}</b>
+          {" · "}colony charters <b style={{ color: "var(--green)" }}>{fmtCredits(h.incColonies || 0)}</b>
         </div>
       )}
       {trace.length > 5 && (
-        <div className="space-y-1">
-          <div style={{ color: "#7C8798" }}>last {trace.length} years</div>
-          <Spark data={trace.map((t) => t.w)} color="#E6E1D3" label="wealth" fmt={(v) => fmtCredits(v)} />
-          <Spark data={trace.map((t) => t.s)} color="#5CC8DA" label="fleet" fmt={(v) => v.toFixed(0)} />
-          <Spark data={trace.map((t) => t.inc)} color="#6FBF73" label="income" fmt={(v) => fmtCredits(v)} />
-        </div>
+        <Section title={`last ${trace.length} years`}>
+          <div className="space-y-1.5">
+            <Spark data={trace.map((t) => t.w)} color="#E9E4D6" label="wealth" fmt={(v) => fmtCredits(v)} />
+            <Spark data={trace.map((t) => t.s)} color="#5CC8DA" label="fleet" fmt={(v) => v.toFixed(0)} />
+            <Spark data={trace.map((t) => t.inc)} color="#6FBF73" label="income" fmt={(v) => fmtCredits(v)} />
+          </div>
+        </Section>
       )}
       {h.corp && h.depots.length > 0 && (
-        <div>
-          <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">freight depots</div>
+        <Section title="freight depots">
           {h.depots.map((sid) => {
             const s = w.systems[sid];
             return (
-              <div key={sid} className="flex gap-2 mb-0.5">
-                <span style={{ color: "#E8B04B" }}>▪</span>
-                <span className="cursor-pointer" onClick={() => onOpenSystem(sid)}>{s.name}</span>
-                <span className="ml-auto" style={{ color: "#7C8798" }}>
+              <div key={sid} className="flex gap-2 mb-1">
+                <span style={{ color: "var(--gold)" }}>▪</span>
+                <span className="link" onClick={() => onOpenSystem(sid)}>{s.name}</span>
+                <span className="ml-auto muted">
                   {s.pop > 0.05 ? `imports ${s.tradeIn.toFixed(1)}/yr` : "port dead"}
                 </span>
               </div>
             );
           })}
-        </div>
+        </Section>
       )}
       {h.corp && h.sponsored.length > 0 && (
-        <div>
-          <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">chartered colonies</div>
+        <Section title="chartered colonies">
           {h.sponsored.map((sp) => {
             const s = w.systems[sp.sys];
             return (
-              <div key={sp.sys} className="flex gap-2 mb-0.5">
-                <span style={{ color: "#6FBF73" }}>▪</span>
-                <span className="cursor-pointer" onClick={() => onOpenSystem(sp.sys)}>{s.name}</span>
-                <span className="ml-auto" style={{ color: "#7C8798" }}>charter runs {sp.until - w.year} more yrs</span>
+              <div key={sp.sys} className="flex gap-2 mb-1">
+                <span style={{ color: "var(--green)" }}>▪</span>
+                <span className="link" onClick={() => onOpenSystem(sp.sys)}>{s.name}</span>
+                <span className="ml-auto muted">charter runs {sp.until - w.year} more yrs</span>
               </div>
             );
           })}
-        </div>
+        </Section>
       )}
     </div>
   );
@@ -101,57 +93,54 @@ export default function TradePanel({ w, onOpenSystem }) {
   const dead = w.houses.filter((h) => h.dead);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {corps.length > 0 && (
-        <div>
-          <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">megacorporations</div>
+        <Section title="megacorporations">
           {corps.map((h) => (
             <div
               key={h.id}
-              className="p-2 rounded mb-1.5 cursor-pointer"
-              style={{ background: "rgba(232,176,75,0.07)", border: "1px solid rgba(232,176,75,0.3)" }}
+              className="p-3 rounded-lg mb-2 cursor-pointer"
+              style={{ background: "rgba(232,176,75,0.06)", border: "1px solid rgba(232,176,75,0.28)" }}
               onClick={() => setDetailId(h.id)}
               title="Open corporation details"
             >
               <div className="flex items-baseline gap-2">
-                <span style={{ color: "#E8B04B" }}>◆◆</span>
+                <span style={{ color: "var(--gold)" }}>◆◆</span>
                 <b>{h.name}</b>
-                <span className="ml-auto" style={{ color: "#7C8798" }}>of {w.systems[h.home].name}</span>
+                <span className="ml-auto muted">of {w.systems[h.home].name}</span>
               </div>
-              <div style={{ color: "#7C8798" }} className="mt-0.5">
-                {h.ships.toFixed(0)} hulls · <span style={{ color: "#E6E1D3" }}>{fmtCredits(h.wealth)}</span>
-                {" · "}<span style={{ color: (h.income || 0) > 0 ? "#6FBF73" : "#7C8798" }}>{(h.income || 0) >= 0 ? "+" : ""}{fmtCredits(h.income || 0)}/yr</span>
+              <div className="muted mt-1">
+                {h.ships.toFixed(0)} hulls · <span style={{ color: "var(--text)" }}>{fmtCredits(h.wealth)}</span>
+                {" · "}<span style={{ color: (h.income || 0) > 0 ? "var(--green)" : "var(--muted)" }}>{(h.income || 0) >= 0 ? "+" : ""}{fmtCredits(h.income || 0)}/yr</span>
                 {h.depots.length > 0 && <> · {h.depots.length} depot{h.depots.length > 1 ? "s" : ""}</>}
                 {h.sponsored.length > 0 && <> · {h.sponsored.length} colony charter{h.sponsored.length > 1 ? "s" : ""}</>}
               </div>
             </div>
           ))}
-        </div>
+        </Section>
       )}
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">merchant houses</div>
+      <Section title="merchant houses">
         {houses.map((h) => (
-          <div key={h.id} className="flex gap-2 mb-0.5 items-baseline cursor-pointer" onClick={() => setDetailId(h.id)} title="Open house details">
-            <span style={{ color: "#E8B04B" }}>◆</span>
+          <div key={h.id} className="rowbtn flex gap-2 items-baseline" onClick={() => setDetailId(h.id)} title="Open house details">
+            <span style={{ color: "var(--gold)" }}>◆</span>
             <span>
-              <b>{h.name}</b> <span style={{ color: "#7C8798" }}>of {w.systems[h.home].name}</span>
+              <b>{h.name}</b> <span className="faint">of {w.systems[h.home].name}</span>
             </span>
-            <span className="ml-auto" style={{ color: "#7C8798" }}>
-              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "#E4572E" : "#E6E1D3" }}>{fmtCredits(h.wealth)}</span>
+            <span className="ml-auto muted">
+              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "var(--red)" : "var(--text)" }}>{fmtCredits(h.wealth)}</span>
             </span>
           </div>
         ))}
-        {houses.length === 0 && <div style={{ color: "#7C8798" }}>Every house flying today has incorporated.</div>}
+        {houses.length === 0 && <div className="muted italic">Every house flying today has incorporated.</div>}
         {dead.length > 0 && (
-          <div style={{ color: "#7C8798" }} className="mt-1">
+          <div className="faint mt-2">
             {dead.length} ruined: {dead.map((h) => h.name).join(", ")}
           </div>
         )}
-      </div>
+      </Section>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">busiest lanes</div>
+      <Section title="busiest lanes">
         {[...w.edges]
           .filter((e) => e.vol > 0.3)
           .sort((a, b) => b.vol - a.vol)
@@ -159,22 +148,22 @@ export default function TradePanel({ w, onOpenSystem }) {
           .map((e, i) => {
             const A = w.systems[e.a], B = w.systems[e.b];
             return (
-              <div key={i} className="flex gap-2 mb-0.5">
-                <span style={{ color: "#5CC8DA", minWidth: 40, textAlign: "right" }}>{e.vol.toFixed(1)}</span>
-                <span className="cursor-pointer" onClick={() => onOpenSystem(A.id)}>{A.name}</span>
-                <span style={{ color: "#7C8798" }}>{e.net >= 0.2 ? "→" : e.net <= -0.2 ? "←" : "↔"}</span>
-                <span className="cursor-pointer" onClick={() => onOpenSystem(B.id)}>{B.name}</span>
+              <div key={i} className="flex gap-2 mb-1">
+                <span style={{ color: "var(--cyan)", minWidth: 40, textAlign: "right" }}>{e.vol.toFixed(1)}</span>
+                <span className="link" onClick={() => onOpenSystem(A.id)}>{A.name}</span>
+                <span className="faint">{e.net >= 0.2 ? "→" : e.net <= -0.2 ? "←" : "↔"}</span>
+                <span className="link" onClick={() => onOpenSystem(B.id)}>{B.name}</span>
                 {(A.mega.nexus || B.mega.nexus) && <span style={{ color: "#4FD0A5" }} title="Gate Nexus lane">◈</span>}
               </div>
             );
           })}
         {w.edges.every((e) => e.vol <= 0.3) && (
-          <div style={{ color: "#7C8798" }}>The lanes are quiet. War, poverty, or self-sufficiency — check the overlays.</div>
+          <div className="muted italic">The lanes are quiet. War, poverty, or self-sufficiency — check the overlays.</div>
         )}
-      </div>
+      </Section>
 
-      <div style={{ color: "#7C8798" }}>
-        Prices, exporters, and the credit itself live in the <b style={{ color: "#E8B04B" }}>market</b> tab.
+      <div className="faint">
+        Prices, exporters, and the credit itself live in the <b style={{ color: "var(--gold)" }}>market</b> tab.
       </div>
     </div>
   );

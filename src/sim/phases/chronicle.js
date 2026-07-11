@@ -35,6 +35,12 @@ export function recordYear(w, rng) {
       (a, g) => a + live.reduce((x, s) => x + s.price[g], 0) / n / BASE_PRICE[g], 0
     ) / GOODS.length) * 100).toFixed(1),
     unrest: +(live.reduce((a, s) => a + s.unrest, 0) / n).toFixed(3),
+    // hunger: % of humanity in a class meeting under 60% of its needs —
+    // the share of people standing in ration lines this year
+    hungerPct: +((live.reduce(
+      (a, s) => a + s.pop * CLASSES.reduce(
+        (x, c) => x + (s.classWb[c] < 0.6 ? s.classes[c] : 0), 0),
+      0) / Math.max(1e-9, tp)) * 100).toFixed(1),
     // the galaxy's social pyramid, as % of all humanity
     ...Object.fromEntries(CLASSES.map((c) => [
       "c" + c[0].toUpperCase() + c.slice(1),

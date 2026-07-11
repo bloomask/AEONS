@@ -41,19 +41,18 @@ export default function Ticker({ worldRef, onOpen }) {
       <button
         key={ev.i}
         onClick={() => onOpen(ev)}
-        className="px-3 py-1.5 rounded text-xs text-left"
+        className="px-3 py-2 text-xs text-left glass"
         style={{
           pointerEvents: "auto",
-          background: "rgba(6,9,15,0.88)",
-          border: "1px solid rgba(230,225,211,0.16)",
-          color: "#E6E1D3",
+          color: "var(--text)",
+          borderLeft: `3px solid ${st.c}`,
           animation: "tickerIn 0.5s ease",
-          lineHeight: 1.45,
+          lineHeight: 1.5,
         }}
         title="Open in the chronicle"
       >
-        <span style={{ color: "#F2A93B", fontWeight: 600 }}>{ev.y}</span>
-        <span style={{ color: st.c, fontWeight: 700 }} className="mx-1.5">{st.tag}</span>
+        <span style={{ color: "var(--amber)", fontWeight: 600 }}>{ev.y}</span>
+        <span style={{ color: st.c, fontWeight: 700, fontFamily: "var(--font-display)", fontSize: 10, letterSpacing: "0.08em" }} className="mx-2">{st.tag}</span>
         <span style={{ color: "#D8D3C5" }}>{ev.s}</span>
       </button>
     </div>

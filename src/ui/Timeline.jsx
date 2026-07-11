@@ -22,7 +22,7 @@ export default function Timeline({ w, onScrub, focusYear }) {
     }
     const ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#0C121C";
+    ctx.fillStyle = "#070B12";
     ctx.fillRect(0, 0, bw, bh);
     if (series.length < 2) return;
 
@@ -125,7 +125,7 @@ export default function Timeline({ w, onScrub, focusYear }) {
     <canvas
       ref={canvasRef}
       className="w-full block cursor-crosshair"
-      style={{ height: H, borderTop: "1px solid rgba(230,225,211,0.08)" }}
+      style={{ height: H, borderTop: "1px solid var(--line)" }}
       title="Galactic history — click to open the chronicle at that year"
       onPointerDown={(e) => { const y = yearAt(e); if (y !== null) onScrub(y); }}
       onPointerMove={(e) => {

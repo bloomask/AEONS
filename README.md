@@ -43,10 +43,12 @@ src/
     simulate.js         simulateYear — runs the phases in order
     phases/
       economy.js        production, consumption, prices, demography
-      trade.js          shipping allocation, arbitrage, house economics
-      settlement.js     migration, colonization, infrastructure, system death
-      politics.js       faction politics, diplomacy, war, new powers
+      trade.js          shipping, arbitrage, house & megacorp economics
+      settlement.js     migration, colonization (corp-sponsored), system death
+      politics.js       faction politics, diplomacy, war (incl. holy wars)
+      projects.js       megaprojects: gate nexus, arcology, terraforming
       shocks.js         plagues, ore strikes, flares, gate shifts, culture drift
+      faith.js          creeds spreading along trade lanes, schisms
       chronicle.js      yearly statistics snapshot and era detection
     stats.js            statistics export (JSON summary)
   ui/                   React presentation layer
@@ -56,7 +58,9 @@ src/
     charts.jsx          small-multiple time-series chart (hover, era bands)
     download.js         browser file download helper
     MapView.jsx         canvas renderer: territory regions, faction labels,
+                        convoys, battle fx, wonder markers, faith overlay,
                         event pulses, hover cards, pan/zoom/fly-to camera
+    Ticker.jsx          rotating headline strip over the map
     Timeline.jsx        history scrubber under the map (pop, eras, wars)
     TopBar.jsx          clock controls and exports
     StatsStrip.jsx      galaxy-wide counters

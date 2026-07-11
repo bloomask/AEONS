@@ -1,4 +1,4 @@
-import { T, BASE_PRICE, CULTURES } from "./constants.js";
+import { T, BASE_PRICE, CULTURES, FAITH_COLORS } from "./constants.js";
 import { makeRng } from "./rng.js";
 import { clamp, dist2 } from "./util.js";
 import { genName } from "./names.js";
@@ -14,6 +14,7 @@ export function genGalaxy(seed) {
     events: [], relations: {}, nextFid: 0, warCount: 0,
     era: { name: "The Age of Foundation", since: 0 },
     eras: [{ name: "The Age of Foundation", since: 0 }],
+    faiths: [], projects: [], fx: [], fxSeq: 0,
     peaceYears: 0, popPeak100: 0,
     records: { longestWar: 0, largestRealm: 7, worstFamine: 4, richestHouse: 250 },
     houses: [],
@@ -25,11 +26,29 @@ export function genGalaxy(seed) {
         warsDeclared: 0, factionsFounded: 0,
         battle: 0, siegeFall: 0, siegeLift: 0,
         houseFounded: 0, houseBankrupt: 0, embargo: 0, build: 0,
+        conversion: 0, schism: 0,
+        megaStarted: 0, megaBuilt: 0, megaAbandoned: 0,
+        corpFounded: 0, depotBuilt: 0, colonySponsored: 0,
       },
     },
   };
 
-  // cluster centers, each with a base culture
+  // four founding faiths, rooted in the old cultures
+  for (let i = 0; i < 4; i++) {
+    const cult = CULTURES[i];
+    const root = genName(rng, cult).split(" ")[0];
+    w.faiths.push({
+      id: i,
+      name: rng.pick([
+        `The Way of ${root}`, `The ${root} Creed`, `${root}ism`,
+        `The Church of ${root}`, `The ${root} Path`,
+      ]),
+      color: FAITH_COLORS[i],
+      founded: 0,
+    });
+  }
+
+  // cluster centers, each with a base culture and a dominant faith
   const centers = [];
   for (let i = 0; i < 6; i++) {
     const r = Math.sqrt(rng.n()) * T.GALAXY_R * 0.75;
@@ -37,6 +56,7 @@ export function genGalaxy(seed) {
     centers.push({
       x: Math.cos(a) * r, y: Math.sin(a) * r,
       cult: CULTURES[i % CULTURES.length],
+      faith: i % 4,
     });
   }
 
@@ -68,6 +88,7 @@ export function genGalaxy(seed) {
       settledYear: null, peakPop: 0, lastFamine: -99, lastPlague: -99, lastWar: -99,
       siege: null, flow: { food: 0, ore: 0, fuel: 0, goods: 0 }, trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
+      faith: c.faith, mega: {}, depots: [], sponsor: null,
     });
   }
 

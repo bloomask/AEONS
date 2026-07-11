@@ -49,7 +49,7 @@ export function runEconomy(w, rng, alive) {
     const fs = foodNeed > 0 ? ate / foodNeed : 1;
     const gs = goodsNeed > 0 ? used / goodsNeed : 1;
     let wb = 0.8 * fs + 0.2 * gs;
-    const capPop = s.hab * 120 + s.fert * 80 + 8;
+    const capPop = s.hab * 120 + s.fert * 80 + 8 + (s.mega.arcology ? 100 : 0);
     if (s.pop > capPop) wb *= capPop / s.pop;
     s.wb = wb;
 

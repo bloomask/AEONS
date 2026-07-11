@@ -1,4 +1,5 @@
 import { T } from "../constants.js";
+import { dist2 } from "../util.js";
 import { log } from "../events.js";
 import { relocateCapital } from "../factions.js";
 
@@ -34,11 +35,29 @@ export function runSettlement(w, rng, alive) {
         target.ruined = false;
         target.settledYear = w.year; target.peakPop = m;
         target.lastFamine = -99; target.lastPlague = -99; target.lastWar = -99;
+        target.faith = s.faith; target.sponsor = null;
+
+        // a megacorp may bankroll the expedition for a share of its trade
+        const backer = w.houses.find(
+          (h) => !h.dead && h.corp && h.wealth > 180 &&
+            dist2(w.systems[h.home], target) < T.HOUSE_RANGE * 1.3
+        );
+        if (backer && rng.chance(0.35)) {
+          backer.wealth -= 25;
+          target.sponsor = backer.id;
+          target.dev = 0.75;
+          target.stock.food += m * 2; target.stock.goods += m;
+          backer.sponsored.push({ sys: target.id, until: w.year + 60 });
+          w.stats.c.colonySponsored++;
+        }
+
         w.stats.c[wasRuin ? "resettle" : "colony"]++;
         log(w, "colony",
-          wasRuin
-            ? `Settlers from ${s.name} raise new towers over the ruins of ${target.name}.`
-            : `${s.name} founds a colony at ${target.name}.`,
+          target.sponsor !== null
+            ? `${s.name} founds a colony at ${target.name}, its holds and habitats paid for by ${w.houses[target.sponsor].name}.`
+            : wasRuin
+              ? `Settlers from ${s.name} raise new towers over the ruins of ${target.name}.`
+              : `${s.name} founds a colony at ${target.name}.`,
           target.id);
       }
     }

@@ -12,6 +12,14 @@ export function log(w, t, s, sysId = null) {
   if (w.events.length > 800) w.events.splice(0, w.events.length - 800);
 }
 
+// short-lived visual effects (battles, sieges) the map animates;
+// entries carry world data only, the renderer decides how they look
+export function fx(w, payload) {
+  w.fxSeq = (w.fxSeq || 0) + 1;
+  w.fx.push({ ...payload, i: w.fxSeq, y: w.year });
+  if (w.fx.length > 120) w.fx.splice(0, w.fx.length - 120);
+}
+
 export const relKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
 export function getRel(w, a, b) {

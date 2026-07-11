@@ -52,6 +52,63 @@ export default function GalaxyPanel({ w }) {
         </div>
       </div>
 
+      {w.projects.length > 0 && (
+        <div>
+          <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">megaprojects</div>
+          {w.projects.filter((p) => !p.done && !p.abandoned).map((p, i) => {
+            const f = w.factions[p.fid];
+            return (
+              <div key={i} className="mb-1.5">
+                <div className="flex gap-2 items-baseline">
+                  <span style={{ color: "#4FD0A5" }}>◈</span>
+                  <span><b>{p.name}</b> at {w.systems[p.sysId].name}</span>
+                  <span className="ml-auto" style={{ color: f.color }}>{f.name}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex-1 h-1.5 rounded" style={{ background: "rgba(230,225,211,0.1)" }}>
+                    <div className="h-1.5 rounded" style={{ width: `${Math.min(100, (p.progress / p.cost) * 100)}%`, background: "#4FD0A5" }} />
+                  </div>
+                  <span style={{ color: "#7C8798" }}>{((p.progress / p.cost) * 100).toFixed(0)}% · yr {p.started}</span>
+                </div>
+              </div>
+            );
+          })}
+          {w.projects.filter((p) => p.done).length > 0 && (
+            <div style={{ color: "#7C8798" }} className="mt-1">
+              wonders standing:{" "}
+              {w.projects.filter((p) => p.done).map((p, i) => (
+                <span key={i}>
+                  {i > 0 && " · "}
+                  <b style={{ color: "#4FD0A5" }}>{p.name}</b> ({w.systems[p.sysId].name}, {p.endedYear})
+                </span>
+              ))}
+            </div>
+          )}
+          {w.projects.some((p) => p.abandoned) && (
+            <div style={{ color: "#7C8798" }} className="mt-0.5">
+              {w.projects.filter((p) => p.abandoned).length} abandoned mid-build — the scaffolds outlived their builders.
+            </div>
+          )}
+        </div>
+      )}
+
+      <div>
+        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">the faiths</div>
+        {w.faiths
+          .map((f) => ({ f, worlds: w.systems.filter((s) => s.faith === f.id && s.pop > 0.05).length }))
+          .sort((a, b) => b.worlds - a.worlds)
+          .map(({ f, worlds }) => (
+            <div key={f.id} className="flex gap-2 mb-0.5 items-baseline">
+              <span style={{ color: f.color }}>✦</span>
+              <span>{f.name}</span>
+              <span className="ml-auto" style={{ color: worlds ? "#7C8798" : "#5A6472" }}>
+                {worlds ? `${worlds} world${worlds > 1 ? "s" : ""}` : "extinct"}
+                {f.founded > 0 && ` · schism of ${f.founded}`}
+              </span>
+            </div>
+          ))}
+      </div>
+
       <div>
         <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">the long view</div>
         <div className="space-y-3">

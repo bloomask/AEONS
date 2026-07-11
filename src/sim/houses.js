@@ -6,6 +6,8 @@ export function foundHouse(w, rng, home, ships, wealth) {
     id: w.houses.length, name: genHouseName(rng, home),
     home: home.id, wealth, ships, dead: false,
     foundedYear: w.year, diedYear: null, peakWealth: wealth,
+    corp: false, corpYear: null, depots: [], sponsored: [],
+    income: 0, incFreight: 0, incDepots: 0, incColonies: 0, trace: [],
   };
   w.houses.push(h);
   if (w.year > 0) {

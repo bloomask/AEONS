@@ -39,26 +39,17 @@ export default function ChroniclePanel({ w, evFilter, setEvFilter, facFilter, se
   let prevYear = null;
   return (
     <div>
-      <div className="flex gap-1 mb-2 flex-wrap items-center">
+      <div className="flex gap-1.5 mb-3 flex-wrap items-center">
         {Object.keys(EV_FILTERS).map((fk) => (
-          <button
-            key={fk}
-            onClick={() => setEvFilter(fk)}
-            className="px-2 py-0.5 text-xs rounded uppercase tracking-wider"
-            style={{
-              fontFamily: "'Chakra Petch', sans-serif",
-              background: evFilter === fk ? "#E6E1D3" : "rgba(230,225,211,0.06)",
-              color: evFilter === fk ? "#06090F" : "#7C8798",
-            }}
-          >
+          <button key={fk} onClick={() => setEvFilter(fk)} className={`chip${evFilter === fk ? " on" : ""}`}>
             {fk}
           </button>
         ))}
         <select
           value={facFilter}
           onChange={(e) => setFacFilter(e.target.value)}
-          className="ml-auto text-xs rounded px-1 py-0.5"
-          style={{ background: "#141C2A", color: "#E6E1D3", border: "1px solid rgba(230,225,211,0.15)", maxWidth: 150 }}
+          className="ml-auto text-xs rounded-md px-1.5 py-1"
+          style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--line)", maxWidth: 150 }}
         >
           <option value="all">every power</option>
           {liveFactions.map((f) => (
@@ -68,12 +59,12 @@ export default function ChroniclePanel({ w, evFilter, setEvFilter, facFilter, se
       </div>
 
       {focusYear !== null && (
-        <div className="flex items-center gap-2 mb-2 px-2 py-1 rounded" style={{ background: "rgba(242,169,59,0.1)", border: "1px solid rgba(242,169,59,0.3)" }}>
-          <span style={{ color: "#F2A93B" }}>viewing years {Math.max(0, focusYear - 15)}–{focusYear + 15}</span>
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg" style={{ background: "rgba(242,169,59,0.08)", border: "1px solid rgba(242,169,59,0.3)" }}>
+          <span style={{ color: "var(--amber)" }}>viewing years {Math.max(0, focusYear - 15)}–{focusYear + 15}</span>
           <button
             onClick={onBackToLive}
-            className="ml-auto px-2 py-0.5 text-xs rounded"
-            style={{ background: "#F2A93B", color: "#06090F", fontWeight: 600 }}
+            className="ml-auto px-2.5 py-1 text-xs rounded-md display"
+            style={{ background: "var(--amber)", color: "#0A0E16", fontWeight: 600, cursor: "pointer" }}
           >
             ● LIVE
           </button>
@@ -81,7 +72,7 @@ export default function ChroniclePanel({ w, evFilter, setEvFilter, facFilter, se
       )}
 
       {grouped.length === 0 && (
-        <div style={{ color: "#7C8798" }} className="italic">
+        <div className="muted italic">
           {focusYear !== null
             ? "No records survive from this era — the archives only reach back so far."
             : "Nothing to report. The lanes are quiet."}
@@ -95,12 +86,12 @@ export default function ChroniclePanel({ w, evFilter, setEvFilter, facFilter, se
 
         if (ev.t === "era") {
           return (
-            <div key={i} className="my-3 text-center">
-              <div style={{ borderTop: "1px solid rgba(242,169,59,0.35)" }} className="mb-1.5" />
-              <div style={{ color: "#F2A93B", fontFamily: "'Chakra Petch', sans-serif" }} className="text-sm">
+            <div key={i} className="my-4 text-center">
+              <div className="mb-2" style={{ borderTop: "1px solid rgba(242,169,59,0.35)" }} />
+              <div className="display text-sm" style={{ color: "var(--amber)" }}>
                 {ev.y} — {ev.s}
               </div>
-              <div style={{ borderTop: "1px solid rgba(242,169,59,0.35)" }} className="mt-1.5" />
+              <div className="mt-2" style={{ borderTop: "1px solid rgba(242,169,59,0.35)" }} />
             </div>
           );
         }
@@ -109,18 +100,23 @@ export default function ChroniclePanel({ w, evFilter, setEvFilter, facFilter, se
         return (
           <div
             key={i}
-            className={`flex gap-2 cursor-pointer ${major ? "mb-2" : "mb-1"}`}
-            style={major ? {} : { opacity: 0.78 }}
+            className={`flex gap-2.5 cursor-pointer ${major ? "mb-2" : "mb-1"}`}
+            style={major ? {} : { opacity: 0.75 }}
             onClick={() => { if (ev.sysId !== null) onOpenSystem(ev.sysId); }}
           >
-            <span style={{ color: showYear ? "#F2A93B" : "transparent", minWidth: 34 }}>{ev.y}</span>
-            <span style={{ color: st.c, minWidth: 52, fontWeight: 600 }} className={major ? "text-[13px]" : ""}>{st.tag}</span>
-            <span style={{ color: major ? "#E6E1D3" : "#B8B3A6" }} className={major ? "text-[13px]" : ""}>
+            <span style={{ color: showYear ? "var(--amber)" : "transparent", minWidth: 34 }}>{ev.y}</span>
+            <span
+              className="display"
+              style={{ color: st.c, minWidth: 54, fontWeight: 600, fontSize: major ? 11 : 10, letterSpacing: "0.06em", paddingTop: 1 }}
+            >
+              {st.tag}
+            </span>
+            <span style={{ color: major ? "var(--text)" : "#B0AB9F" }} className={major ? "text-[13px]" : ""}>
               {ev.s}
               {n > 1 && (
                 <span
-                  className="ml-1.5 px-1 rounded text-xs"
-                  style={{ background: "rgba(230,225,211,0.1)", color: "#7C8798" }}
+                  className="ml-1.5 px-1.5 rounded-full text-xs"
+                  style={{ background: "rgba(233,228,214,0.1)", color: "var(--muted)" }}
                   title={`repeated over years ${firstY}–${ev.y}`}
                 >
                   ×{n}

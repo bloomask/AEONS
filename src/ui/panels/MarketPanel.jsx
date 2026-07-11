@@ -3,18 +3,11 @@ import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST } from "../../si
 import { relKey } from "../../sim/events.js";
 import Chart from "../charts.jsx";
 import { CHART } from "../theme.js";
+import { Section, Tile } from "../widgets.jsx";
 import { fmtCredits, fmtCompact } from "../format.js";
 
-const Tile = ({ label, value, sub, color = "#E6E1D3" }) => (
-  <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
-    <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, color }} className="text-base leading-tight">{value}</div>
-    <div style={{ color: "#7C8798", fontSize: 10 }} className="uppercase tracking-wider">{label}</div>
-    {sub && <div style={{ color: "#7C8798", fontSize: 10 }}>{sub}</div>}
-  </div>
-);
-
 const Sys = ({ s, onOpen }) => (
-  <span className="cursor-pointer underline decoration-dotted" onClick={() => onOpen(s.id)}>{s.name}</span>
+  <span className="link" onClick={() => onOpen(s.id)}>{s.name}</span>
 );
 
 // same lane economics the traders use (see sim/phases/trade.js)
@@ -57,7 +50,7 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
   const rows = w.stats.series;
   const last = rows[rows.length - 1];
   if (!last || !liveSystems.length) {
-    return <div style={{ color: "#7C8798" }}>The exchanges are silent — no living markets to quote.</div>;
+    return <div className="muted italic">The exchanges are silent — no living markets to quote.</div>;
   }
 
   const eras = (w.eras || []).map((e, i, arr) => ({
@@ -86,37 +79,39 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
     w.factions.reduce((a, f) => a + (f.dead ? 0 : Math.max(0, f.treasury)), 0);
 
   const cpi = last.cpi ?? 100;
-  const cpiColor = cpi > 140 ? "#E4572E" : cpi > 110 ? "#F2A93B" : cpi < 80 ? "#6FBF73" : "#E6E1D3";
+  const cpiColor = cpi > 140 ? "var(--red)" : cpi > 110 ? "var(--amber)" : cpi < 80 ? "var(--green)" : undefined;
   const runs = bestRuns(w);
   const richest = [...liveSystems].sort((a, b) => b.wealth - a.wealth).slice(0, 6);
   const px = (v) => v.toFixed(2);
 
   return (
-    <div className="space-y-5">
-      <div style={{ color: "#7C8798" }} className="italic">
-        All value is measured in the <b style={{ color: "#E8B04B" }}>credit (cr)</b> — one
+    <div className="space-y-6">
+      <div className="faint italic">
+        All value is measured in the <b style={{ color: "var(--gold)" }}>credit (cr)</b> — one
         universal unit of account, Core to rim.
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-2">
         <Tile label="credit price index" value={cpi.toFixed(0)} sub="cost of goods · 100 = par" color={cpiColor} />
-        <Tile label="credits in circulation" value={fmtCredits(circulation)} sub="worlds + houses + treasuries" color="#E8B04B" />
-        <Tile label="trade volume / yr" value={fmtCompact(last.trade)} color="#5CC8DA" />
+        <Tile label="credits in circulation" value={fmtCredits(circulation)} sub="worlds + houses + treasuries" color="var(--gold)" />
+        <Tile label="trade volume / yr" value={fmtCompact(last.trade)} color="var(--cyan)" />
         <Tile label="merchant fleet" value={`${last.fleet} hulls`} />
       </div>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">galactic market board</div>
-        <div style={{ color: "#5A6472", fontSize: 10 }} className="mb-1.5">
-          average · <span style={{ color: "#6FBF73" }}>▼ cheapest</span> · <span style={{ color: "#E4572E" }}>▲ dearest</span> — hover a good for stockpile & top exporter
-        </div>
+      <Section title="galactic market board" right={
+        <span className="faint">
+          avg · <span style={{ color: "var(--green)" }}>▼ low</span> · <span style={{ color: "var(--red)" }}>▲ high</span>
+        </span>
+      }>
         {GOOD_CATS.map((cat) => (
           <Fragment key={cat.key}>
-            <div className="uppercase tracking-widest pt-2" style={{ color: "#5A6472", fontSize: 10 }}>{cat.label}</div>
+            <div className="uppercase pt-2 pb-1 faint" style={{ fontSize: 9, letterSpacing: "0.14em", fontFamily: "var(--font-display)" }}>
+              {cat.label}
+            </div>
             {cat.goods.map((g) => {
               const b = board[g];
               const ratio = b.avg / BASE_PRICE[g];
-              const c = ratio > 1.8 ? "#E4572E" : ratio > 1.25 ? "#F2A93B" : ratio < 0.6 ? "#6FBF73" : "#E6E1D3";
+              const c = ratio > 1.8 ? "var(--red)" : ratio > 1.25 ? "var(--amber)" : ratio < 0.6 ? "var(--green)" : "var(--text)";
               const detail = `stockpiled ${fmtCompact(b.stock)} galaxy-wide` +
                 (b.exp ? ` · top exporter ${b.exp.name} (${(-b.exp.flow[g]).toFixed(1)}/yr)` : " · no major exporter");
               return (
@@ -124,57 +119,51 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
                   <div className="flex items-baseline gap-2">
                     <b>{GOOD_LABEL[g]}</b>
                     <span className="ml-auto" style={{ color: c }}>{px(b.avg)} cr</span>
-                    <span style={{ color: "#7C8798" }} title="galactic average vs base price">×{ratio.toFixed(1)}</span>
+                    <span className="faint" title="galactic average vs base price">×{ratio.toFixed(1)}</span>
                   </div>
-                  <div style={{ color: "#7C8798" }}>
-                    <span style={{ color: "#6FBF73" }}>▼</span> <Sys s={b.min} onOpen={onOpenSystem} /> {px(b.min.price[g])}
+                  <div className="muted">
+                    <span style={{ color: "var(--green)" }}>▼</span> <Sys s={b.min} onOpen={onOpenSystem} /> {px(b.min.price[g])}
                     {" · "}
-                    <span style={{ color: "#E4572E" }}>▲</span> <Sys s={b.max} onOpen={onOpenSystem} /> {px(b.max.price[g])}
+                    <span style={{ color: "var(--red)" }}>▲</span> <Sys s={b.max} onOpen={onOpenSystem} /> {px(b.max.price[g])}
                   </div>
                 </div>
               );
             })}
           </Fragment>
         ))}
-      </div>
+      </Section>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest"
-          title="margins are net of freight, gate discounts, and tariffs">
-          trader's almanac — best runs
-        </div>
+      <Section title="trader's almanac" right={<span className="faint" title="margins are net of freight, gate discounts, and tariffs">best runs · net</span>}>
         {runs.map((r, i) => (
-          <div key={i} className="mb-1.5">
+          <div key={i} className="mb-2">
             <div className="flex items-baseline gap-2">
               <span>{GOOD_LABEL[r.good]}</span>
-              <span className="ml-auto" style={{ color: "#6FBF73" }}>+{r.margin.toFixed(2)} cr/unit</span>
+              <span className="ml-auto" style={{ color: "var(--green)" }}>+{r.margin.toFixed(2)} cr/unit</span>
             </div>
-            <div style={{ color: "#7C8798" }} className="pl-2">
+            <div className="muted pl-2">
               buy <Sys s={r.from} onOpen={onOpenSystem} /> @ {px(r.from.price[r.good])}
               {" → "}sell <Sys s={r.to} onOpen={onOpenSystem} /> @ {px(r.to.price[r.good])}
             </div>
           </div>
         ))}
         {runs.length === 0 && (
-          <div style={{ color: "#7C8798" }}>No profitable runs today — freight and tariffs eat every spread.</div>
+          <div className="muted italic">No profitable runs today — freight and tariffs eat every spread.</div>
         )}
-      </div>
+      </Section>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">where the credits pool</div>
+      <Section title="where the credits pool">
         {richest.map((s) => (
-          <div key={s.id} className="flex gap-2 mb-0.5 items-baseline">
-            <span style={{ color: "#E8B04B" }}>◉</span>
+          <div key={s.id} className="flex gap-2 mb-1 items-baseline">
+            <span style={{ color: "var(--gold)" }}>◉</span>
             <Sys s={s} onOpen={onOpenSystem} />
             {s.fid !== null && <span style={{ color: w.factions[s.fid].color }}>■</span>}
-            <span className="ml-auto" style={{ color: "#E6E1D3" }}>{fmtCredits(s.wealth)}</span>
+            <span className="ml-auto">{fmtCredits(s.wealth)}</span>
           </div>
         ))}
-      </div>
+      </Section>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">price history (galactic mean, cr)</div>
-        <div className="space-y-3">
+      <Section title="price history" right={<span className="faint">galactic mean, cr</span>}>
+        <div className="space-y-4">
           <Chart title="credit price index (100 = par)" rows={rows} eras={eras} fmt={(v) => v.toFixed(0)}
             series={[{ key: "cpi", color: CHART.amber }]} />
           <Chart title="raw goods" rows={rows} eras={eras} fmt={fmtCompact} area={false}
@@ -191,7 +180,7 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
               { key: "pxElectronics", color: CHART.purple, label: "electr" },
             ]} />
         </div>
-      </div>
+      </Section>
     </div>
   );
 }

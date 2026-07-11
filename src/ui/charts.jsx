@@ -4,7 +4,7 @@ import { useState } from "react";
 // Series colors are validated against the dark panel surface
 // (OKLCH lightness band + CVD separation + contrast) — see CHART note
 // in theme.js before changing them.
-const W = 336, H = 76, PAD_T = 6, PAD_B = 14, PAD_R = 44;
+const W = 360, H = 82, PAD_T = 6, PAD_B = 14, PAD_R = 48;
 
 function downsample(arr, n = 240) {
   if (arr.length <= n) return arr;
@@ -47,7 +47,7 @@ export default function Chart({ title, rows, series, fmt, eras, domainMax, area 
   return (
     <div className="relative" style={{ width: W }}>
       <div className="flex items-baseline justify-between">
-        <span className="uppercase tracking-widest" style={{ color: "#7C8798", fontSize: 10 }}>{title}</span>
+        <span className="uppercase" style={{ color: "var(--muted)", fontSize: 10, fontFamily: "var(--font-display)", letterSpacing: "0.14em" }}>{title}</span>
         <span style={{ color: series[0].color, fontWeight: 600 }}>
           {fmt(last[series[0].key])}
           {series.length > 1 && (

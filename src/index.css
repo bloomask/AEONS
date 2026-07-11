@@ -1,24 +1,244 @@
-@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
-::-webkit-scrollbar {
-  width: 6px;
+/* ============================================================
+   AEONS design system — "bridge console"
+   One surface language for the whole app: deep-space background,
+   raised cards, glass chrome floating over the map, amber as the
+   single command accent. Components reference these tokens only.
+   ============================================================ */
+:root {
+  --bg: #04070c;            /* deep space — page + map               */
+  --panel: #0a101b;         /* side panel, header                    */
+  --surface: #0f1725;       /* cards                                 */
+  --surface-2: #16202f;     /* raised / hover                        */
+  --line: rgba(233, 228, 214, 0.09);
+  --line-2: rgba(233, 228, 214, 0.22);
+  --text: #e9e4d6;
+  --bright: #f6f2e7;
+  --muted: #8a94a6;
+  --faint: #5a6475;
+  --amber: #f2a93b;         /* command accent                        */
+  --gold: #e8b04b;          /* commerce                              */
+  --cyan: #5cc8da;          /* trade / links                         */
+  --green: #6fbf73;         /* thriving                              */
+  --red: #e4572e;           /* war / crisis                          */
+  --purple: #c05dd6;
+  --font-ui: "IBM Plex Mono", monospace;
+  --font-display: "Chakra Petch", sans-serif;
 }
+
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(230, 225, 211, 0.15);
-  border-radius: 3px;
+  background: rgba(233, 228, 214, 0.12);
+  border-radius: 4px;
+  border: 2px solid var(--panel);
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-thumb:hover { background: rgba(233, 228, 214, 0.22); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.display { font-family: var(--font-display); }
+
+/* raised card */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* stat tile: big value over a small label */
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.tile-v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text);
+}
+.tile-l {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-top: 1px;
+}
+.tile-s { font-size: 10px; color: var(--muted); }
+
+/* section header: amber tick · title · hairline to the edge */
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sec-head::before {
+  content: "";
+  width: 3px;
+  height: 11px;
+  border-radius: 1px;
+  background: var(--amber);
+  flex: none;
+}
+.sec-rule { flex: 1; height: 1px; background: var(--line); min-width: 12px; }
+
+/* buttons — quiet by default, amber when engaged */
+.btn {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
   background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.btn:hover { color: var(--text); border-color: var(--line-2); }
+.btn.on {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #0a0e16;
+  font-weight: 600;
+}
+
+/* segmented control (transport, overlays) */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.seg > button {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 10px;
+  color: var(--muted);
+  border-right: 1px solid var(--line);
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.seg > button:last-child { border-right: none; }
+.seg > button:hover { color: var(--text); background: var(--surface-2); }
+.seg > button.on { background: var(--amber); color: #0a0e16; font-weight: 600; }
+
+/* small filter chip */
+.chip {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.chip:hover { color: var(--text); border-color: var(--line-2); }
+.chip.on { background: var(--surface-2); border-color: var(--line-2); color: var(--text); }
+
+/* chrome floating over the map */
+.glass {
+  background: rgba(7, 11, 18, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.glass-seg { display: inline-flex; overflow: hidden; }
+.glass-seg > button {
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  color: var(--muted);
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+  transition: color 0.12s, background 0.12s;
+}
+.glass-seg > button:last-child { border-right: none; }
+.glass-seg > button:hover { color: var(--text); }
+.glass-seg > button.on { background: var(--amber); color: #0a0e16; font-weight: 600; }
+
+/* main navigation tab */
+.navtab {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 2px 9px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.12s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navtab:hover { color: var(--muted); }
+.navtab.on { color: var(--amber); border-bottom-color: var(--amber); }
+.navtab .glyph { display: block; font-size: 13px; line-height: 1; margin-bottom: 3px; }
+
+/* clickable system / entity names */
+.link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 3px;
+}
+.link:hover { color: var(--cyan); text-decoration-color: var(--cyan); }
+
+/* rows that act as buttons (power list, house list) */
+.rowbtn {
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.rowbtn:hover { background: var(--surface); }
+
+/* header vitals readout */
+.vital { text-align: left; }
+.vital-v {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.1;
+  color: var(--text);
+}
+.vital-l {
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
 @keyframes tickerIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }

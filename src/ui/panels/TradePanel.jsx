@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { GOODS, GOOD_LABEL } from "../../sim/constants.js";
-import { fmtMoney } from "../format.js";
+import { fmtCredits } from "../format.js";
 import { Spark } from "../widgets.jsx";
 
 const Tile = ({ label, value, color = "#E6E1D3" }) => (
@@ -35,22 +34,22 @@ function HouseDetail({ w, h, onBack, onOpenSystem }) {
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         <Tile label="fleet" value={`${h.ships.toFixed(0)} hulls`} />
-        <Tile label="wealth" value={fmtMoney(h.wealth)} color={h.wealth < 0 ? "#E4572E" : "#E6E1D3"} />
-        <Tile label="income / yr" value={fmtMoney(inc)} color={inc > 0 ? "#6FBF73" : "#7C8798"} />
+        <Tile label="wealth" value={fmtCredits(h.wealth)} color={h.wealth < 0 ? "#E4572E" : "#E6E1D3"} />
+        <Tile label="income / yr" value={fmtCredits(inc)} color={inc > 0 ? "#6FBF73" : "#7C8798"} />
       </div>
       {h.corp && (
         <div style={{ color: "#7C8798" }}>
-          income: freight <b style={{ color: "#E6E1D3" }}>{fmtMoney(h.incFreight || 0)}</b>
-          {" · "}depots <b style={{ color: "#E8B04B" }}>{fmtMoney(h.incDepots || 0)}</b>
-          {" · "}colony charters <b style={{ color: "#6FBF73" }}>{fmtMoney(h.incColonies || 0)}</b>
+          income: freight <b style={{ color: "#E6E1D3" }}>{fmtCredits(h.incFreight || 0)}</b>
+          {" · "}depots <b style={{ color: "#E8B04B" }}>{fmtCredits(h.incDepots || 0)}</b>
+          {" · "}colony charters <b style={{ color: "#6FBF73" }}>{fmtCredits(h.incColonies || 0)}</b>
         </div>
       )}
       {trace.length > 5 && (
         <div className="space-y-1">
           <div style={{ color: "#7C8798" }}>last {trace.length} years</div>
-          <Spark data={trace.map((t) => t.w)} color="#E6E1D3" label="wealth" fmt={(v) => fmtMoney(v)} />
+          <Spark data={trace.map((t) => t.w)} color="#E6E1D3" label="wealth" fmt={(v) => fmtCredits(v)} />
           <Spark data={trace.map((t) => t.s)} color="#5CC8DA" label="fleet" fmt={(v) => v.toFixed(0)} />
-          <Spark data={trace.map((t) => t.inc)} color="#6FBF73" label="income" fmt={(v) => fmtMoney(v)} />
+          <Spark data={trace.map((t) => t.inc)} color="#6FBF73" label="income" fmt={(v) => fmtCredits(v)} />
         </div>
       )}
       {h.corp && h.depots.length > 0 && (
@@ -89,7 +88,7 @@ function HouseDetail({ w, h, onBack, onOpenSystem }) {
   );
 }
 
-export default function TradePanel({ w, liveSystems, onOpenSystem }) {
+export default function TradePanel({ w, onOpenSystem }) {
   const [detailId, setDetailId] = useState(null);
   const detail = detailId !== null ? w.houses[detailId] : null;
   if (detail) {
@@ -120,8 +119,8 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
                 <span className="ml-auto" style={{ color: "#7C8798" }}>of {w.systems[h.home].name}</span>
               </div>
               <div style={{ color: "#7C8798" }} className="mt-0.5">
-                {h.ships.toFixed(0)} hulls · <span style={{ color: "#E6E1D3" }}>{fmtMoney(h.wealth)}</span>
-                {" · "}<span style={{ color: (h.income || 0) > 0 ? "#6FBF73" : "#7C8798" }}>{(h.income || 0) >= 0 ? "+" : ""}{fmtMoney(h.income || 0)}/yr</span>
+                {h.ships.toFixed(0)} hulls · <span style={{ color: "#E6E1D3" }}>{fmtCredits(h.wealth)}</span>
+                {" · "}<span style={{ color: (h.income || 0) > 0 ? "#6FBF73" : "#7C8798" }}>{(h.income || 0) >= 0 ? "+" : ""}{fmtCredits(h.income || 0)}/yr</span>
                 {h.depots.length > 0 && <> · {h.depots.length} depot{h.depots.length > 1 ? "s" : ""}</>}
                 {h.sponsored.length > 0 && <> · {h.sponsored.length} colony charter{h.sponsored.length > 1 ? "s" : ""}</>}
               </div>
@@ -139,7 +138,7 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
               <b>{h.name}</b> <span style={{ color: "#7C8798" }}>of {w.systems[h.home].name}</span>
             </span>
             <span className="ml-auto" style={{ color: "#7C8798" }}>
-              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "#E4572E" : "#E6E1D3" }}>{fmtMoney(h.wealth)}</span>
+              {h.ships.toFixed(0)} hulls · <span style={{ color: h.wealth < 0 ? "#E4572E" : "#E6E1D3" }}>{fmtCredits(h.wealth)}</span>
             </span>
           </div>
         ))}
@@ -174,40 +173,8 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
         )}
       </div>
 
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">great exporters</div>
-        {GOODS.map((g) => {
-          const top = liveSystems.filter((s) => s.flow[g] < -0.5).sort((a, b) => a.flow[g] - b.flow[g])[0];
-          return (
-            <div key={g} className="flex gap-2 mb-0.5">
-              <span className="w-24">{GOOD_LABEL[g]}</span>
-              {top ? (
-                <span className="cursor-pointer" onClick={() => onOpenSystem(top.id)}>
-                  {top.name} <span style={{ color: "#6FBF73" }}>({(-top.flow[g]).toFixed(1)}/yr)</span>
-                </span>
-              ) : (
-                <span style={{ color: "#7C8798" }}>no major exporter</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">galaxy prices (mean)</div>
-        {(() => {
-          const last = w.stats.series[w.stats.series.length - 1];
-          if (!last) return null;
-          return (
-            <div className="flex gap-4 flex-wrap">
-              <span>grain <b style={{ color: last.pGrain > 2 ? "#E4572E" : "#E6E1D3" }}>{last.pGrain}</b></span>
-              <span>goods <b style={{ color: last.pGoods > 6 ? "#E4572E" : "#E6E1D3" }}>{last.pGoods}</b></span>
-              <span>medicine <b style={{ color: last.pMeds > 10 ? "#E4572E" : "#E6E1D3" }}>{last.pMeds}</b></span>
-              <span>trade vol <b style={{ color: "#5CC8DA" }}>{last.trade}</b></span>
-              <span>fleet <b style={{ color: "#E8B04B" }}>{last.fleet}</b></span>
-            </div>
-          );
-        })()}
+      <div style={{ color: "#7C8798" }}>
+        Prices, exporters, and the credit itself live in the <b style={{ color: "#E8B04B" }}>market</b> tab.
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GOVS } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
 import { relKey } from "../../sim/events.js";
-import { fmtPop, fmtMoney } from "../format.js";
+import { fmtPop, fmtCredits } from "../format.js";
 
 const GOV_DESC = {
   empire: "heavy taxes and tariffs · expands by subjugation · war unites it, hunger barely moves it",
@@ -147,7 +147,7 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
         {[
           ["subjects", fmtPop(fp)],
           ["systems", members.length],
-          ["treasury", fmtMoney(f.treasury)],
+          ["treasury", fmtCredits(f.treasury)],
         ].map(([l, v]) => (
           <div key={l} className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)" }}>
             <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700 }} className="text-base">{v}</div>
@@ -279,7 +279,7 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
                 <span className="ml-auto" style={{ color: "#7C8798" }}>est. {f.foundedYear}</span>
               </div>
               <div style={{ color: "#7C8798" }}>
-                {members.length} systems · {fmtPop(fp)} · treasury {fmtMoney(f.treasury)} · capital {w.systems[f.capital].name}
+                {members.length} systems · {fmtPop(fp)} · treasury {fmtCredits(f.treasury)} · capital {w.systems[f.capital].name}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span style={{ color: "#7C8798" }}>stability</span>

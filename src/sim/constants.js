@@ -73,6 +73,10 @@ export const GOOD_LABEL = {
   grain: "grain", metals: "metals", rares: "rare earths", fuel: "fuel",
   consumer: "consumer goods", medicine: "medicine", electronics: "electronics",
 };
+// All value in the galaxy is denominated in the credit (cr) — the universal
+// unit of account. Prices, wealth, treasuries, freight margins, tariffs and
+// project costs below are all credit figures; BASE_PRICE is what one unit of
+// each good fetches on a market at perfect equilibrium.
 export const BASE_PRICE = {
   grain: 1.0, metals: 1.3, rares: 4.0, fuel: 1.6,
   consumer: 3.0, medicine: 5.0, electronics: 6.5,

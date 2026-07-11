@@ -5,6 +5,12 @@ systems starve, mines run dry, merchant houses go bankrupt, empires
 overextend and collapse — and the galaxy writes its own chronicle as it
 happens.
 
+All value is measured in a single universal currency, the **credit (cr)** —
+every price, wealth figure, treasury, and freight margin is a credit figure.
+The Market panel tracks the galactic economy in it: average prices for all
+seven tradables, where each is cheapest and dearest, a credit price index,
+the money supply, and the most profitable trade runs of the year.
+
 ## Running
 
 ```sh
@@ -61,7 +67,7 @@ src/
   ui/                   React presentation layer
     theme.js            event styling, overlay palettes, chart colors
     widgets.jsx         Btn, Bar, Spark
-    format.js           number formatting (population, money)
+    format.js           number formatting (population, credits)
     charts.jsx          small-multiple time-series chart (hover, era bands)
     download.js         browser file download helper
     MapView.jsx         canvas renderer: territory regions, faction labels,
@@ -71,7 +77,8 @@ src/
     Timeline.jsx        history scrubber under the map (pop, eras, wars)
     TopBar.jsx          clock controls and exports
     StatsStrip.jsx      galaxy-wide counters
-    panels/             side-panel tabs: System, Powers, Trade, Galaxy, Chronicle
+    panels/             side-panel tabs: System, Powers, Trade, Market,
+                        Galaxy, Chronicle
 scripts/
   run-sim.js            headless CLI runner (npm run sim)
 ```

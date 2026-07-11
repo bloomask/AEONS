@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
-import { fmtPop, fmtMoney } from "../format.js";
+import { fmtPop, fmtCredits } from "../format.js";
 
 const Tile = ({ label, value }) => (
   <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
@@ -55,7 +55,7 @@ export default function SystemPanel({ w, sel }) {
           )}
           <div className="grid grid-cols-3 gap-1.5">
             <Tile label="population" value={fmtPop(sel.pop)} />
-            <Tile label="wealth" value={fmtMoney(sel.wealth)} />
+            <Tile label="wealth" value={fmtCredits(sel.wealth)} />
             <Tile label="industry" value={`×${sel.dev.toFixed(2)}`} />
           </div>
           <div>
@@ -138,8 +138,8 @@ export default function SystemPanel({ w, sel }) {
             <div className="space-y-1">
               <div style={{ color: "#7C8798" }}>last {sel.trace.length} years</div>
               <Spark data={sel.trace.map((t) => t.p)} color="#E6E1D3" label="pop" fmt={fmtPop} />
-              <Spark data={sel.trace.map((t) => t.f)} color="#6FBF73" label="grain ¤" fmt={(v) => v.toFixed(2)} />
-              <Spark data={sel.trace.map((t) => t.g)} color="#C05DD6" label="goods ¤" fmt={(v) => v.toFixed(2)} />
+              <Spark data={sel.trace.map((t) => t.f)} color="#6FBF73" label="grain cr" fmt={(v) => v.toFixed(2)} />
+              <Spark data={sel.trace.map((t) => t.g)} color="#C05DD6" label="goods cr" fmt={(v) => v.toFixed(2)} />
             </div>
           )}
         </>
@@ -156,7 +156,7 @@ export default function SystemPanel({ w, sel }) {
 
       {sel.pop > 0.05 && (
         <div>
-          <div style={{ color: "#7C8798" }} className="mb-1">market (stock · price vs galactic norm)</div>
+          <div style={{ color: "#7C8798" }} className="mb-1">market (stock · price in cr vs galactic norm)</div>
           <table className="w-full">
             <tbody>
               {GOOD_CATS.map((cat) => (

@@ -7,10 +7,14 @@ export function fmtPop(m) {
   return Math.max(1, Math.round(m * 1000)) + "k";
 }
 
-export function fmtMoney(x) {
-  if (Math.abs(x) >= 10000) return (x / 1000).toFixed(1) + "k¤";
-  if (Math.abs(x) >= 1000) return (x / 1000).toFixed(2) + "k¤";
-  return x.toFixed(0) + "¤";
+// the credit (cr) — the galaxy's universal unit of account. Every price,
+// wealth figure, treasury, and freight margin is denominated in credits.
+export const CREDIT = "cr";
+
+export function fmtCredits(x) {
+  if (Math.abs(x) >= 10000) return (x / 1000).toFixed(1) + "k cr";
+  if (Math.abs(x) >= 1000) return (x / 1000).toFixed(2) + "k cr";
+  return x.toFixed(0) + " cr";
 }
 
 export function fmtCompact(x) {

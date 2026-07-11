@@ -12,10 +12,11 @@ import StatsStrip from "./ui/StatsStrip.jsx";
 import SystemPanel from "./ui/panels/SystemPanel.jsx";
 import PowersPanel from "./ui/panels/PowersPanel.jsx";
 import TradePanel from "./ui/panels/TradePanel.jsx";
+import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
 import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
 
-const TABS = ["system", "powers", "trade", "galaxy", "chronicle"];
+const TABS = ["system", "powers", "trade", "market", "galaxy", "chronicle"];
 
 export default function GalaxySim() {
   const worldRef = useRef(null);
@@ -187,7 +188,8 @@ export default function GalaxySim() {
             {tab === "powers" && w && (
               <PowersPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
             )}
-            {tab === "trade" && w && <TradePanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
+            {tab === "trade" && w && <TradePanel w={w} onOpenSystem={openSystem} />}
+            {tab === "market" && w && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
             {tab === "galaxy" && w && <GalaxyPanel w={w} />}
             {tab === "chronicle" && w && (
               <ChroniclePanel

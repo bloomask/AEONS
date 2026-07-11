@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
 import { fmtPop, fmtMoney } from "../format.js";
+import { describeSystem } from "../describe.js";
 
 const Tile = ({ label, value }) => (
   <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
@@ -44,6 +45,13 @@ export default function SystemPanel({ w, sel }) {
             {sel.mega.terraformed && <span title="Terraformed — the rains came, and the rock turned green">❋ Terraformed</span>}
           </div>
         )}
+      </div>
+
+      <div
+        className="italic leading-relaxed pl-2"
+        style={{ color: "#9AA5B5", borderLeft: "2px solid rgba(230,225,211,0.15)" }}
+      >
+        {describeSystem(w, sel)}
       </div>
 
       {sel.pop > 0.05 && (

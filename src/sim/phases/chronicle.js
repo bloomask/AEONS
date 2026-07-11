@@ -1,4 +1,4 @@
-import { CLASSES } from "../constants.js";
+import { CLASSES, GOODS, BASE_PRICE } from "../constants.js";
 import { log } from "../events.js";
 
 // --- yearly statistics snapshot, history traces, and era detection ---
@@ -24,9 +24,16 @@ export function recordYear(w, rng) {
     pirateSys: live.filter((s) => s.fid !== null && w.factions[s.fid].gov === "pirate").length,
     largestShare: +(shares.length ? Math.max(...shares) : 0).toFixed(3),
     hhi: +shares.reduce((a, x) => a + x * x, 0).toFixed(3),
-    pGrain: +(live.reduce((a, s) => a + s.price.grain, 0) / n).toFixed(2),
-    pGoods: +(live.reduce((a, s) => a + s.price.consumer, 0) / n).toFixed(2),
-    pMeds: +(live.reduce((a, s) => a + s.price.medicine, 0) / n).toFixed(2),
+    // galactic average price of every tradable, in credits (px prefix), and
+    // the credit price index: mean price over base price, 100 = par — the
+    // galaxy-wide cost of living in one number
+    ...Object.fromEntries(GOODS.map((g) => [
+      "px" + g[0].toUpperCase() + g.slice(1),
+      +(live.reduce((a, s) => a + s.price[g], 0) / n).toFixed(2),
+    ])),
+    cpi: +((GOODS.reduce(
+      (a, g) => a + live.reduce((x, s) => x + s.price[g], 0) / n / BASE_PRICE[g], 0
+    ) / GOODS.length) * 100).toFixed(1),
     unrest: +(live.reduce((a, s) => a + s.unrest, 0) / n).toFixed(3),
     // the galaxy's social pyramid, as % of all humanity
     ...Object.fromEntries(CLASSES.map((c) => [

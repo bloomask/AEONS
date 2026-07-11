@@ -1,4 +1,4 @@
-import { T } from "./constants.js";
+import { T, GOODS } from "./constants.js";
 
 // ---------- statistics export ----------
 const median = (arr) => {
@@ -81,6 +81,19 @@ export function buildStats(w) {
         avgWellbeing: now.avgWb ?? 0, miseryPct: now.miseryPct ?? 0,
         livingFactions: now.factions ?? 0, activeWars: now.wars ?? 0,
         independentSystems: now.indep ?? 0,
+      },
+      // all figures in credits (cr), the universal unit of account
+      market: {
+        creditPriceIndex: now.cpi ?? 100,
+        avgPrices: Object.fromEntries(GOODS.map((g) => [
+          g, now["px" + g[0].toUpperCase() + g.slice(1)] ?? null,
+        ])),
+        tradeVolume: now.trade ?? 0,
+        creditsInCirculation: +(
+          w.systems.reduce((a, s) => a + (s.pop > 0.05 ? Math.max(0, s.wealth) : 0), 0) +
+          w.houses.reduce((a, h) => a + (h.dead ? 0 : Math.max(0, h.wealth)), 0) +
+          w.factions.reduce((a, f) => a + (f.dead ? 0 : Math.max(0, f.treasury)), 0)
+        ).toFixed(0),
       },
       society: {
         pctElite: now.cElite ?? 0, pctUpper: now.cUpper ?? 0,

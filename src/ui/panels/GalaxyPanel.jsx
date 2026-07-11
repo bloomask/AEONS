@@ -1,6 +1,6 @@
 import Chart from "../charts.jsx";
 import { CHART } from "../theme.js";
-import { fmtPop, fmtMoney } from "../format.js";
+import { fmtPop, fmtCredits } from "../format.js";
 
 const Tile = ({ label, value, sub, color = "#E6E1D3" }) => (
   <div className="px-2 py-1.5 rounded" style={{ background: "rgba(230,225,211,0.05)", border: "1px solid rgba(230,225,211,0.08)" }}>
@@ -39,7 +39,7 @@ export default function GalaxyPanel({ w }) {
           <Tile label="longest war" value={R.longestWar > 0 ? `${R.longestWar} years` : "—"} color="#E4572E" />
           <Tile label="worst famine" value={`${R.worstFamine.toFixed(0)}M lost`} color="#F2A93B" />
           <Tile label="greatest realm" value={`${R.largestRealm} systems`} color="#C05DD6" />
-          <Tile label="richest house" value={fmtMoney(R.richestHouse)} color="#E8B04B" />
+          <Tile label="richest house" value={fmtCredits(R.richestHouse)} color="#E8B04B" />
           <Tile label="peak population" value={fmtPop(peakPop)} sub={`now ${fmtPop(rows[rows.length - 1].pop)}`} />
           <Tile
             label="oldest living power"

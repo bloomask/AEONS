@@ -2,6 +2,7 @@ import { T, GOODS, FREIGHT_COST } from "../constants.js";
 import { dist2 } from "../util.js";
 import { log, getRel } from "../events.js";
 import { foundHouse } from "../houses.js";
+import { foundCorporateState } from "../factions.js";
 
 // --- shipping, trade, and merchant-house economics ---
 export function runTrade(w, rng) {
@@ -143,6 +144,23 @@ export function runTrade(w, rng) {
         const s = w.systems[sid];
         if (s.pop > 0.05) h.incDepots += s.tradeIn * 0.04;
       }
+      // a corp this rich starts wanting a flag of its own: it charters a
+      // government over a free port and becomes a power on the map
+      if (h.stateId === null && h.wealth > 350 && rng.chance(0.03)) {
+        const hq = w.systems[h.home];
+        const portCount = w.systems.filter((s) => s.freePort && s.pop > 0.05).length;
+        const claimable = (s) => !s.freePort || portCount > 2;
+        const seat = hq.fid === null && hq.pop > 0.05 && claimable(hq)
+          ? hq
+          : w.systems
+            .filter((s) => s.fid === null && s.pop > 2 && claimable(s) && dist2(s, hq) < T.HOUSE_RANGE)
+            .sort((a, b) => b.tradeIn - a.tradeIn)[0];
+        if (seat) {
+          seat.freePort = false;
+          foundCorporateState(w, rng, h, seat);
+        }
+      }
+
       h.sponsored = h.sponsored.filter((sp) => sp.until > w.year);
       for (const sp of h.sponsored) {
         const s = w.systems[sp.sys];

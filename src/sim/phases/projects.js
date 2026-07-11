@@ -38,18 +38,26 @@ export function runProjects(w, rng) {
 
   // rich, unburdened factions break ground on something monumental
   for (const f of w.factions) {
-    if (f.dead || f.treasury < 380) continue;
+    if (f.dead || f.gov === "pirate" || f.treasury < 380) continue;
     if (w.projects.some((p) => p.fid === f.id && !p.done && !p.abandoned)) continue;
     if (!rng.chance(0.012)) continue;
     const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
     if (!members.length) continue;
 
+    // what a power builds says what it is: trade governments favor the
+    // nexus, empires favor monuments to their own weight
     const options = [];
     const hub = [...members].sort((a, b) => b.tradeIn - a.tradeIn)[0];
-    if (hub && hub.tradeIn > 8 && !hub.mega.nexus) options.push(["nexus", hub]);
+    if (hub && hub.tradeIn > 8 && !hub.mega.nexus) {
+      options.push(["nexus", hub]);
+      if (f.gov === "republic" || f.gov === "corporate") options.push(["nexus", hub]);
+    }
     const crowded = [...members].sort((a, b) => b.pop - a.pop)
       .find((s) => !s.mega.arcology && s.pop > (s.hab * 120 + s.fert * 80 + 8) * 0.7);
-    if (crowded) options.push(["arcology", crowded]);
+    if (crowded) {
+      options.push(["arcology", crowded]);
+      if (f.gov === "empire") options.push(["arcology", crowded]);
+    }
     const barren = [...members].sort((a, b) => a.fert - b.fert)
       .find((s) => !s.mega.terraformed && s.fert < 0.35 && s.pop > 3);
     if (barren) options.push(["terraform", barren]);

@@ -2,7 +2,7 @@ import { EV_STYLE, EV_FILTERS } from "../theme.js";
 
 // headline events keep full weight; everything else renders compact and
 // consecutive repeats from the same system collapse into one entry
-const MAJOR = new Set(["war", "peace", "collapse", "found", "capture", "mega", "corp"]);
+const MAJOR = new Set(["war", "peace", "collapse", "found", "capture", "mega", "corp", "pirate", "revolution"]);
 
 function coalesce(rows) {
   const out = [];

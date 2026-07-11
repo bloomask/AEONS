@@ -20,6 +20,7 @@ export function recordYear(w, rng) {
     miseryPct: +((live.filter((s) => s.wb < 0.5).length / n) * 100).toFixed(1),
     trade: +w.edges.reduce((a, e) => a + e.vol, 0).toFixed(1),
     indep: live.filter((s) => s.fid === null).length,
+    pirateSys: live.filter((s) => s.fid !== null && w.factions[s.fid].gov === "pirate").length,
     largestShare: +(shares.length ? Math.max(...shares) : 0).toFixed(3),
     hhi: +shares.reduce((a, x) => a + x * x, 0).toFixed(3),
     pFood: +(live.reduce((a, s) => a + s.price.food, 0) / n).toFixed(2),

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { mulberry32 } from "../sim/rng.js";
 import { clamp } from "../sim/util.js";
 import { relKey } from "../sim/events.js";
+import { GOVS } from "../sim/constants.js";
 import { hexToRgb, mixHex, wbColor, EV_STYLE, OVERLAYS } from "./theme.js";
 import { fmtPop } from "./format.js";
 
@@ -81,7 +82,7 @@ function computeTerritory(w, cache) {
 const PULSE_TYPES = new Set([
   "famine", "plague", "battle", "siege", "capture", "colony", "death",
   "found", "secede", "annex", "strike", "flare", "build", "house",
-  "mega", "faith", "corp",
+  "mega", "faith", "corp", "pirate", "raid", "revolution",
 ]);
 
 const diamond = (ctx, X, Y, r) => {
@@ -520,8 +521,12 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     let status;
     if (s.ruined) status = `<span style="color:#B0453A">ruins · fell ${s.diedYear}</span>`;
     else if (s.pop <= 0.05) status = `<span style="color:#7C8798">uncolonized</span>`;
-    else if (f) status = `<span style="color:${f.color}">■ ${f.name}</span>${f.capital === s.id ? " · capital" : ""}`;
-    else status = `<span style="color:#8892A6">independent</span>`;
+    else if (f) {
+      const g = GOVS[f.gov];
+      status = `<span style="color:${f.color}">■ ${f.name}</span>` +
+        `${f.capital === s.id ? " · capital" : ""}` +
+        (g ? ` · <span style="color:${g.badge}">${g.label.toLowerCase()}</span>` : "");
+    } else status = `<span style="color:#8892A6">free system</span>`;
     let body = "";
     if (s.pop > 0.05) {
       const wbC = s.wb < 0.5 ? "#E4572E" : s.wb < 0.65 ? "#F2A93B" : "#6FBF73";
@@ -595,6 +600,7 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
       ["#E6E1D3", "square = faction capital"],
       ["#4FD0A5", "diamond = gate nexus · dashed diamond = under construction"],
       ["#E8B04B", "gold diamond = megacorp headquarters"],
+      ["#A34A3A", "dark red realms = corsair havens preying on nearby lanes"],
       ["#B0453A", "✕ = dead system (ruins)"],
     ],
     wealth: [["#2E3A52", "poor"], ["#F2A93B", "rich (wealth per capita)"]],

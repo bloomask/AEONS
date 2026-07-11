@@ -1,7 +1,28 @@
 import { useState } from "react";
+import { GOVS } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
 import { relKey } from "../../sim/events.js";
 import { fmtPop, fmtMoney } from "../format.js";
+
+const GOV_DESC = {
+  empire: "heavy taxes and tariffs · expands by subjugation · war unites it, hunger barely moves it",
+  republic: "light tariffs · signs accords readily · absorbs only cultural kin · long wars sour the assembly",
+  corporate: "lives on trade throughput, not taxes · buys charters from free ports · war is bad for business",
+  pirate: "lives on loot skimmed from nearby lanes · no treaties, no wars — only raids and reprisals",
+};
+
+const GovBadge = ({ gov }) => {
+  const g = GOVS[gov];
+  if (!g) return null;
+  return (
+    <span
+      className="px-1 rounded uppercase tracking-wider"
+      style={{ color: g.badge, border: `1px solid ${g.badge}55`, fontSize: 9 }}
+    >
+      {g.label}
+    </span>
+  );
+};
 
 function WarCard({ w, k, rel }) {
   const [ia, ib] = k.split("|").map(Number);
@@ -108,12 +129,19 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
         <div style={{ fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, color: f.color }} className="text-lg leading-tight">
           ■ {f.name}
         </div>
-        <div style={{ color: "#7C8798" }}>
-          est. {f.foundedYear} · seat at{" "}
-          <span className="cursor-pointer underline" onClick={() => onOpenSystem(f.capital)}>
-            {w.systems[f.capital].name}
+        <div className="flex items-baseline gap-2 flex-wrap" style={{ color: "#7C8798" }}>
+          <GovBadge gov={f.gov} />
+          <span>
+            est. {f.foundedYear} · seat at{" "}
+            <span className="cursor-pointer underline" onClick={() => onOpenSystem(f.capital)}>
+              {w.systems[f.capital].name}
+            </span>
           </span>
         </div>
+        {GOV_DESC[f.gov] && <div style={{ color: "#5A6472" }} className="mt-0.5">{GOV_DESC[f.gov]}</div>}
+        {f.corpId != null && w.houses[f.corpId] && (
+          <div style={{ color: "#E8B04B" }} className="mt-0.5">flag of {w.houses[f.corpId].name}</div>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {[
@@ -202,8 +230,25 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
     .map((f) => ({ f, members: w.systems.filter((s) => s.fid === f.id && s.pop > 0.05) }))
     .sort((a, b) => b.members.reduce((x, s) => x + s.pop, 0) - a.members.reduce((x, s) => x + s.pop, 0));
 
+  const freeCount = w.systems.filter((s) => s.fid === null && s.pop > 0.05).length;
+  const govCounts = liveFactions.reduce((acc, f) => {
+    acc[f.gov] = (acc[f.gov] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-3">
+      <div className="flex gap-3 flex-wrap" style={{ color: "#7C8798" }}>
+        {Object.entries(GOVS).map(([k, g]) =>
+          govCounts[k] ? (
+            <span key={k}>
+              <b style={{ color: g.badge }}>{govCounts[k]}</b> {g.label.toLowerCase()}{govCounts[k] > 1 ? "s" : ""}
+            </span>
+          ) : null
+        )}
+        <span><b style={{ color: "#8892A6" }}>{freeCount}</b> free system{freeCount !== 1 ? "s" : ""}</span>
+      </div>
+
       {wars.length > 0 && (
         <div>
           <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">active wars</div>
@@ -211,7 +256,7 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
         </div>
       )}
 
-      <RelationMatrix w={w} factions={ranked.map((r) => r.f)} />
+      <RelationMatrix w={w} factions={ranked.map((r) => r.f).filter((f) => f.gov !== "pirate")} />
 
       <div>
         <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">powers</div>
@@ -226,9 +271,10 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
               onClick={() => setDetailFid(f.id)}
               title="Open faction details"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span style={{ color: f.color }}>■</span>
                 <b>{f.name}</b>
+                <GovBadge gov={f.gov} />
                 {myWars.length > 0 && <span style={{ color: "#E4572E" }}>⚔</span>}
                 <span className="ml-auto" style={{ color: "#7C8798" }}>est. {f.foundedYear}</span>
               </div>

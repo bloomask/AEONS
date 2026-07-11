@@ -4,6 +4,7 @@ import { EV_STYLE } from "./theme.js";
 // Rotating headline strip over the map: only history-book events make it.
 const HEADLINE_TYPES = new Set([
   "era", "war", "peace", "collapse", "capture", "found", "mega", "corp", "faith",
+  "pirate", "revolution",
 ]);
 
 export default function Ticker({ worldRef, onOpen }) {

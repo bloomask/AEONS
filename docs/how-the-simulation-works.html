@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A high-level visual explainer of how the AEONS galaxy simulation works — genesis, the eight-phase yearly tick, world state, and feedback loops.">
+<title>AEONS — How the Simulation Works</title>
+<style>
+  :root {
+    --bg: #06090F;
+    --panel: #0C121C;
+    --panel-2: #0F1725;
+    --ink: #E6E1D3;
+    --muted: #7C8798;
+    --faint: rgba(230, 225, 211, 0.12);
+    --faint-2: rgba(230, 225, 211, 0.06);
+    --accent: #F2A93B;
+    --accent-dim: rgba(242, 169, 59, 0.14);
+    --grid: rgba(124, 135, 152, 0.10);
+    --c-eco: #F2A93B;
+    --c-trade: #5CC8DA;
+    --c-settle: #6FBF73;
+    --c-pol: #E4708A;
+    --c-proj: #E8D14B;
+    --c-shock: #D9823B;
+    --c-faith: #C05DD6;
+    --c-chron: #7B8CE8;
+    --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 18px 40px -24px rgba(0,0,0,0.9);
+    --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #EDE9DE;
+    --panel: #F6F2E8;
+    --panel-2: #FBF8F0;
+    --ink: #1C222B;
+    --muted: #5C6672;
+    --faint: rgba(28, 34, 43, 0.16);
+    --faint-2: rgba(28, 34, 43, 0.06);
+    --accent: #B4741A;
+    --accent-dim: rgba(180, 116, 26, 0.14);
+    --grid: rgba(92, 102, 114, 0.13);
+    --c-eco: #B4741A;
+    --c-trade: #1F8FA6;
+    --c-settle: #3F8F49;
+    --c-pol: #C24865;
+    --c-proj: #B39412;
+    --c-shock: #B45E1C;
+    --c-faith: #9436AC;
+    --c-chron: #4B5DC0;
+    --shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 16px 34px -26px rgba(28,34,43,0.5);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #EDE9DE;
+      --panel: #F6F2E8;
+      --panel-2: #FBF8F0;
+      --ink: #1C222B;
+      --muted: #5C6672;
+      --faint: rgba(28, 34, 43, 0.16);
+      --faint-2: rgba(28, 34, 43, 0.06);
+      --accent: #B4741A;
+      --accent-dim: rgba(180, 116, 26, 0.14);
+      --grid: rgba(92, 102, 114, 0.13);
+      --c-eco: #B4741A;
+      --c-trade: #1F8FA6;
+      --c-settle: #3F8F49;
+      --c-pol: #C24865;
+      --c-proj: #B39412;
+      --c-shock: #B45E1C;
+      --c-faith: #9436AC;
+      --c-chron: #4B5DC0;
+      --shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 16px 34px -26px rgba(28,34,43,0.5);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 620px at 78% -8%, var(--accent-dim), transparent 60%),
+      linear-gradient(var(--bg), var(--bg));
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px 96px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  /* ---------- theme toggle ---------- */
+  .toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 40;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    background: color-mix(in srgb, var(--panel) 82%, transparent);
+    border: 1px solid var(--faint); border-radius: 999px;
+    padding: 7px 13px; cursor: pointer; backdrop-filter: blur(6px);
+    transition: color .18s, border-color .18s;
+  }
+  .toggle:hover { color: var(--ink); border-color: var(--muted); }
+  .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 92px 0 40px; position: relative; }
+  .starframe {
+    position: absolute; inset: 42px 0 0; z-index: 0; pointer-events: none;
+    opacity: .5; -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+    mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+  }
+  header.hero > * { position: relative; z-index: 1; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.28em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--faint); border-radius: 999px;
+    padding: 6px 14px; margin-bottom: 26px;
+  }
+  .kicker .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 10px var(--accent); }
+  h1 {
+    font-family: var(--mono); font-weight: 600;
+    font-size: clamp(46px, 11vw, 128px); letter-spacing: 0.02em; line-height: 0.94;
+  }
+  h1 .glyph { color: var(--accent); }
+  .lede {
+    font-size: clamp(17px, 2.4vw, 22px); max-width: 40ch; color: var(--ink);
+    margin: 24px 0 0; opacity: .92;
+  }
+  .lede b { color: var(--accent); font-weight: 600; }
+
+  .meta {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--faint); border: 1px solid var(--faint);
+    border-radius: 14px; overflow: hidden; margin-top: 44px;
+  }
+  .meta div { background: var(--panel); padding: 15px 17px; }
+  .meta .n { font-family: var(--mono); font-size: 21px; color: var(--ink);
+    font-variant-numeric: tabular-nums; }
+  .meta .l { font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+
+  /* ---------- generic section ---------- */
+  section { padding-top: 76px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+  .sec-num {
+    font-family: var(--mono); font-size: 12px; color: var(--accent);
+    letter-spacing: 0.1em; border: 1px solid var(--faint); border-radius: 7px;
+    padding: 3px 8px; flex: none;
+  }
+  h2 { font-family: var(--mono); font-weight: 600; font-size: clamp(24px, 4vw, 34px);
+    letter-spacing: 0.005em; }
+  .sec-sub { color: var(--muted); max-width: 62ch; margin: 12px 0 30px; font-size: 15.5px; }
+  .sec-sub code, .card code, .loop code, .note code {
+    font-family: var(--mono); font-size: 0.86em; color: var(--ink);
+    background: var(--faint-2); padding: 1px 6px; border-radius: 5px;
+    border: 1px solid var(--faint);
+  }
+
+  /* ---------- spine / genesis ---------- */
+  .spine { display: grid; gap: 14px; }
+  .spine-row {
+    display: grid; grid-template-columns: 46px 1fr; gap: 18px; align-items: stretch;
+  }
+  .spine-rail { position: relative; display: flex; justify-content: center; }
+  .spine-rail::before {
+    content: ""; position: absolute; top: 0; bottom: -14px; width: 2px;
+    background: linear-gradient(var(--accent), var(--faint)); opacity: .5;
+  }
+  .spine-row:last-child .spine-rail::before { bottom: 50%; }
+  .spine-node {
+    position: relative; z-index: 1; margin-top: 18px; width: 13px; height: 13px;
+    border-radius: 50%; background: var(--bg); border: 2px solid var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-dim);
+  }
+  .spine-card {
+    background: var(--panel); border: 1px solid var(--faint); border-radius: 13px;
+    padding: 16px 19px; box-shadow: var(--shadow);
+  }
+  .spine-card h3 { font-family: var(--mono); font-size: 15px; letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-dim);
+    padding: 2px 8px; border-radius: 999px; }
+  .spine-card p { margin: 9px 0 0; color: var(--muted); font-size: 14.5px; }
+  .spine-card p b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- the tick / phases ---------- */
+  .tick-legend {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    letter-spacing: 0.06em; margin-bottom: 20px;
+  }
+  .tick-legend .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--faint); border-radius: 999px; padding: 4px 11px;
+  }
+  .tick-legend .pill b { color: var(--ink); font-weight: 600; }
+  .loopback { color: var(--accent); }
+
+  .phases {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    position: relative;
+  }
+  @media (max-width: 780px) { .phases { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 460px) { .phases { grid-template-columns: 1fr; } }
+
+  .phase {
+    --c: var(--accent);
+    text-align: left; cursor: pointer; position: relative;
+    background: var(--panel); border: 1px solid var(--faint);
+    border-radius: 13px; padding: 15px 15px 16px; color: inherit;
+    font-family: inherit; box-shadow: var(--shadow);
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    overflow: hidden;
+  }
+  .phase::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--c); opacity: .85;
+  }
+  .phase:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 55%, var(--faint)); }
+  .phase[aria-expanded="true"] {
+    border-color: var(--c);
+    background: color-mix(in srgb, var(--c) 9%, var(--panel));
+  }
+  .phase:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+  .phase .idx {
+    font-family: var(--mono); font-size: 11px; color: var(--c);
+    font-variant-numeric: tabular-nums; letter-spacing: 0.1em;
+  }
+  .phase .fn {
+    font-family: var(--mono); font-size: 15px; margin-top: 5px; color: var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .phase .fn .glyph { width: 9px; height: 9px; border-radius: 2px; background: var(--c);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--c) 70%, transparent); flex: none; }
+  .phase .one { font-size: 12.5px; color: var(--muted); margin-top: 7px; line-height: 1.5; }
+  .phase .pulse-dot {
+    position: absolute; right: 12px; top: 13px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--c); opacity: 0; transform: scale(.4);
+  }
+  .phase.firing .pulse-dot { animation: fire 1.1s ease-out; }
+  @keyframes fire {
+    0% { opacity: 0; transform: scale(.4); }
+    18% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 0 0 var(--c); }
+    100% { opacity: 0; transform: scale(1); box-shadow: 0 0 0 12px transparent; }
+  }
+
+  .phase-detail {
+    grid-column: 1 / -1; display: none;
+    background: var(--panel-2); border: 1px solid var(--c);
+    border-radius: 13px; padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .phase-detail.open { display: block; animation: slideIn .22s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .phase-detail h3 { font-family: var(--mono); font-size: 16px; color: var(--c);
+    display: flex; align-items: center; gap: 9px; }
+  .phase-detail .reads {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted); margin: 3px 0 12px;
+  }
+  .phase-detail ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; }
+  .phase-detail li { font-size: 14.5px; color: var(--ink); }
+  .phase-detail li b { color: var(--c); font-weight: 600; }
+
+  .note {
+    margin-top: 20px; display: flex; gap: 12px; align-items: flex-start;
+    border: 1px dashed var(--faint); border-radius: 12px; padding: 14px 16px;
+    color: var(--muted); font-size: 14px; background: var(--faint-2);
+  }
+  .note .k { font-family: var(--mono); color: var(--accent); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase; flex: none; margin-top: 2px; }
+
+  /* ---------- entity grid ---------- */
+  .entities { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--faint); border-radius: 13px;
+    padding: 17px 18px; box-shadow: var(--shadow); border-top: 3px solid var(--c, var(--accent));
+  }
+  .card h3 { font-family: var(--mono); font-size: 15px; display: flex; align-items: baseline; gap: 8px; }
+  .card h3 .cnt { margin-left: auto; font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .card p { margin: 8px 0 12px; color: var(--muted); font-size: 13.5px; }
+  .attrs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .attrs span {
+    font-family: var(--mono); font-size: 11px; color: var(--ink);
+    border: 1px solid var(--faint); border-radius: 6px; padding: 2px 7px;
+    background: var(--faint-2);
+  }
+  .world-note {
+    margin-bottom: 26px; font-family: var(--mono); font-size: 13px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--faint); border-radius: 12px;
+    padding: 13px 16px; line-height: 1.7;
+  }
+  .world-note b { color: var(--accent); }
+
+  /* ---------- feedback loops ---------- */
+  .loops { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .loop {
+    background: var(--panel); border: 1px solid var(--faint); border-radius: 13px;
+    padding: 17px 18px 19px; box-shadow: var(--shadow);
+  }
+  .loop h3 { font-size: 15.5px; font-family: var(--sans); font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 9px; }
+  .loop h3::before { content: "↻"; font-family: var(--mono); color: var(--accent); font-size: 18px; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; margin-bottom: 12px; }
+  .chain .node {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.02em; color: var(--ink);
+    background: var(--faint-2); border: 1px solid var(--faint); border-radius: 6px;
+    padding: 3px 8px; white-space: nowrap;
+  }
+  .chain .node.hot { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .chain .arw { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .loop p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .loop p b { color: var(--ink); font-weight: 600; }
+
+  .balance {
+    margin-top: 26px; border: 1px solid var(--faint); border-left: 3px solid var(--accent);
+    border-radius: 12px; padding: 18px 20px; background: var(--panel);
+  }
+  .balance h3 { font-family: var(--mono); font-size: 15px; color: var(--accent); margin-bottom: 8px; }
+  .balance p { margin: 0; color: var(--ink); font-size: 15px; max-width: 74ch; }
+  .balance p b { color: var(--accent); }
+
+  /* ---------- footer ---------- */
+  footer { padding-top: 78px; }
+  .foot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 620px) { .foot-grid { grid-template-columns: 1fr; } .meta .n { font-size: 19px; } }
+  .foot-card { background: var(--panel); border: 1px solid var(--faint); border-radius: 13px; padding: 18px 20px; }
+  .foot-card h3 { font-family: var(--mono); font-size: 14px; margin-bottom: 10px; }
+  .foot-card p { margin: 0; color: var(--muted); font-size: 14px; }
+  pre.cmd {
+    font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--faint); border-radius: 9px;
+    padding: 12px 14px; margin: 12px 0 0; overflow-x: auto; line-height: 1.7;
+  }
+  pre.cmd .c { color: var(--muted); }
+  pre.cmd .g { color: var(--accent); }
+  .signoff {
+    margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--faint);
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--muted);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important; }
+  }
+</style>
+</head>
+<body>
+<button class="toggle" id="themeBtn" type="button" aria-label="Toggle colour theme">◐ theme</button>
+
+<div class="wrap">
+
+  <header class="hero">
+    <canvas class="starframe" id="stars" aria-hidden="true"></canvas>
+    <span class="kicker"><span class="dot"></span>Engine schematic · self-regulating galaxy</span>
+    <h1><span class="glyph">✦</span> AEONS</h1>
+    <p class="lede">A galaxy that writes its own history. <b>1 tick = 1 year</b>, nothing is scripted — systems starve, mines run dry, empires overextend and collapse. This page maps how the machine underneath actually turns.</p>
+
+    <div class="meta">
+      <div><div class="n">96</div><div class="l">star systems</div></div>
+      <div><div class="n">1&nbsp;yr</div><div class="l">per tick</div></div>
+      <div><div class="n">8</div><div class="l">phases / year</div></div>
+      <div><div class="n">300</div><div class="l">burn-in years</div></div>
+      <div><div class="n">seed</div><div class="l">→ one history</div></div>
+    </div>
+  </header>
+
+  <!-- ============ 01 GENESIS ============ -->
+  <section id="genesis">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Genesis — building a galaxy</h2></div>
+    <p class="sec-sub">Everything starts from a single integer. <code>genGalaxy(seed)</code> seeds a <code>mulberry32</code> RNG and lays down a whole world before the clock ever starts. Same seed in, identical galaxy out — the simulation is <b>fully deterministic</b>.</p>
+
+    <div class="spine">
+      <div class="spine-row">
+        <div class="spine-rail"><span class="spine-node"></span></div>
+        <div class="spine-card">
+          <h3><span class="tag">seed</span> A number becomes a random stream</h3>
+          <p><code>makeRng(seed)</code> turns one integer into a deterministic sequence. Every roll after this — a star's position, a war's outcome — is drawn from it, so <b>replaying a seed replays history exactly</b>.</p>
+        </div>
+      </div>
+      <div class="spine-row">
+        <div class="spine-rail"><span class="spine-node"></span></div>
+        <div class="spine-card">
+          <h3><span class="tag">worldgen</span> 96 systems in 6 clusters</h3>
+          <p>Systems scatter around six cultural cluster-centers, each with fertility, mineral &amp; energy reserves, habitability, a culture vector and a founding faith. Then <b>jumpgates</b> wire each to its 2 nearest neighbors, a union-find pass forces one connected graph, and a few long trade lanes are struck across the gaps.</p>
+        </div>
+      </div>
+      <div class="spine-row">
+        <div class="spine-rail"><span class="spine-node"></span></div>
+        <div class="spine-card">
+          <h3><span class="tag">seeding</span> Life, powers &amp; merchants</h3>
+          <p>The <b>40 most livable</b> worlds get starting populations. <b>12 founding factions</b> claim well-spaced high-population capitals; <b>5 merchant houses</b> charter fleets at the richest ports; and <b>4 creeds</b> take root in the old cultures.</p>
+        </div>
+      </div>
+      <div class="spine-row">
+        <div class="spine-rail"><span class="spine-node"></span></div>
+        <div class="spine-card">
+          <h3><span class="tag">burn-in</span> 300 silent years</h3>
+          <p>Before you ever watch, the engine runs <b>300 years headless</b> to settle the galaxy into a living, uneven state — realms formed, lanes worn in, some worlds already dead. Then the clock hands over to real time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 THE TICK ============ -->
+  <section id="tick">
+    <div class="sec-head"><span class="sec-num">02</span><h2>The heartbeat — <code>simulateYear(w)</code></h2></div>
+    <p class="sec-sub">One tick advances the galaxy one year. It runs <b>eight phases in a fixed order</b>, and order is load-bearing: each phase mutates the one shared <code>world</code> object, and later phases read what earlier ones just wrote. Tap a phase to see what it touches.</p>
+
+    <div class="tick-legend">
+      <span class="pill"><b>year++</b> then snapshot <code>alive = systems with pop &gt; 0.05</code></span>
+      <span class="pill loopback">↺ then the whole cycle repeats next year</span>
+    </div>
+
+    <div class="phases" id="phases"></div>
+
+    <div class="note">
+      <span class="k">why order</span>
+      <span>The <code>alive</code> list is snapshotted <b>once</b>, before economy runs, and shared by every phase. Economy sets prices and well-being → Trade moves goods along those prices → Settlement reacts to well-being → Politics taxes the new wealth → and so on. Reorder the phases and you get a different galaxy.</span>
+    </div>
+  </section>
+
+  <!-- ============ 03 THE WORLD ============ -->
+  <section id="world">
+    <div class="sec-head"><span class="sec-num">03</span><h2>The world — one mutable object</h2></div>
+    <p class="sec-sub">There is no database and no DOM. The entire galaxy is a single plain <code>world</code> object that every phase reads and rewrites in place. These are the things living inside it.</p>
+
+    <div class="world-note">
+      <b>w</b> = { systems, edges, factions, houses, faiths, projects, relations, events, eras, fx, stats, records, rng }
+    </div>
+
+    <div class="entities">
+      <div class="card" style="--c: var(--c-eco)">
+        <h3>Systems <span class="cnt">×96</span></h3>
+        <p>Star systems — the atoms of the sim. Each produces, consumes, trades, grows, and can starve to a ruin.</p>
+        <div class="attrs"><span>pop</span><span>wealth</span><span>stock</span><span>price</span><span>fertility</span><span>minerals</span><span>culture</span><span>faith</span><span>infra</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-trade)">
+        <h3>Jumpgates <span class="cnt">edges</span></h3>
+        <p>The lanes between systems. Freight, culture and creeds all flow along them; gates can collapse or open anew.</p>
+        <div class="attrs"><span>a↔b</span><span>distance</span><span>volume</span><span>net flow</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-pol)">
+        <h3>Factions <span class="cnt">powers</span></h3>
+        <p>Empires with a capital, treasury and stability. They tax, annex, wage war, and collapse under their own weight.</p>
+        <div class="attrs"><span>capital</span><span>treasury</span><span>stability</span><span>aggression</span><span>expansion</span><span>tariff</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-chron)">
+        <h3>Houses <span class="cnt">merchants</span></h3>
+        <p>Merchant fleets chasing arbitrage. A rich one incorporates into a megacorp with depots and sponsored colonies.</p>
+        <div class="attrs"><span>home</span><span>ships</span><span>wealth</span><span>income</span><span>→ corp</span><span>depots</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-faith)">
+        <h3>Faiths <span class="cnt">creeds</span></h3>
+        <p>Religions that ride the trade lanes converting worlds, and splinter into heresies when a world is cut off.</p>
+        <div class="attrs"><span>name</span><span>color</span><span>founded</span><span>home</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-proj)">
+        <h3>Projects <span class="cnt">megaworks</span></h3>
+        <p>Generation-spanning builds funded from a treasury: gate nexus, orbital arcology, terraforming array.</p>
+        <div class="attrs"><span>type</span><span>system</span><span>progress</span><span>cost</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-shock)">
+        <h3>Relations</h3>
+        <p>The state between every pair of factions — rivalry building or cooling, embargoes, alliances, active wars.</p>
+        <div class="attrs"><span>rivalry</span><span>allied</span><span>embargo</span><span>war</span></div>
+      </div>
+      <div class="card" style="--c: var(--c-settle)">
+        <h3>Chronicle</h3>
+        <p>The written record: the running event log, named eras, per-year statistics and all-time records.</p>
+        <div class="attrs"><span>events</span><span>eras</span><span>stats.series</span><span>records</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 FEEDBACK ============ -->
+  <section id="feedback">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Why it holds together</h2></div>
+    <p class="sec-sub">Nothing keeps the galaxy alive on purpose. It stays interesting because the phases form <b>closed feedback loops</b> — every excess creates the pressure that corrects it. There is no rubber-banding and no safety rail.</p>
+
+    <div class="loops">
+      <div class="loop">
+        <h3>The market finds its own price</h3>
+        <div class="chain">
+          <span class="node">scarcity</span><span class="arw">→</span>
+          <span class="node hot">price</span><span class="arw">→</span>
+          <span class="node">labor shares</span><span class="arw">→</span>
+          <span class="node">production</span><span class="arw">→</span>
+          <span class="node">stock</span><span class="arw">↺</span>
+        </div>
+        <p>Prices come from local scarcity; labor reallocates toward whatever pays (with inertia), which lifts supply and <b>drags the price back down</b>. Hungry worlds shift hard into farming on their own.</p>
+      </div>
+
+      <div class="loop">
+        <h3>Trade erases the gaps that feed it</h3>
+        <div class="chain">
+          <span class="node hot">price gap</span><span class="arw">&gt;</span>
+          <span class="node">freight + duty</span><span class="arw">→</span>
+          <span class="node">goods flow</span><span class="arw">→</span>
+          <span class="node">prices converge</span><span class="arw">↺</span>
+        </div>
+        <p>Houses haul goods across a gate only when the price difference beats freight and tariffs. Each shipment <b>narrows the very gap it chased</b> — and better gates make more lanes worth running.</p>
+      </div>
+
+      <div class="loop">
+        <h3>Empires overextend and break</h3>
+        <div class="chain">
+          <span class="node">annex</span><span class="arw">→</span>
+          <span class="node hot">admin ∝ size^1.35</span><span class="arw">&gt;</span>
+          <span class="node">tax income</span><span class="arw">→</span>
+          <span class="node">stability↓</span><span class="arw">→</span>
+          <span class="node">secede / collapse</span>
+        </div>
+        <p>Bigger realms cost superlinearly more to govern, and distance from the capital compounds it. Grow past what the treasury bears and <b>the fringe secedes</b> — the empire prunes itself.</p>
+      </div>
+
+      <div class="loop">
+        <h3>Well-being moves people</h3>
+        <div class="chain">
+          <span class="node">food + goods</span><span class="arw">→</span>
+          <span class="node hot">well-being</span><span class="arw">→</span>
+          <span class="node">migrate / colonize</span><span class="arw">→</span>
+          <span class="node">pop redistributes</span><span class="arw">↺</span>
+        </div>
+        <p>Well-being is how fed and supplied a world is, capped by habitat. Low → people emigrate to better neighbors; high &amp; crowded → they found colonies. <b>Famine (below 45% fed) culls population directly.</b></p>
+      </div>
+
+      <div class="loop">
+        <h3>War is geography</h3>
+        <div class="chain">
+          <span class="node">culture + creed rift</span><span class="arw">→</span>
+          <span class="node hot">rivalry</span><span class="arw">→</span>
+          <span class="node">war</span><span class="arw">→</span>
+          <span class="node">gate battles → sieges</span><span class="arw">→</span>
+          <span class="node">exhaustion → peace</span>
+        </div>
+        <p>Rivalry grows from cultural distance, shared borders and rival faiths — and falls with mutual trade. Wars are fought gate by gate; sieges starve worlds until they fall, then <b>bankruptcy forces peace</b>.</p>
+      </div>
+
+      <div class="loop">
+        <h3>Culture &amp; faith drift with the freight</h3>
+        <div class="chain">
+          <span class="node hot">busy lane</span><span class="arw">→</span>
+          <span class="node">cultures converge</span><span class="arw">·</span>
+          <span class="node">creed spreads big→small</span><span class="arw">↺</span>
+        </div>
+        <p>Heavily-trafficked lanes pull two worlds' cultures together and carry the larger world's religion to the smaller. Isolation does the opposite — cultures drift apart and cut-off worlds <b>schism into heresies</b>.</p>
+      </div>
+    </div>
+
+    <div class="balance">
+      <h3>◆ the whole point</h3>
+      <p>Every loop is a <b>negative feedback</b> dressed as a story: surplus invites trade that kills the surplus, conquest invites the cost that ends the conquest, prosperity breeds the crowding that scatters it. The galaxy never settles — it <b>oscillates</b>, and the Chronicle just names the swings: Golden Lanes, the Withering, the Burning Years.</p>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="sec-head"><span class="sec-num">05</span><h2>Engine &amp; presentation, cleanly split</h2></div>
+    <p class="sec-sub">Everything under <code>src/sim/</code> is pure, DOM-free JavaScript that mutates the <code>world</code> and nothing else. The React layer is a read-only viewer on top — which means the same engine runs headless in Node.</p>
+
+    <div class="foot-grid">
+      <div class="foot-card">
+        <h3>src/sim/ — the engine</h3>
+        <p>No DOM, no framework. New mechanics slot in as another phase, shock or stat without touching a line of UI. It can be exercised entirely from the command line.</p>
+        <pre class="cmd"><span class="c"># deterministic headless run</span>
+npm run sim <span class="c">              # seed 42, 500 yrs</span>
+npm run sim <span class="g">--</span> 12345 2000 <span class="c"># custom seed + years</span></pre>
+      </div>
+      <div class="foot-card">
+        <h3>src/ui/ — the viewer</h3>
+        <p>React reads the world each tick and paints it: a canvas map of territories and convoys, a scrubbable timeline, a live event ticker, and side panels for systems, powers, trade and the chronicle.</p>
+        <pre class="cmd"><span class="c"># watch a galaxy live</span>
+npm run dev <span class="c">              # dev server</span>
+npm run build <span class="c">            # build to dist/</span></pre>
+      </div>
+    </div>
+
+    <div class="signoff">
+      <span>AEONS · engine schematic</span>
+      <span>1 tick = 1 year · deterministic per seed</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // ---- phase data ----
+  const PHASES = [
+    { c: "--c-eco", fn: "runEconomy", one: "Production, consumption, prices & demography.",
+      reads: "reads pop, stock, reserves · writes price, wealth, well-being, pop",
+      pts: ["<b>Labor follows price signals</b> — worlds split effort across food / ore / fuel / goods, hungry ones lurch toward farming.",
+            "Reserves deplete as mines and wells are worked; food spoils unless granaries hold it.",
+            "<b>Well-being</b> = how fed & supplied a world is, capped by habitat — it drives growth, and below 45% fed, <b>famine</b> culls people.",
+            "Local scarcity sets each good's price for the trade phase to act on."] },
+    { c: "--c-trade", fn: "runTrade", one: "Shipping, arbitrage & merchant-house economics.",
+      reads: "reads price, wealth, edges · writes stock, wealth, house fortunes",
+      pts: ["Houses assign hulls to the most profitable lanes near home.",
+            "Goods move across a gate only when the <b>price gap beats freight + tariffs</b> — arbitrage that converges prices.",
+            "Freight profit compounds house wealth; a house past its threshold <b>incorporates into a megacorp</b> with depots.",
+            "Upkeep and bad lanes bankrupt houses; new ones charter at rich ports."] },
+    { c: "--c-settle", fn: "runSettlement", one: "Migration, colonization, infrastructure & death.",
+      reads: "reads well-being, wealth, adjacency · writes pop, new colonies, ruins",
+      pts: ["Low well-being → people <b>emigrate</b> to a better-off neighbor.",
+            "High well-being & crowding → a world <b>founds a colony</b> on an empty habitable neighbor, sometimes megacorp-funded.",
+            "Rich worlds turn wealth into durable capital: granaries, gate docks, deep mines.",
+            "A world that falls below the population floor <b>goes dark</b> — logged with a cause: famine, plague, war, depletion."] },
+    { c: "--c-pol", fn: "runPolitics", one: "Faction economics, diplomacy, war & new powers.",
+      reads: "reads members, wealth, culture, faith · writes borders, treasuries, wars",
+      pts: ["Factions tax members but pay <b>administration that scales as size^1.35</b> — overreach drains the treasury.",
+            "Low stability → the fringe secedes; a broke or unstable faction <b>collapses entirely</b>.",
+            "Rivalry rises with cultural distance, borders and rival creeds, falls with trade — high enough, it tips into <b>war</b>.",
+            "War is fought gate by gate: battles, <b>sieges</b> that starve worlds, captures, then peace by exhaustion.",
+            "Prosperous independents can <b>rise as new powers</b>."] },
+    { c: "--c-proj", fn: "runProjects", one: "Megaprojects — works of generations.",
+      reads: "reads treasury, member systems · writes project progress, system upgrades",
+      pts: ["Rich, unburdened factions break ground on a <b>Gate Nexus, Orbital Arcology or Terraforming Array</b>.",
+            "Each is paid down slowly out of the treasury over decades.",
+            "Finished, they reshape the world: near-free freight, room for millions more, or rock turned to farmland.",
+            "Lose the system or the treasury and the project is <b>abandoned</b> half-built."] },
+    { c: "--c-shock", fn: "runShocks", one: "Plagues, ore strikes, flares, gate shifts & drift.",
+      reads: "reads systems, edges · writes pop, reserves, stock, the gate graph, culture",
+      pts: ["Random <b>plagues</b> gut populations; <b>ore strikes</b> refill mineral reserves; <b>stellar flares</b> wipe out stockpiles.",
+            "Jumpgates can <b>collapse</b> or <b>open</b>, rewiring the trade graph mid-history.",
+            "<b>Culture drift</b>: busy lanes pull neighbors together, isolation lets them wander apart."] },
+    { c: "--c-faith", fn: "runFaith", one: "Creeds travel the lanes; isolation breeds schism.",
+      reads: "reads edges, pop, faith · writes system faith, new creeds",
+      pts: ["On a busy lane the <b>larger world's creed converts the smaller</b> — religion rides the freighters.",
+            "A large, cut-off, low-trade world may <b>schism</b> and proclaim its own heresy.",
+            "Shared creeds calm frontiers in the politics phase; rival creeds inflame them into holy war."] },
+    { c: "--c-chron", fn: "recordYear", one: "Yearly snapshot & the galaxy names its ages.",
+      reads: "reads the whole world · writes stats.series, traces, eras",
+      pts: ["Snapshots population, live worlds, wars, trade, prices and more into a per-year <b>series</b>.",
+            "Pushes sparkline traces onto every system and faction.",
+            "<b>Detects eras</b> from the state of the galaxy — Burning Years when wars rage, the Withering when population crashes, the Long Peace when the guns fall silent."] },
+  ];
+
+  const grid = document.getElementById("phases");
+  let openIdx = null;
+
+  PHASES.forEach((p, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "phase";
+    btn.style.setProperty("--c", `var(${p.c})`);
+    btn.setAttribute("aria-expanded", "false");
+    btn.dataset.i = i;
+    btn.innerHTML =
+      `<span class="pulse-dot"></span>` +
+      `<div class="idx">PHASE ${i + 1} / 8</div>` +
+      `<div class="fn"><span class="glyph"></span>${p.fn}</div>` +
+      `<div class="one">${p.one}</div>`;
+    grid.appendChild(btn);
+
+    // detail panel gets inserted after the correct row on open
+    btn.addEventListener("click", () => toggle(i));
+  });
+
+  const detail = document.createElement("div");
+  detail.className = "phase-detail";
+  detail.setAttribute("role", "region");
+
+  function renderDetail(i) {
+    const p = PHASES[i];
+    detail.style.setProperty("--c", `var(${p.c})`);
+    detail.innerHTML =
+      `<h3><span class="fn"></span>${i + 1}. ${p.fn}(w${i === 0 ? ", rng, alive" : ", …"})</h3>` +
+      `<div class="reads">${p.reads}</div>` +
+      `<ul>${p.pts.map((t) => `<li>${t}</li>`).join("")}</ul>`;
+  }
+
+  function toggle(i) {
+    const btns = [...grid.querySelectorAll(".phase")];
+    if (openIdx === i) {
+      btns[i].setAttribute("aria-expanded", "false");
+      detail.classList.remove("open");
+      detail.remove();
+      openIdx = null;
+      return;
+    }
+    btns.forEach((b) => b.setAttribute("aria-expanded", "false"));
+    btns[i].setAttribute("aria-expanded", "true");
+    renderDetail(i);
+    // place the detail so it spans full width right below the clicked card's row
+    const cols = getCols();
+    const rowEnd = (Math.floor(i / cols) + 1) * cols; // index after last card in that row
+    const ref = btns[rowEnd] || null;
+    grid.insertBefore(detail, ref);
+    detail.classList.add("open");
+    openIdx = i;
+  }
+
+  function getCols() {
+    const w = window.innerWidth;
+    if (w <= 460) return 1;
+    if (w <= 780) return 2;
+    return 4;
+  }
+  function reflow() { const i = openIdx; if (i === null) return; openIdx = null; toggle(i); }
+  window.addEventListener("resize", () => { if (openIdx !== null) reflow(); });
+
+  // ---- the tick pulse: a wave of "firing" across the phases, looping ----
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduce) {
+    let step = 0;
+    setInterval(() => {
+      const btns = grid.querySelectorAll(".phase");
+      if (!btns.length) return;
+      const idx = step % 8;
+      const b = btns[idx];
+      if (b) { b.classList.add("firing"); setTimeout(() => b.classList.remove("firing"), 1100); }
+      step++;
+    }, 620);
+  }
+
+  // ---- starfield in the hero ----
+  const cv = document.getElementById("stars");
+  if (cv) {
+    const ctx = cv.getContext("2d");
+    let stars = [];
+    function size() {
+      const r = cv.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = r.width * dpr; cv.height = r.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      stars = Array.from({ length: Math.round(r.width * r.height / 5200) }, () => ({
+        x: Math.random() * r.width, y: Math.random() * r.height,
+        r: Math.random() * 1.1 + 0.2, a: Math.random() * 0.6 + 0.15,
+        tw: Math.random() * 0.02 + 0.004, p: Math.random() * Math.PI * 2,
+      }));
+    }
+    function accent() {
+      return getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#7C8798";
+    }
+    let raf;
+    function draw() {
+      const r = cv.getBoundingClientRect();
+      ctx.clearRect(0, 0, r.width, r.height);
+      const col = accent();
+      for (const s of stars) {
+        s.p += s.tw;
+        const a = s.a * (0.55 + 0.45 * Math.sin(s.p));
+        ctx.globalAlpha = a;
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(draw);
+    }
+    size(); window.addEventListener("resize", size);
+    if (reduce) { draw(); cancelAnimationFrame(raf); } else { draw(); }
+  }
+
+  // ---- theme toggle ----
+  const root = document.documentElement;
+  const btn = document.getElementById("themeBtn");
+  function current() {
+    if (root.dataset.theme) return root.dataset.theme;
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  btn.addEventListener("click", () => {
+    const next = current() === "dark" ? "light" : "dark";
+    root.dataset.theme = next;
+    btn.textContent = next === "dark" ? "◐ light" : "◑ dark";
+  });
+</script>
+</body>
+</html>

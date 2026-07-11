@@ -24,6 +24,13 @@ npm run sim -- 12345 2000   # custom seed and year count
 Simulations are deterministic per seed: the same seed always produces the
 same history.
 
+## How it works
+
+For a high-level visual walkthrough of the engine — genesis, the eight-phase
+yearly tick, the shared `world` state, and the feedback loops that keep the
+galaxy self-regulating — open [`docs/how-the-simulation-works.html`](docs/how-the-simulation-works.html)
+in a browser.
+
 ## Project structure
 
 ```

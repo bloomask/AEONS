@@ -2,6 +2,7 @@ import { T } from "../constants.js";
 import { dist2 } from "../util.js";
 import { log } from "../events.js";
 import { relocateCapital } from "../factions.js";
+import { movePop } from "../society.js";
 
 // --- migration, colonization, infrastructure, and system death ---
 export function runSettlement(w, rng, alive) {
@@ -13,10 +14,7 @@ export function runSettlement(w, rng, alive) {
         .map(({ to }) => w.systems[to])
         .filter((o) => o.pop > 0.05 && !o.siege && o.wb > s.wb + 0.02)
         .sort((a, b) => b.wb - a.wb)[0];
-      if (dest) {
-        const m = s.pop * frac;
-        s.pop -= m; dest.pop += m;
-      }
+      if (dest) movePop(s, dest, s.pop * frac);
     }
     // found colonies on empty (or long-dead) habitable neighbors
     if (s.wb > 0.7 && s.pop > 8 && rng.chance(0.09)) {
@@ -28,9 +26,11 @@ export function runSettlement(w, rng, alive) {
         );
       if (target) {
         const m = Math.min(2.0, s.pop * 0.07);
-        s.pop -= m; target.pop = m;
+        target.pop = 0;
+        movePop(s, target, m); // colony ships fill from the lower decks
         target.fid = s.fid; target.dev = 0.6;
-        target.stock.food = m * 3; target.stock.goods = m;
+        target.unrest = 0; target.riotCd = 0;
+        target.stock.grain = m * 3; target.stock.consumer = m;
         const wasRuin = target.ruined;
         target.ruined = false;
         target.settledYear = w.year; target.peakPop = m;
@@ -46,7 +46,8 @@ export function runSettlement(w, rng, alive) {
           backer.wealth -= 25;
           target.sponsor = backer.id;
           target.dev = 0.75;
-          target.stock.food += m * 2; target.stock.goods += m;
+          target.stock.grain += m * 2; target.stock.consumer += m;
+          target.stock.medicine += m * 0.2;
           backer.sponsored.push({ sys: target.id, until: w.year + 60 });
           w.stats.c.colonySponsored++;
         }

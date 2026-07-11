@@ -1,3 +1,4 @@
+import { CLASSES } from "../constants.js";
 import { log } from "../events.js";
 
 // --- yearly statistics snapshot, history traces, and era detection ---
@@ -23,15 +24,22 @@ export function recordYear(w, rng) {
     pirateSys: live.filter((s) => s.fid !== null && w.factions[s.fid].gov === "pirate").length,
     largestShare: +(shares.length ? Math.max(...shares) : 0).toFixed(3),
     hhi: +shares.reduce((a, x) => a + x * x, 0).toFixed(3),
-    pFood: +(live.reduce((a, s) => a + s.price.food, 0) / n).toFixed(2),
-    pGoods: +(live.reduce((a, s) => a + s.price.goods, 0) / n).toFixed(2),
+    pGrain: +(live.reduce((a, s) => a + s.price.grain, 0) / n).toFixed(2),
+    pGoods: +(live.reduce((a, s) => a + s.price.consumer, 0) / n).toFixed(2),
+    pMeds: +(live.reduce((a, s) => a + s.price.medicine, 0) / n).toFixed(2),
+    unrest: +(live.reduce((a, s) => a + s.unrest, 0) / n).toFixed(3),
+    // the galaxy's social pyramid, as % of all humanity
+    ...Object.fromEntries(CLASSES.map((c) => [
+      "c" + c[0].toUpperCase() + c.slice(1),
+      +((live.reduce((a, s) => a + s.pop * s.classes[c], 0) / Math.max(1e-9, tp)) * 100).toFixed(1),
+    ])),
     fleet: +w.houses.reduce((a, h) => a + (h.dead ? 0 : h.ships), 0).toFixed(0),
     houses: w.houses.filter((h) => !h.dead).length,
   });
 
   // per-system traces for sparklines (last 120 years)
   for (const s of live) {
-    s.trace.push({ p: +s.pop.toFixed(1), f: +s.price.food.toFixed(2), g: +s.price.goods.toFixed(2) });
+    s.trace.push({ p: +s.pop.toFixed(1), f: +s.price.grain.toFixed(2), g: +s.price.consumer.toFixed(2) });
     if (s.trace.length > 120) s.trace.shift();
   }
 

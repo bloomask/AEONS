@@ -11,12 +11,10 @@ export const T = {
   START_FACTIONS: 12,
   BURN_YEARS: 300,
   GALAXY_R: 460,
-  FOOD_PER_POP: 1.0,
-  GOODS_PER_POP: 0.5,
-  FOOD_YIELD: 6.0,
-  ORE_YIELD: 3.0,
-  FUEL_YIELD: 3.0,
-  GOODS_YIELD: 2.2,
+  FOOD_YIELD: 7.5,
+  ORE_YIELD: 3.6,
+  RARE_YIELD: 1.3,
+  FUEL_YIELD: 3.6,
   MIN_QUALITY_FLOOR: 0.25,
   FOOD_SPOILAGE: 0.85,
   GROWTH_THRESHOLD: 0.58,
@@ -61,10 +59,72 @@ export const FAITH_COLORS = [
   "#E4708A", "#7B8CE8", "#E8D14B", "#4FD0A5",
 ];
 
-export const GOODS = ["food", "ore", "fuel", "goods"];
-export const BASE_PRICE = { food: 1.0, ore: 1.3, fuel: 1.6, goods: 3.2 };
-// per-good freight cost multiplier for hauling across a gate
-export const FREIGHT_COST = { food: 1.3, ore: 1.6, fuel: 1.0, goods: 0.8 };
+// ---------- the commodity tree ----------
+// Four categories, seven tradable goods. Raw goods come out of the ground;
+// manufactured goods are made by industry from raw inputs (see RECIPES).
+export const GOOD_CATS = [
+  { key: "food", label: "Food", goods: ["grain"] },
+  { key: "minerals", label: "Minerals", goods: ["metals", "rares"] },
+  { key: "energy", label: "Energy", goods: ["fuel"] },
+  { key: "goods", label: "Goods", goods: ["consumer", "medicine", "electronics"] },
+];
+export const GOODS = GOOD_CATS.flatMap((c) => c.goods);
+export const GOOD_LABEL = {
+  grain: "grain", metals: "metals", rares: "rare earths", fuel: "fuel",
+  consumer: "consumer goods", medicine: "medicine", electronics: "electronics",
+};
+export const BASE_PRICE = {
+  grain: 1.0, metals: 1.3, rares: 4.0, fuel: 1.6,
+  consumer: 3.0, medicine: 5.0, electronics: 6.5,
+};
+// per-good freight cost multiplier for hauling across a gate:
+// bulk cargo is dear to move, high-value-per-ton cargo is cheap
+export const FREIGHT_COST = {
+  grain: 1.3, metals: 1.6, rares: 0.5, fuel: 1.0,
+  consumer: 0.8, medicine: 0.5, electronics: 0.5,
+};
+// what one unit of each manufactured good eats off the local stockpile
+export const RECIPES = {
+  consumer: { metals: 0.4, fuel: 0.25 },
+  medicine: { grain: 0.3, rares: 0.1, fuel: 0.1 },
+  electronics: { metals: 0.25, rares: 0.3, fuel: 0.2 },
+};
+// industry output per unit of labor share, scaled by development
+export const MFG_YIELD = { consumer: 2.7, medicine: 1.3, electronics: 1.1 };
+
+// ---------- the social pyramid ----------
+// Every settled world's population splits into four strata. `labor` is how
+// much of the class actually works the fields, mines, and lines; `needs`
+// is yearly consumption per million; `mobility` is eagerness to emigrate;
+// `mortality` is relative death rate when famine or plague culls a world.
+// Consumption is allocated top-down: the elite buy first, workers get
+// whatever is left on the shelves — scarcity lands on the bottom.
+export const CLASSES = ["elite", "upper", "middle", "worker"];
+export const CLASS_DEF = {
+  elite: {
+    label: "Elite", color: "#E8B04B", labor: 0,
+    needs: { grain: 1.0, consumer: 1.2, medicine: 0.4, electronics: 0.6 },
+    mobility: 0.15, mortality: 0.4,
+  },
+  upper: {
+    label: "Upper class", color: "#C05DD6", labor: 0.35,
+    needs: { grain: 1.0, consumer: 0.8, medicine: 0.3, electronics: 0.25 },
+    mobility: 0.5, mortality: 0.7,
+  },
+  middle: {
+    label: "Middle class", color: "#5CC8DA", labor: 0.8,
+    needs: { grain: 1.0, consumer: 0.5, medicine: 0.15, electronics: 0.05 },
+    mobility: 0.9, mortality: 1.0,
+  },
+  worker: {
+    label: "Workers", color: "#6FBF73", labor: 1.0,
+    needs: { grain: 1.0, consumer: 0.2 },
+    mobility: 1.2, mortality: 1.15,
+  },
+};
+// the mix of an old settled world, and of the steerage decks of a colony ship
+export const START_MIX = { elite: 0.02, upper: 0.1, middle: 0.33, worker: 0.55 };
+export const ELITE_CAP = 0.06; // no world stays majority-idle for long
 
 export const FACTION_COLORS = [
   "#E8B04B", "#5CC8DA", "#C05DD6", "#6FBF73", "#E4708A",

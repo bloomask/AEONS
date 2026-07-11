@@ -1,4 +1,5 @@
-import { T, BASE_PRICE, CULTURES, FAITH_COLORS } from "./constants.js";
+import { T, GOODS, BASE_PRICE, CULTURES, FAITH_COLORS, CLASSES } from "./constants.js";
+import { startMix } from "./society.js";
 import { makeRng } from "./rng.js";
 import { clamp, dist2 } from "./util.js";
 import { genName } from "./names.js";
@@ -30,7 +31,7 @@ export function genGalaxy(seed) {
         megaStarted: 0, megaBuilt: 0, megaAbandoned: 0,
         corpFounded: 0, depotBuilt: 0, colonySponsored: 0,
         pirateHavens: 0, raids: 0, suppressions: 0,
-        charterStates: 0, revolution: 0, freePorts: 0,
+        charterStates: 0, revolution: 0, freePorts: 0, riot: 0,
       },
     },
   };
@@ -79,16 +80,21 @@ export function genGalaxy(seed) {
       cultName: c.cult.name,
       fert: Math.pow(rng.n(), 1.25),
       min: rng.n(), minRes, minRes0: minRes,
+      rare: Math.pow(rng.n(), 2.2), // rare-earth veins: most worlds have scraps, a few are motherlodes
       en: rng.n(), enRes, enRes0: enRes,
       hab: rng.n(),
       pop: 0, dev: 0.6, wealth: 0,
-      stock: { food: 0, ore: 0, fuel: 0, goods: 0 },
+      stock: Object.fromEntries(GOODS.map((g) => [g, 0])),
       price: { ...BASE_PRICE },
-      shares: { food: 0.25, ore: 0.25, fuel: 0.25, goods: 0.25 },
+      shares: Object.fromEntries(GOODS.map((g) => [g, 1 / GOODS.length])),
+      mfgEff: { consumer: 1, medicine: 1, electronics: 1 },
+      classes: startMix(),
+      classWb: Object.fromEntries(CLASSES.map((c) => [c, 0.7])),
+      unrest: 0, riotCd: 0,
       wb: 0.7, fid: null, ruined: false, diedYear: null,
       famineCd: 0, tradeIn: 0, tradeOut: 0, history: [],
       settledYear: null, peakPop: 0, lastFamine: -99, lastPlague: -99, lastWar: -99,
-      siege: null, flow: { food: 0, ore: 0, fuel: 0, goods: 0 }, trace: [],
+      siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
       faith: c.faith, mega: {}, depots: [], sponsor: null, freePort: false,
     });
@@ -142,8 +148,9 @@ export function genGalaxy(seed) {
     s.pop = rng.range(2, 24);
     s.settledYear = 0; s.peakPop = s.pop; w.stats.seeded++;
     s.wealth = rng.range(20, 90);
-    s.stock.food = s.pop * 3; s.stock.goods = s.pop;
-    s.stock.ore = s.pop * 0.5; s.stock.fuel = s.pop * 0.5;
+    s.stock.grain = s.pop * 3; s.stock.consumer = s.pop;
+    s.stock.metals = s.pop * 0.5; s.stock.fuel = s.pop * 0.5;
+    s.stock.medicine = s.pop * 0.1;
   });
 
   // founding factions on well-spaced high-pop capitals

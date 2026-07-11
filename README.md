@@ -77,8 +77,8 @@ src/
                         event pulses, hover cards, pan/zoom/fly-to camera
     Ticker.jsx          rotating headline strip over the map
     Timeline.jsx        history scrubber under the map (pop, eras, wars)
-    TopBar.jsx          clock controls and exports
-    StatsStrip.jsx      galaxy-wide counters
+    TopBar.jsx          command bar: brand, galaxy vitals, era, clock,
+                        transport controls, exports
     panels/             side-panel tabs: System (overview · society ·
                         market · problems), Powers, Trade, Market,
                         Galaxy, Chronicle

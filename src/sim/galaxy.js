@@ -1,4 +1,5 @@
 import { T, GOODS, BASE_PRICE, CULTURES, FAITH_COLORS, CLASSES } from "./constants.js";
+import { defaultConfig } from "./config.js";
 import { startMix } from "./society.js";
 import { makeRng } from "./rng.js";
 import { clamp, dist2 } from "./util.js";
@@ -8,10 +9,16 @@ import { foundFaction } from "./factions.js";
 import { foundHouse } from "./houses.js";
 
 // ---------- world generation ----------
-export function genGalaxy(seed) {
+export function genGalaxy(seed, cfgIn) {
+  const cfg = { ...defaultConfig(), ...(cfgIn || {}) };
   const rng = makeRng(seed);
+  // the map scales with system count to keep the same stellar density
+  const nSys = Math.round(cfg.systems);
+  const R = clamp(T.GALAXY_R * Math.sqrt(nSys / 96), 260, 620);
+  const nSeeded = Math.max(4, Math.round(nSys * (cfg.settled / 100)));
+  const nFactions = Math.min(Math.round(cfg.factions), nSeeded);
   const w = {
-    seed, year: 0, systems: [], edges: [], factions: [],
+    seed, cfg, year: 0, systems: [], edges: [], factions: [],
     events: [], relations: {}, nextFid: 0, warCount: 0,
     era: { name: "The Age of Foundation", since: 0 },
     eras: [{ name: "The Age of Foundation", since: 0 }],
@@ -53,8 +60,9 @@ export function genGalaxy(seed) {
 
   // cluster centers, each with a base culture and a dominant faith
   const centers = [];
-  for (let i = 0; i < 6; i++) {
-    const r = Math.sqrt(rng.n()) * T.GALAXY_R * 0.75;
+  const nCenters = clamp(Math.round(6 * nSys / 96), 4, 10);
+  for (let i = 0; i < nCenters; i++) {
+    const r = Math.sqrt(rng.n()) * R * 0.75;
     const a = rng.n() * Math.PI * 2;
     centers.push({
       x: Math.cos(a) * r, y: Math.sin(a) * r,
@@ -65,15 +73,15 @@ export function genGalaxy(seed) {
 
   // systems
   const usedNames = new Set();
-  for (let i = 0; i < T.N_SYSTEMS; i++) {
+  for (let i = 0; i < nSys; i++) {
     const c = rng.pick(centers);
-    const x = clamp(c.x + rng.gauss() * 150, -T.GALAXY_R, T.GALAXY_R);
-    const y = clamp(c.y + rng.gauss() * 150, -T.GALAXY_R, T.GALAXY_R);
+    const x = clamp(c.x + rng.gauss() * 150, -R, R);
+    const y = clamp(c.y + rng.gauss() * 150, -R, R);
     let name = genName(rng, c.cult);
     while (usedNames.has(name)) name = genName(rng, c.cult);
     usedNames.add(name);
-    const minRes = rng.range(250, 2600);
-    const enRes = rng.range(1800, 9000);
+    const minRes = rng.range(250, 2600) * cfg.richness;
+    const enRes = rng.range(1800, 9000) * cfg.richness;
     w.systems.push({
       id: i, name, x, y,
       cult: c.cult.vec.map((v) => clamp(v + rng.range(-0.15, 0.15), 0, 1)),
@@ -134,8 +142,8 @@ export function genGalaxy(seed) {
     addEdge(best.a, best.b); union(best.a, best.b);
   }
   // a few long trade lanes
-  for (let i = 0; i < 4; i++) {
-    const a = rng.int(0, T.N_SYSTEMS - 1), b = rng.int(0, T.N_SYSTEMS - 1);
+  for (let i = 0; i < Math.max(2, Math.round(4 * nSys / 96)); i++) {
+    const a = rng.int(0, nSys - 1), b = rng.int(0, nSys - 1);
     if (a !== b && dist2(w.systems[a], w.systems[b]) < 380) addEdge(a, b);
   }
   rebuildAdj(w);
@@ -144,7 +152,7 @@ export function genGalaxy(seed) {
   const ranked = [...w.systems].sort(
     (a, b) => b.hab * 0.6 + b.fert * 0.4 - (a.hab * 0.6 + a.fert * 0.4)
   );
-  ranked.slice(0, T.SEEDED).forEach((s) => {
+  ranked.slice(0, nSeeded).forEach((s) => {
     s.pop = rng.range(2, 24);
     s.settledYear = 0; s.peakPop = s.pop; w.stats.seeded++;
     s.wealth = rng.range(20, 90);
@@ -153,11 +161,13 @@ export function genGalaxy(seed) {
     s.stock.medicine = s.pop * 0.1;
   });
 
-  // founding factions on well-spaced high-pop capitals
+  // founding factions on well-spaced high-pop capitals; spacing relaxes
+  // when many powers must fit a small or crowded galaxy
+  const spacing = clamp(130 * Math.sqrt((nSys / 96) * (12 / Math.max(1, nFactions))), 60, 160);
   const caps = [];
-  for (const s of ranked.slice(0, T.SEEDED).sort((a, b) => b.pop - a.pop)) {
-    if (caps.every((c) => dist2(c, s) > 130)) caps.push(s);
-    if (caps.length >= T.START_FACTIONS) break;
+  for (const s of ranked.slice(0, nSeeded).sort((a, b) => b.pop - a.pop)) {
+    if (caps.every((c) => dist2(c, s) > spacing)) caps.push(s);
+    if (caps.length >= nFactions) break;
   }
   caps.forEach((cap) => foundFaction(w, rng, cap, true));
 
@@ -174,10 +184,10 @@ export function genGalaxy(seed) {
     });
 
   [...w.systems].filter((s) => s.pop > 0).sort((a, b) => b.pop - a.pop)
-    .slice(0, T.START_HOUSES)
+    .slice(0, Math.round(cfg.houses))
     .forEach((s) => foundHouse(w, rng, s, T.START_SHIPS, 80));
 
-  log(w, "era", `The Age of Foundation begins. ${caps.length} powers rise among ${T.N_SYSTEMS} known systems.`);
+  log(w, "era", `The Age of Foundation begins. ${caps.length} powers rise among ${nSys} known systems.`);
   w.rng = rng;
   return w;
 }

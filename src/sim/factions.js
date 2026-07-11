@@ -4,6 +4,11 @@ import {
 } from "./constants.js";
 import { log } from "./events.js";
 
+// tariffs everywhere scale with the configured multiplier, capped so a
+// duty never eats more than half a cargo's value
+const setTariff = (w, rng, gov) =>
+  Math.min(0.5, rng.range(...GOVS[gov].tariff) * (w.cfg?.tariffs ?? 1));
+
 export function foundFaction(w, rng, cap, spread) {
   const aggr = rng.n();
   const gov = aggr > 0.55 ? "empire" : "republic";
@@ -14,7 +19,7 @@ export function foundFaction(w, rng, cap, spread) {
     aggr, expans: rng.n(), treasury: 60, stability: 0.8,
     dead: false, foundedYear: w.year,
     peakSystems: 1, peakPop: cap.pop,
-    tariff: rng.range(...GOVS[gov].tariff),
+    tariff: setTariff(w, rng, gov),
     trace: [],
   };
   w.stats.c.factionsFounded++;
@@ -64,7 +69,7 @@ export function foundCorporateState(w, rng, h, sys) {
     aggr: 0.1, expans: rng.range(0.3, 0.7), treasury: 80, stability: 0.8,
     dead: false, foundedYear: w.year,
     peakSystems: 1, peakPop: sys.pop,
-    tariff: rng.range(...GOVS.corporate.tariff),
+    tariff: setTariff(w, rng, "corporate"),
     trace: [], corpId: h.id,
   };
   sys.fid = f.id;

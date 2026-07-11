@@ -9,7 +9,7 @@ export function runSettlement(w, rng, alive) {
   // migration & colonization
   for (const s of alive) {
     if (s.wb < 0.55 && s.pop > 0.1 && !s.siege) {
-      const frac = (0.55 - s.wb) * 0.35;
+      const frac = (0.55 - s.wb) * 0.35 * w.cfg.migration;
       const dest = w.adj[s.id]
         .map(({ to }) => w.systems[to])
         .filter((o) => o.pop > 0.05 && !o.siege && o.wb > s.wb + 0.02)
@@ -17,7 +17,7 @@ export function runSettlement(w, rng, alive) {
       if (dest) movePop(s, dest, s.pop * frac);
     }
     // found colonies on empty (or long-dead) habitable neighbors
-    if (s.wb > 0.7 && s.pop > 8 && rng.chance(0.09)) {
+    if (s.wb > 0.7 && s.pop > 8 && rng.chance(0.09 * w.cfg.migration)) {
       const target = w.adj[s.id]
         .map(({ to }) => w.systems[to])
         .find((o) =>

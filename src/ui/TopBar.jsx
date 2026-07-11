@@ -1,4 +1,3 @@
-import { T } from "../sim/constants.js";
 import { fmtPop } from "./format.js";
 
 const Vital = ({ label, value, color }) => (
@@ -30,7 +29,7 @@ export default function TopBar({
 
       {w && (
         <div className="flex items-center gap-4 flex-wrap">
-          <Vital label="systems" value={`${liveSystems.length}/${T.N_SYSTEMS}`} />
+          <Vital label="systems" value={`${liveSystems.length}/${w.systems.length}`} />
           <Vital label="ruins" value={ruins} color={ruins ? "#B0453A" : undefined} />
           <Vital label="population" value={fmtPop(totalPop)} />
           <Vital label="powers" value={fallen ? `${liveFactions.length} · ${fallen}†` : liveFactions.length} />

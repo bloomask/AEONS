@@ -10,7 +10,7 @@ import { fmtPop } from "./format.js";
 // Ownership is rasterized once per sim year into a world-space offscreen
 // canvas (nearest living member system within reach, via bucket grid),
 // then drawn under the map with the current pan/zoom transform.
-const WORLD_R = 520;          // half-extent of the rasterized world square
+const WORLD_R = 640;          // half-extent of the rasterized world square (covers the largest configurable galaxy)
 const GRID = 448;             // cells per side
 const CELL = (WORLD_R * 2) / GRID;
 const REACH = 60;             // world units a system projects territory over

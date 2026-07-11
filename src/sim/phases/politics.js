@@ -10,7 +10,7 @@ function revolt(w, rng, f, toGov, why) {
   const oldName = f.name;
   f.gov = toGov;
   f.name = words.join(" ");
-  f.tariff = rng.range(...GOVS[toGov].tariff);
+  f.tariff = Math.min(0.5, rng.range(...GOVS[toGov].tariff) * (w.cfg?.tariffs ?? 1));
   f.stability = 0.55;
   f.treasury = Math.max(f.treasury, 20); // the new government repudiates the old debts
   w.stats.c.revolution++;
@@ -72,10 +72,10 @@ export function runPolitics(w, rng, alive) {
     // revolutions from internal crisis: broke or crumbling empires birth
     // republics; desperate wartime republics fall to the generals
     const crisis = f.treasury < -40 || f.stability < 0.45;
-    if (f.gov === "empire" && crisis && rng.chance(0.25)) {
+    if (f.gov === "empire" && crisis && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "republic", (oldName, newName) =>
         `Revolution at ${cap.name}: crowds pull down the imperial sigils, and the ${oldName} is proclaimed the ${newName}.`);
-    } else if (f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25)) {
+    } else if (f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "empire", (oldName, newName) =>
         `The generals suspend the assembly of the ${oldName}. It wakes as the ${newName}.`);
     }
@@ -107,7 +107,7 @@ export function runPolitics(w, rng, alive) {
       const fCult = avgCult(members);
       for (const s of members) {
         if (s.id === f.capital) continue;
-        if (rng.chance(0.04 + cultDist(s.cult, fCult) * 0.1 + (s.unrest || 0) * 0.04)) {
+        if (rng.chance((0.04 + cultDist(s.cult, fCult) * 0.1 + (s.unrest || 0) * 0.04) * w.cfg.upheaval)) {
           s.fid = null;
           w.stats.c.secede++;
           log(w, "secede", `${s.name} declares independence from the ${f.name}.`, s.id);
@@ -128,7 +128,7 @@ export function runPolitics(w, rng, alive) {
     }
 
     // absorbing free systems: each form of power does it its own way
-    if (f.gov !== "pirate" && f.treasury > 50 && rng.chance(f.expans * 0.4 * (gov.expandMul || 1) + (f.gov === "corporate" ? 0.15 : 0))) {
+    if (f.gov !== "pirate" && f.treasury > 50 && rng.chance((f.expans * 0.4 * (gov.expandMul || 1) + (f.gov === "corporate" ? 0.15 : 0)) * w.cfg.expansion)) {
       const fCult = avgCult(members);
       const cands = [];
       for (const s of members)
@@ -215,11 +215,11 @@ export function runPolitics(w, rng, alive) {
           0, 100
         );
         const wasAllied = rel.allied;
-        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) && cd < 0.3;
+        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) * w.cfg.diplomacy && cd < 0.3;
         if (rel.allied && !wasAllied) {
           log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`);
         }
-        if (!rel.embargo && rel.rivalry > T.EMBARGO_RIVALRY && rng.chance(Math.max(A.aggr, B.aggr) * 0.15)) {
+        if (!rel.embargo && rel.rivalry > T.EMBARGO_RIVALRY && rng.chance(Math.max(A.aggr, B.aggr) * 0.15 * w.cfg.aggression)) {
           rel.embargo = true;
           w.stats.c.embargo++;
           log(w, "embargo", rng.pick([
@@ -232,7 +232,7 @@ export function runPolitics(w, rng, alive) {
         }
         if (
           rel.rivalry > 60 && !rel.allied &&
-          rng.chance(Math.max(A.aggr, B.aggr) * 0.35 * ((gA.warMul + gB.warMul) / 2)) &&
+          rng.chance(Math.max(A.aggr, B.aggr) * 0.35 * ((gA.warMul + gB.warMul) / 2) * w.cfg.aggression) &&
           (A.treasury > 40 || B.treasury > 40)
         ) {
           rel.war = { since: w.year, score: 0, rec: w.stats.wars.length };
@@ -362,10 +362,10 @@ export function runPolitics(w, rng, alive) {
           // defeat is the great regime-changer
           if (winner && taken > 0) {
             const loser = winner === A ? B : A;
-            if (loser.gov === "empire" && rng.chance(0.4)) {
+            if (loser.gov === "empire" && rng.chance(0.4 * w.cfg.upheaval)) {
               revolt(w, rng, loser, "republic", (oldName, newName) =>
                 `The defeat breaks the dynasty: the ${oldName} is swept away, and the ${newName} rises from the wreckage.`);
-            } else if (loser.gov === "republic" && rng.chance(0.25)) {
+            } else if (loser.gov === "republic" && rng.chance(0.25 * w.cfg.upheaval)) {
               revolt(w, rng, loser, "empire", (oldName, newName) =>
                 `Humiliated, the assembly of the ${oldName} hands power to a strongman. It wakes as the ${newName}.`);
             }

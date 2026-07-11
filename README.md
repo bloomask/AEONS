@@ -23,8 +23,9 @@ npm run preview   # serve the production build
 The simulation engine is DOM-free and also runs headless in Node:
 
 ```sh
-npm run sim                 # seed 42, 500 years, prints summary stats
-npm run sim -- 12345 2000   # custom seed and year count
+npm run sim                       # seed 42, 500 years, prints summary stats
+npm run sim -- 12345 2000         # custom seed and year count
+npm run sim -- 42 500 bloodiron   # run a named galaxy preset
 ```
 
 Simulations are deterministic per seed: the same seed always produces the
@@ -41,6 +42,9 @@ src/
     constants.js        tuning table and static data: the commodity tree
                         (food/minerals/energy/goods → 7 tradable goods with
                         recipes), the four social classes, cultures, colors
+    config.js           the New Game knobs: schema-driven settings (galaxy
+                        size, fertility, aggression, plague chance, ...),
+                        named presets, defaults matching classic tuning
     rng.js              seeded RNG (mulberry32)
     util.js             clamp, distances, culture math
     society.js          the social pyramid: class mixes, migration skew,
@@ -77,6 +81,8 @@ src/
                         event pulses, hover cards, pan/zoom/fly-to camera
     Ticker.jsx          rotating headline strip over the map
     Timeline.jsx        history scrubber under the map (pop, eras, wars)
+    NewGameScreen.jsx   founding screen: seed, named-galaxy presets, and
+                        every simulation knob, rendered from config.js
     TopBar.jsx          command bar: brand, galaxy vitals, era, clock,
                         transport controls, exports
     panels/             side-panel tabs: System (overview · society ·

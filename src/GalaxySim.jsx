@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { T } from "./sim/constants.js";
 import { genGalaxy } from "./sim/galaxy.js";
+import { defaultConfig } from "./sim/config.js";
 import { simulateYear } from "./sim/simulate.js";
 import { buildStats } from "./sim/stats.js";
 import { downloadFile } from "./ui/download.js";
+import NewGameScreen from "./ui/NewGameScreen.jsx";
 import MapView from "./ui/MapView.jsx";
 import Ticker from "./ui/Ticker.jsx";
 import Timeline from "./ui/Timeline.jsx";
@@ -34,6 +35,8 @@ export default function GalaxySim() {
   const [speed, setSpeed] = useState(0);
   const [burn, setBurn] = useState(null);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
+  const [cfg, setCfg] = useState(defaultConfig);
+  const [setupOpen, setSetupOpen] = useState(true);
   const [overlay, setOverlay] = useState("realm");
   const [evFilter, setEvFilter] = useState("all");
   const [facFilter, setFacFilter] = useState("all");
@@ -45,6 +48,7 @@ export default function GalaxySim() {
     setBurn({ done: 0, total: years });
     let done = 0;
     const step = () => {
+      if (worldRef.current !== w) return; // a newer galaxy superseded this burn
       const chunk = Math.min(12, years - done);
       for (let i = 0; i < chunk; i++) simulateYear(w);
       done += chunk;
@@ -56,16 +60,22 @@ export default function GalaxySim() {
     setTimeout(step, 0);
   }, [bump]);
 
-  // init
-  useEffect(() => {
-    const w = genGalaxy(seed);
-    worldRef.current = w;
+  // founding: generate the configured galaxy and burn its pre-history
+  const begin = useCallback((newSeed, newCfg) => {
+    setSetupOpen(false);
+    setSpeed(0);
+    setSeed(newSeed);
+    setCfg(newCfg);
     setSelected(null);
+    setTab("chronicle");
     setFacFilter("all");
     setFocusYear(null);
-    runBurn(w, T.BURN_YEARS, () => setSpeed(1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed]);
+    const w = genGalaxy(newSeed, newCfg);
+    worldRef.current = w;
+    const burnY = Math.round(newCfg.burnYears);
+    if (burnY > 0) runBurn(w, burnY, () => setSpeed(1));
+    else { setSpeed(1); bump(); }
+  }, [runBurn, bump]);
 
   // sim clock — render rate capped at 10/s; higher speeds batch years per tick
   useEffect(() => {
@@ -126,6 +136,19 @@ export default function GalaxySim() {
     downloadFile(`aeons-series-seed${wd.seed}-y${wd.year}.csv`, csv, "text/csv");
   };
 
+  // the founding screen replaces everything until a galaxy is begun
+  if (setupOpen) {
+    return (
+      <NewGameScreen
+        initialSeed={seed}
+        initialCfg={cfg}
+        canCancel={!!w}
+        onBegin={begin}
+        onCancel={() => setSetupOpen(false)}
+      />
+    );
+  }
+
   return (
     <div
       className="w-full h-screen flex flex-col overflow-hidden select-none"
@@ -139,7 +162,7 @@ export default function GalaxySim() {
         onCentury={() => w && !burn && runBurn(w, 100)}
         onExportJson={exportJson}
         onExportCsv={exportCsv}
-        onNewGalaxy={() => { setSpeed(0); setSeed(Math.floor(Math.random() * 1e6)); }}
+        onNewGalaxy={() => { setSpeed(0); setSetupOpen(true); }}
         w={w}
         liveSystems={liveSystems}
         totalPop={totalPop}

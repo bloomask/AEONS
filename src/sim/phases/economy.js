@@ -92,9 +92,10 @@ export function runEconomy(w, rng, alive) {
       s.price[g] = BASE_PRICE[g] * clamp(Math.pow(scarcity, 0.75), 0.15, 8);
     }
 
-    // wealth & development
+    // wealth & development; past a point, luxury and graft eat the surplus
     const pv = GOODS.reduce((acc, g) => acc + prod[g] * s.price[g], 0);
-    s.wealth = Math.max(-20, s.wealth * 0.99 + pv * 0.06 - s.pop * 0.02);
+    s.wealth = Math.max(-20,
+      s.wealth * 0.99 + pv * 0.06 - s.pop * 0.02 - Math.max(0, s.wealth - 400) * 0.012);
     s.dev = clamp(
       s.dev + clamp((s.wealth / (s.pop * 10 + 1) - 0.5) * 0.004, -0.003, 0.006),
       0.3, 3

@@ -48,6 +48,10 @@ export function buildStats(w) {
       factions: {
         founded: S.c.factionsFounded,
         dead: S.factionDeaths.length,
+        livingByGov: w.factions.filter((f) => !f.dead).reduce((acc, f) => {
+          acc[f.gov || "republic"] = (acc[f.gov || "republic"] || 0) + 1;
+          return acc;
+        }, {}),
         pctDead: +((S.factionDeaths.length / Math.max(1, S.c.factionsFounded)) * 100).toFixed(1),
         lifespan: { median: median(fLifespans), mean: meanOf(fLifespans) },
         deathCauses: pctBreakdown(S.factionDeaths, "cause"),

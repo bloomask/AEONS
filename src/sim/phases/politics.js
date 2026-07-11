@@ -1,8 +1,21 @@
-import { T } from "../constants.js";
+import { T, GOVS, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM } from "../constants.js";
 import { clamp, dist2, cultDist, avgCult } from "../util.js";
 import { log, fx, relKey, getRel } from "../events.js";
-import { foundFaction, relocateCapital, killFaction } from "../factions.js";
+import { foundFaction, foundPirateHaven, relocateCapital, killFaction } from "../factions.js";
 import { majorityFaith } from "./faith.js";
+
+function revolt(w, rng, f, toGov, why) {
+  const words = f.name.split(" ");
+  words[words.length - 1] = rng.pick(toGov === "republic" ? FACTION_SUFFIX_CALM : FACTION_SUFFIX_AGGR);
+  const oldName = f.name;
+  f.gov = toGov;
+  f.name = words.join(" ");
+  f.tariff = rng.range(...GOVS[toGov].tariff);
+  f.stability = 0.55;
+  f.treasury = Math.max(f.treasury, 20); // the new government repudiates the old debts
+  w.stats.c.revolution++;
+  log(w, "revolution", why(oldName, f.name), f.capital);
+}
 
 // --- faction economics & politics, diplomacy & war, new powers ---
 export function runPolitics(w, rng, alive) {
@@ -19,22 +32,65 @@ export function runPolitics(w, rng, alive) {
       log(w, "era", `The ${f.name} now rules ${members.length} systems — the greatest realm the galaxy has yet known.`);
     }
 
-    const income = members.reduce(
-      (a, s) => a + Math.max(0, s.wealth) * T.TAX_RATE + s.pop * T.TAX_PER_POP, 0);
+    const gov = GOVS[f.gov] || GOVS.republic;
+    // how a power pays for itself depends on what it is: empires and
+    // republics tax heads and wealth, charters skim trade throughput,
+    // corsairs live on loot (added by the pirates phase)
+    let income;
+    if (f.gov === "corporate") {
+      const corp = f.corpId != null ? w.houses[f.corpId] : null;
+      income = members.reduce((a, s) => a + s.tradeIn * 0.06 + s.pop * 0.02, 0)
+        + (corp && !corp.dead ? 3 : 0);
+    } else {
+      // the taxable base tops out — past a point the rich hide the rest —
+      // so a long war or a bloated realm can genuinely run out of money
+      income = members.reduce(
+        (a, s) => a + Math.min(Math.max(0, s.wealth), 300) * T.TAX_RATE + s.pop * T.TAX_PER_POP, 0
+      ) * gov.taxMul;
+    }
     const avgDist = members.reduce((a, s) => a + dist2(s, cap), 0) / members.length;
-    const admin = T.ADMIN_BASE * Math.pow(members.length, T.ADMIN_EXP) * (1 + avgDist / 300);
+    const admin = f.gov === "pirate"
+      ? members.length * 0.4
+      : T.ADMIN_BASE * Math.pow(members.length, T.ADMIN_EXP) * (1 + avgDist / 300);
     const atWar = Object.entries(w.relations).some(
       ([k, r]) => r.war && k.split("|").map(Number).includes(f.id)
     );
-    f.treasury += income - admin - (atWar ? 14 : 0);
-    // stability tracks the treasury AND how citizens actually live:
-    // famine breeds unrest; large empires strain cohesion
+    f.treasury += income - admin - (atWar ? gov.warCost : 0);
+    // stability tracks the treasury AND how citizens actually live —
+    // but how much the rulers care depends on the form of power
     const avgWbM = members.reduce((a, s) => a + s.wb, 0) / members.length;
-    f.stability = clamp(
-      f.stability + (f.treasury > 0 ? 0.04 : -0.08) + (atWar ? -0.03 : 0.01)
-        - members.length * 0.003 + (avgWbM - 0.58) * 0.25,
-      0, 1
-    );
+    if (f.gov !== "pirate") {
+      f.stability = clamp(
+        f.stability + (f.treasury > 0 ? 0.04 : -0.08) + (atWar ? gov.warStab : 0.01)
+          - members.length * 0.003 + (avgWbM - 0.58) * gov.wbStab,
+        0, 1
+      );
+    }
+
+    // revolutions from internal crisis: broke or crumbling empires birth
+    // republics; desperate wartime republics fall to the generals
+    const crisis = f.treasury < -40 || f.stability < 0.45;
+    if (f.gov === "empire" && crisis && rng.chance(0.25)) {
+      revolt(w, rng, f, "republic", (oldName, newName) =>
+        `Revolution at ${cap.name}: crowds pull down the imperial sigils, and the ${oldName} is proclaimed the ${newName}.`);
+    } else if (f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25)) {
+      revolt(w, rng, f, "empire", (oldName, newName) =>
+        `The generals suspend the assembly of the ${oldName}. It wakes as the ${newName}.`);
+    }
+
+    // a great trade hub under a heavy-handed crown may simply buy its way out
+    if (f.gov === "empire" && f.stability < 0.7) {
+      const hub = members.find((s) =>
+        s.id !== f.capital && s.tradeIn > 20 && s.wealth > 200 && !s.freePort);
+      if (hub && rng.chance(0.02)) {
+        hub.fid = null;
+        hub.freePort = true;
+        hub.wealth -= 80;
+        f.treasury += 60;
+        w.stats.c.freePorts++;
+        log(w, "found", `${hub.name} buys its charter from the ${f.name} outright. The Free Port of ${hub.name} opens its docks to all flags.`, hub.id);
+      }
+    }
 
     // war effort consumes member stockpiles — famine as a weapon of attrition
     if (atWar) {
@@ -43,7 +99,8 @@ export function runPolitics(w, rng, alive) {
       }
     }
 
-    // secession of the resentful fringe
+    // secession of the resentful fringe — and the truly desperate
+    // don't declare a republic, they raise the black flag
     if (f.stability < 0.35) {
       const fCult = avgCult(members);
       for (const s of members) {
@@ -52,6 +109,11 @@ export function runPolitics(w, rng, alive) {
           s.fid = null;
           w.stats.c.secede++;
           log(w, "secede", `${s.name} declares independence from the ${f.name}.`, s.id);
+          if (s.wealth > 50) {
+            s.freePort = true;
+            w.stats.c.freePorts++;
+            log(w, "found", `${s.name} charters itself a Free Port. The customs men are put on the first ship out.`, s.id);
+          } else if (s.wb < 0.55 && rng.chance(0.3)) foundPirateHaven(w, rng, s);
         }
       }
     }
@@ -63,8 +125,8 @@ export function runPolitics(w, rng, alive) {
       continue;
     }
 
-    // peaceful/forceful annexation of independents
-    if (f.treasury > 50 && rng.chance(f.expans * 0.4)) {
+    // absorbing free systems: each form of power does it its own way
+    if (f.gov !== "pirate" && f.treasury > 50 && rng.chance(f.expans * 0.4 * (gov.expandMul || 1) + (f.gov === "corporate" ? 0.15 : 0))) {
       const fCult = avgCult(members);
       const cands = [];
       for (const s of members)
@@ -72,27 +134,53 @@ export function runPolitics(w, rng, alive) {
           const o = w.systems[to];
           if (o.pop > 0.05 && o.fid === null) cands.push(o);
         }
-      if (cands.length) {
-        cands.sort((a, b) => cultDist(a.cult, fCult) - cultDist(b.cult, fCult));
-        const tgt = cands[0];
-        const cd = cultDist(tgt.cult, fCult);
-        f.treasury -= 20 + cd * 30;
-        tgt.fid = f.id;
-        w.stats.c.annex++;
-        log(w, "annex",
-          cd < 0.25
-            ? `${tgt.name} joins the ${f.name} by accord.`
-            : `The ${f.name} subjugates ${tgt.name}.`,
-          tgt.id);
+      if (f.gov === "corporate") {
+        // charters are bought, not taken — and only worth buying at a port.
+        // But the last free ports are untouchable: everyone, corporations
+        // included, needs somewhere neutral to trade.
+        const portCount = w.systems.filter((s) => s.freePort && s.pop > 0.05).length;
+        const tgt = cands.filter((o) =>
+          (o.tradeIn > 2 || o.wealth > 25) && (!o.freePort || portCount > 2))
+          .sort((a, b) => b.tradeIn - a.tradeIn)[0];
+        const cost = tgt ? 25 + tgt.wealth * 0.2 + (tgt.freePort ? 120 : 0) : 0;
+        if (tgt && f.treasury > cost + 30) {
+          f.treasury -= cost;
+          tgt.fid = f.id;
+          tgt.freePort = false; // bought out, charter and all
+          w.stats.c.annex++;
+          log(w, "annex", `The ${f.name} purchases the charter of ${tgt.name}. The customs houses reopen under a company seal.`, tgt.id);
+        }
+      } else {
+        // true free ports are beyond any state's reach: too connected,
+        // too useful to everyone — only a corporation can buy one
+        const takeable = cands.filter((o) => !o.freePort && o.tradeIn <= 10 && o.wealth <= 80);
+        takeable.sort((a, b) => cultDist(a.cult, fCult) - cultDist(b.cult, fCult));
+        const tgt = takeable[0];
+        const cd = tgt ? cultDist(tgt.cult, fCult) : 1;
+        // mid-tier free systems still buy off annexation when they can
+        const resisted = tgt && tgt.wealth > 45 && rng.chance(f.gov === "empire" ? 0.55 : 0.75);
+        // republics only welcome kin; empires take what borders them
+        if (tgt && !resisted && (f.gov === "empire" || cd < 0.35)) {
+          f.treasury -= (20 + cd * 30) * (f.gov === "empire" ? 0.85 : 1);
+          tgt.fid = f.id;
+          w.stats.c.annex++;
+          log(w, "annex",
+            f.gov === "republic" || cd < 0.25
+              ? `${tgt.name} joins the ${f.name} by accord.`
+              : `The ${f.name} subjugates ${tgt.name}.`,
+            tgt.id);
+        }
       }
     }
   }
 
-  // diplomacy: rivalry, alliance, war
-  const liveFactions = w.factions.filter((f) => !f.dead);
+  // diplomacy: rivalry, alliance, war — corsairs are outlaws, not states,
+  // so they never appear at the table (the pirates phase handles them)
+  const liveFactions = w.factions.filter((f) => !f.dead && f.gov !== "pirate");
   for (let i = 0; i < liveFactions.length; i++) {
     for (let j = i + 1; j < liveFactions.length; j++) {
       const A = liveFactions[i], B = liveFactions[j];
+      const gA = GOVS[A.gov] || GOVS.republic, gB = GOVS[B.gov] || GOVS.republic;
       const border = w.edges.filter((e) => {
         const fa = w.systems[e.a].fid, fb = w.systems[e.b].fid;
         return (fa === A.id && fb === B.id) || (fa === B.id && fb === A.id);
@@ -125,7 +213,7 @@ export function runPolitics(w, rng, alive) {
           0, 100
         );
         const wasAllied = rel.allied;
-        rel.allied = rel.rivalry < 12 && cd < 0.3;
+        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) && cd < 0.3;
         if (rel.allied && !wasAllied) {
           log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`);
         }
@@ -142,7 +230,7 @@ export function runPolitics(w, rng, alive) {
         }
         if (
           rel.rivalry > 60 && !rel.allied &&
-          rng.chance(Math.max(A.aggr, B.aggr) * 0.35) &&
+          rng.chance(Math.max(A.aggr, B.aggr) * 0.35 * ((gA.warMul + gB.warMul) / 2)) &&
           (A.treasury > 40 || B.treasury > 40)
         ) {
           rel.war = { since: w.year, score: 0, rec: w.stats.wars.length };
@@ -269,19 +357,32 @@ export function runPolitics(w, rng, alive) {
             w.records.longestWar = dur;
             log(w, "era", `${dur} years of war between the ${A.name} and the ${B.name} — the longest anyone living can remember.`);
           }
+          // defeat is the great regime-changer
+          if (winner && taken > 0) {
+            const loser = winner === A ? B : A;
+            if (loser.gov === "empire" && rng.chance(0.4)) {
+              revolt(w, rng, loser, "republic", (oldName, newName) =>
+                `The defeat breaks the dynasty: the ${oldName} is swept away, and the ${newName} rises from the wreckage.`);
+            } else if (loser.gov === "republic" && rng.chance(0.25)) {
+              revolt(w, rng, loser, "empire", (oldName, newName) =>
+                `Humiliated, the assembly of the ${oldName} hands power to a strongman. It wakes as the ${newName}.`);
+            }
+          }
           rel.war = null; rel.rivalry = 25;
         }
       }
     }
   }
 
-  // new powers rise from prosperous independents
+  // new powers rise from prosperous independents — though true trade
+  // hubs prefer no flag at all
   for (const s of alive) {
-    if (s.fid === null && s.pop > 8 && s.wealth > 30 && rng.chance(0.03)) {
+    if (s.fid === null && !s.freePort && s.pop > 8 && s.wealth > 30 && s.tradeIn <= 10 && rng.chance(0.03)) {
       const f = foundFaction(w, rng, s, false);
       for (const { to } of w.adj[s.id]) {
         const o = w.systems[to];
-        if (o.pop > 0.05 && o.fid === null && cultDist(o.cult, s.cult) < 0.3) o.fid = f.id;
+        // kin join the new power — but free ports keep their own flag
+        if (o.pop > 0.05 && o.fid === null && !o.freePort && o.tradeIn <= 10 && cultDist(o.cult, s.cult) < 0.3) o.fid = f.id;
       }
     }
   }

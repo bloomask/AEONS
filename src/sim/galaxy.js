@@ -29,6 +29,8 @@ export function genGalaxy(seed) {
         conversion: 0, schism: 0,
         megaStarted: 0, megaBuilt: 0, megaAbandoned: 0,
         corpFounded: 0, depotBuilt: 0, colonySponsored: 0,
+        pirateHavens: 0, raids: 0, suppressions: 0,
+        charterStates: 0, revolution: 0, freePorts: 0,
       },
     },
   };
@@ -88,7 +90,7 @@ export function genGalaxy(seed) {
       settledYear: null, peakPop: 0, lastFamine: -99, lastPlague: -99, lastWar: -99,
       siege: null, flow: { food: 0, ore: 0, fuel: 0, goods: 0 }, trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
-      faith: c.faith, mega: {}, depots: [], sponsor: null,
+      faith: c.faith, mega: {}, depots: [], sponsor: null, freePort: false,
     });
   }
 
@@ -151,6 +153,18 @@ export function genGalaxy(seed) {
     if (caps.length >= T.START_FACTIONS) break;
   }
   caps.forEach((cap) => foundFaction(w, rng, cap, true));
+
+  // the best-connected unclaimed worlds declare perpetual neutrality:
+  // free ports, where anyone may dock and no flag may fly
+  [...w.systems]
+    .filter((s) => s.pop > 0 && s.fid === null)
+    .sort((a, b) => w.adj[b.id].length - w.adj[a.id].length)
+    .slice(0, 3)
+    .forEach((s) => {
+      s.freePort = true;
+      w.stats.c.freePorts++;
+      log(w, "found", `${s.name} declares itself a Free Port: no duties, no navy, no master.`, s.id);
+    });
 
   [...w.systems].filter((s) => s.pop > 0).sort((a, b) => b.pop - a.pop)
     .slice(0, T.START_HOUSES)

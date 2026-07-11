@@ -1,16 +1,20 @@
-import { factionColor, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM } from "./constants.js";
+import {
+  factionColor, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM,
+  GOVS, PIRATE_COLORS, CORP_STATE_COLORS,
+} from "./constants.js";
 import { log } from "./events.js";
 
 export function foundFaction(w, rng, cap, spread) {
   const aggr = rng.n();
+  const gov = aggr > 0.55 ? "empire" : "republic";
   const f = {
-    id: w.nextFid++, capital: cap.id,
-    name: `${cap.name.split(" ")[0]} ${aggr > 0.55 ? rng.pick(FACTION_SUFFIX_AGGR) : rng.pick(FACTION_SUFFIX_CALM)}`,
+    id: w.nextFid++, capital: cap.id, gov,
+    name: `${cap.name.split(" ")[0]} ${gov === "empire" ? rng.pick(FACTION_SUFFIX_AGGR) : rng.pick(FACTION_SUFFIX_CALM)}`,
     color: factionColor(w.nextFid - 1),
     aggr, expans: rng.n(), treasury: 60, stability: 0.8,
     dead: false, foundedYear: w.year,
     peakSystems: 1, peakPop: cap.pop,
-    tariff: rng.range(0.05, 0.25),
+    tariff: rng.range(...GOVS[gov].tariff),
     trace: [],
   };
   w.stats.c.factionsFounded++;
@@ -26,6 +30,51 @@ export function foundFaction(w, rng, cap, spread) {
   return f;
 }
 
+export function foundPirateHaven(w, rng, sys) {
+  sys.freePort = false; // whatever charter it had dies with the black flag
+  const base = sys.name.split(" ")[0];
+  const f = {
+    id: w.nextFid++, capital: sys.id, gov: "pirate",
+    name: rng.pick([
+      `The ${base} Reavers`, `Corsairs of ${base}`,
+      `The ${base} Black Fleet`, `${base} Freeblades`,
+    ]),
+    color: rng.pick(PIRATE_COLORS),
+    aggr: 0.9, expans: 0.2, treasury: 20, stability: 0.6,
+    dead: false, foundedYear: w.year,
+    peakSystems: 1, peakPop: sys.pop,
+    tariff: 0, trace: [], lootY: 0,
+  };
+  sys.fid = f.id;
+  w.factions.push(f);
+  w.stats.c.pirateHavens++;
+  log(w, "pirate", `${f.name} raise the black flag over ${sys.name}. No convoy on the nearby lanes is safe again.`, sys.id);
+  return f;
+}
+
+export function foundCorporateState(w, rng, h, sys) {
+  const base = h.name.split(" ").find((word) => word !== "The") || h.name;
+  const f = {
+    id: w.nextFid++, capital: sys.id, gov: "corporate",
+    name: rng.pick([
+      `${base} Charterspace`, `${base} Concession`,
+      `${base} Free Zone`, `${base} Directorate`,
+    ]),
+    color: rng.pick(CORP_STATE_COLORS),
+    aggr: 0.1, expans: rng.range(0.3, 0.7), treasury: 80, stability: 0.8,
+    dead: false, foundedYear: w.year,
+    peakSystems: 1, peakPop: sys.pop,
+    tariff: rng.range(...GOVS.corporate.tariff),
+    trace: [], corpId: h.id,
+  };
+  sys.fid = f.id;
+  h.stateId = f.id;
+  w.factions.push(f);
+  w.stats.c.charterStates++;
+  log(w, "corp", `${h.name} proclaims the ${f.name} at ${sys.name}. The boardroom becomes a government.`, sys.id);
+  return f;
+}
+
 export function relocateCapital(w, f) {
   const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
   if (members.length) {
@@ -37,14 +86,24 @@ export function relocateCapital(w, f) {
 
 export function killFaction(w, f, verb, cause = "extinction") {
   f.dead = true; f.diedYear = w.year;
+  if (f.corpId != null && w.houses[f.corpId]) w.houses[f.corpId].stateId = null;
   w.stats.factionDeaths.push({
-    faction: f.name, founded: f.foundedYear, died: w.year,
+    faction: f.name, gov: f.gov, founded: f.foundedYear, died: w.year,
     lifespan: w.year - f.foundedYear, cause,
     peakSystems: f.peakSystems, peakPop: +f.peakPop.toFixed(1),
   });
+  const freed = [];
   for (const s of w.systems) {
-    if (s.fid === f.id) s.fid = null;
+    if (s.fid === f.id) { s.fid = null; freed.push(s); }
     if (s.siege && (s.siege.by === f.id || s.siege.pair.split("|").map(Number).includes(f.id))) s.siege = null;
+  }
+  // the richest world of a fallen power often keeps the lights on alone
+  const port = freed.filter((s) => s.pop > 1 && (s.wealth > 40 || s.tradeIn > 4) && !s.freePort)
+    .sort((a, b) => b.wealth - a.wealth)[0];
+  if (port && f.gov !== "pirate") {
+    port.freePort = true;
+    w.stats.c.freePorts++;
+    log(w, "found", `As the ${f.name} falls, ${port.name} declares itself a Free Port and keeps trading.`, port.id);
   }
   for (const k of Object.keys(w.relations))
     if (k.split("|").map(Number).includes(f.id)) delete w.relations[k];

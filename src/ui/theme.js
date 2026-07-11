@@ -16,12 +16,14 @@ export const EV_STYLE = {
   build: { c: "#6FBF73", tag: "BUILD" }, accord: { c: "#5CC8DA", tag: "ACCORD" },
   mega: { c: "#4FD0A5", tag: "WONDER" }, faith: { c: "#B79BE8", tag: "FAITH" },
   corp: { c: "#E8B04B", tag: "CORP" },
+  pirate: { c: "#A34A3A", tag: "CORSAIR" }, raid: { c: "#A34A3A", tag: "RAID" },
+  revolution: { c: "#F2A93B", tag: "REVOLT" },
 };
 
 export const EV_FILTERS = {
   all: null,
-  war: new Set(["war", "peace", "battle", "siege", "capture", "cede"]),
-  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith"]),
+  war: new Set(["war", "peace", "battle", "siege", "capture", "cede", "pirate", "raid"]),
+  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith", "revolution"]),
   economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare"]),
   life: new Set(["famine", "plague", "colony", "death"]),
 };

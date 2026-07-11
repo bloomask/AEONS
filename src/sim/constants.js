@@ -84,6 +84,59 @@ export const CULTURES = [
 export const FACTION_SUFFIX_CALM = ["League", "Compact", "Union", "Concord", "Assembly"];
 export const FACTION_SUFFIX_AGGR = ["Hegemony", "Mandate", "Ascendancy", "Dominion", "Combine"];
 
+// ---------- forms of power ----------
+// Free systems are the fifth form: no faction at all — no duties, no
+// protection. Everything with a government gets a row here.
+export const GOVS = {
+  empire: {
+    label: "Empire", badge: "#E4708A",
+    taxMul: 1.2,            // the throne takes more
+    tariff: [0.15, 0.3],
+    warMul: 1.4,            // quicker to draw the sword
+    warCost: 10,            // war machine runs cheap — it is the state
+    warStab: 0.005,         // war unites the empire
+    wbStab: 0.15,           // the court barely hears the hungry
+    allyRivalry: 8,         // almost never signs accords
+    expandMul: 1.2,
+  },
+  republic: {
+    label: "Republic", badge: "#5CC8DA",
+    taxMul: 0.95,
+    tariff: [0.03, 0.15],
+    warMul: 0.6,
+    warCost: 14,
+    warStab: -0.06,         // assemblies sour on long wars
+    wbStab: 0.3,            // voters remember empty granaries
+    allyRivalry: 16,        // signs open-lanes accords readily
+    expandMul: 0.8,
+  },
+  corporate: {
+    label: "Corporate Charter", badge: "#E8B04B",
+    taxMul: 0,              // income comes from trade throughput instead
+    tariff: [0, 0.05],
+    warMul: 0.15,           // war is bad for business
+    warCost: 20,
+    warStab: -0.08,
+    wbStab: 0.15,
+    allyRivalry: 20,
+    expandMul: 0,           // expands only by purchasing charters
+  },
+  pirate: {
+    label: "Corsair Haven", badge: "#A34A3A",
+    taxMul: 0,              // lives on loot, handled by the pirates phase
+    tariff: [0, 0],
+    warMul: 0,              // outlaws: no declared wars, no diplomacy
+    warCost: 0,
+    warStab: 0,
+    wbStab: 0,
+    allyRivalry: 0,
+    expandMul: 0,
+  },
+};
+
+export const PIRATE_COLORS = ["#A34A3A", "#8A3B4C", "#95502E"];
+export const CORP_STATE_COLORS = ["#E8B04B", "#D9A63F", "#C99648"];
+
 function hslToHex(h, s, l) {
   const a = s * Math.min(l, 1 - l);
   const f = (n) => {

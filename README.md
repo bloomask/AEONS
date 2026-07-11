@@ -45,7 +45,9 @@ src/
       economy.js        production, consumption, prices, demography
       trade.js          shipping, arbitrage, house & megacorp economics
       settlement.js     migration, colonization (corp-sponsored), system death
-      politics.js       faction politics, diplomacy, war (incl. holy wars)
+      politics.js       power politics: empires, republics, corporate
+                        charters, revolutions, diplomacy, war (incl. holy)
+      pirates.js        corsair havens: raiding, spread, naval suppression
       projects.js       megaprojects: gate nexus, arcology, terraforming
       shocks.js         plagues, ore strikes, flares, gate shifts, culture drift
       faith.js          creeds spreading along trade lanes, schisms

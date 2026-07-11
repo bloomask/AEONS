@@ -94,6 +94,7 @@ export function runSettlement(w, rng, alive) {
         peakPop: +s.peakPop.toFixed(1), cause,
       });
       s.siege = null;
+      s.freePort = false;
       const f = s.fid !== null ? w.factions[s.fid] : null;
       s.fid = null;
       const deathText = {

@@ -1,57 +1,99 @@
-import { T, GOODS, BASE_PRICE } from "../constants.js";
+import { T, GOODS, BASE_PRICE, RECIPES, MFG_YIELD, CLASSES, CLASS_DEF } from "../constants.js";
 import { clamp } from "../util.js";
 import { log } from "../events.js";
+import { laborForce, skewDeaths, socialMobility, computeUnrest } from "../society.js";
 
-// --- production, consumption, prices ---
+// --- production, consumption, prices, and the social pyramid ---
 export function runEconomy(w, rng, alive) {
   for (const s of alive) {
-    s.stock.food *= Math.min(0.97, T.FOOD_SPOILAGE + 0.04 * s.infra.gran); // food is perishable; granaries help
+    s.stock.grain *= Math.min(0.97, T.FOOD_SPOILAGE + 0.04 * s.infra.gran); // grain is perishable; granaries help
     const mq = s.min * Math.max(T.MIN_QUALITY_FLOOR + 0.15 * s.infra.mine, Math.sqrt(Math.max(0, s.minRes / s.minRes0)));
     const eq = s.en * Math.max(0.4, Math.sqrt(Math.max(0, s.enRes / s.enRes0)));
 
     // labor allocation follows price signals (with inertia);
-    // hungry populations shift hard toward subsistence farming
-    const hunger = 1 + 2.5 * Math.max(0, 0.75 - s.wb);
+    // hungry populations shift hard toward subsistence farming.
+    // manufacturing weights net out input costs AND are discounted by how
+    // much of last year's capacity actually ran — a fat margin on a line
+    // with empty input hoppers attracts no hands.
+    const inputCost = (g) =>
+      Object.entries(RECIPES[g]).reduce((a, [inp, q]) => a + q * s.price[inp], 0);
+    const hunger = 1 + 2.5 * Math.max(0, 0.75 - s.classWb.worker); // the field hands know who eats last
     const wt = {
-      food: s.price.food * s.fert * 2.2 * hunger,
-      ore: s.price.ore * mq * 2.5,
+      grain: s.price.grain * s.fert * 2.2 * hunger,
+      metals: s.price.metals * mq * 2.2,
+      rares: s.price.rares * mq * s.rare * 2.2,
       fuel: s.price.fuel * eq * 2.5,
-      goods: Math.max(0.05, s.price.goods * 1.8 * s.dev - s.price.ore * 0.5 - s.price.fuel * 0.3),
+      consumer: Math.max(0.05, (s.price.consumer - inputCost("consumer")) * 1.8 * s.dev * s.mfgEff.consumer),
+      medicine: Math.max(0.02, (s.price.medicine - inputCost("medicine")) * 1.2 * s.dev * s.mfgEff.medicine),
+      electronics: Math.max(0.02, (s.price.electronics - inputCost("electronics")) * 1.4 * s.dev * s.mfgEff.electronics),
     };
-    const sum = wt.food + wt.ore + wt.fuel + wt.goods;
+    const sum = GOODS.reduce((a, g) => a + wt[g], 0);
     for (const g of GOODS)
       s.shares[g] = s.shares[g] * 0.5 + (wt[g] / sum) * 0.5;
 
-    const L = s.pop;
+    // the elite do not work; the labor pool is what the lower strata supply
+    const L = s.pop * Math.max(0.3, laborForce(s.classes));
     const prod = {
-      food: T.FOOD_YIELD * s.fert * L * s.shares.food,
-      ore: T.ORE_YIELD * mq * L * s.shares.ore,
+      grain: T.FOOD_YIELD * s.fert * L * s.shares.grain,
+      metals: T.ORE_YIELD * mq * L * s.shares.metals,
+      rares: T.RARE_YIELD * mq * s.rare * L * s.shares.rares,
       fuel: T.FUEL_YIELD * eq * L * s.shares.fuel,
-      goods: 0,
+      consumer: 0, medicine: 0, electronics: 0,
     };
-    s.minRes = Math.max(0, s.minRes - prod.ore);
+    s.minRes = Math.max(0, s.minRes - prod.metals - prod.rares * 3); // rare veins run through hard rock
     s.enRes = Math.max(0, s.enRes - prod.fuel * 0.3);
+    for (const g of ["grain", "metals", "rares", "fuel"]) s.stock[g] += prod[g];
 
-    // industry converts ore+fuel into goods
-    const gCap = T.GOODS_YIELD * s.dev * L * s.shares.goods;
-    const gMade = Math.min(gCap, s.stock.ore / 0.5, s.stock.fuel / 0.3);
-    prod.goods = Math.max(0, gMade);
-    s.stock.ore -= prod.goods * 0.5;
-    s.stock.fuel -= prod.goods * 0.3;
-    for (const g of GOODS) s.stock[g] += prod[g];
+    // industry converts raw stockpiles into manufactures — staples first,
+    // so a strained world makes soap before circuit boards
+    const mfgDemand = {};
+    for (const m of Object.keys(RECIPES)) {
+      const cap = MFG_YIELD[m] * s.dev * L * s.shares[m];
+      let made = cap;
+      for (const [inp, q] of Object.entries(RECIPES[m]))
+        made = Math.min(made, s.stock[inp] / q);
+      made = Math.max(0, made);
+      for (const [inp, q] of Object.entries(RECIPES[m])) {
+        s.stock[inp] -= made * q;
+        mfgDemand[inp] = (mfgDemand[inp] || 0) + cap * q;
+      }
+      prod[m] = made;
+      s.stock[m] += made;
+      s.mfgEff[m] = Math.max(0.1, s.mfgEff[m] * 0.5 + (cap > 0.01 ? made / cap : 1) * 0.5);
+    }
 
-    // consumption
-    const foodNeed = s.pop * T.FOOD_PER_POP;
-    const goodsNeed = s.pop * T.GOODS_PER_POP;
-    const ate = Math.min(s.stock.food, foodNeed);
-    const used = Math.min(s.stock.goods, goodsNeed);
-    s.stock.food -= ate; s.stock.goods -= used;
-    const fs = foodNeed > 0 ? ate / foodNeed : 1;
-    const gs = goodsNeed > 0 ? used / goodsNeed : 1;
-    let wb = 0.8 * fs + 0.2 * gs;
+    // consumption, allocated down the pyramid: the elite buy first and the
+    // workers get what is left. Each class's wellbeing is its own basket.
+    const classDemand = {};
+    let grainNeed = 0, grainAte = 0;
+    for (const c of CLASSES) {
+      const def = CLASS_DEF[c];
+      const cpop = s.pop * s.classes[c];
+      let wbFood = 1, wbRest = 0, restW = 0;
+      for (const [g, per] of Object.entries(def.needs)) {
+        const want = cpop * per;
+        classDemand[g] = (classDemand[g] || 0) + want;
+        const got = Math.min(s.stock[g], want);
+        s.stock[g] -= got;
+        const sat = want > 0 ? got / want : 1;
+        if (g === "grain") { wbFood = sat; grainNeed += want; grainAte += got; }
+        else { wbRest += sat * per; restW += per; }
+      }
+      s.classWb[c] = 0.75 * wbFood + 0.25 * (restW > 0 ? wbRest / restW : 1);
+    }
+    const fs = grainNeed > 0 ? grainAte / grainNeed : 1;
+    let wb = CLASSES.reduce((a, c) => a + s.classWb[c] * s.classes[c], 0);
     const capPop = s.hab * 120 + s.fert * 80 + 8 + (s.mega.arcology ? 100 : 0);
-    if (s.pop > capPop) wb *= capPop / s.pop;
+    if (s.pop > capPop) {
+      const crowd = capPop / s.pop;
+      wb *= crowd;
+      for (const c of CLASSES) s.classWb[c] *= crowd;
+    }
     s.wb = wb;
+
+    // the pyramid shifts: prosperity climbs, misery slides, anger simmers
+    socialMobility(s);
+    s.unrest = computeUnrest(s);
 
     // demography — no rubber-banding
     s.pop *= 1 + clamp((wb - T.GROWTH_THRESHOLD) * 0.05, -0.05, 0.025);
@@ -60,6 +102,7 @@ export function runEconomy(w, rng, alive) {
       const before = s.pop;
       s.pop *= 0.85 + 0.3 * fs;
       const lost = before - s.pop;
+      skewDeaths(s, lost / before); // famine culls from the bottom up
       s.lastFamine = w.year;
       if (s.famineCd <= 0) {
         w.stats.c.famine++;
@@ -82,11 +125,26 @@ export function runEconomy(w, rng, alive) {
     }
     s.famineCd--;
 
-    // prices from local scarcity
-    const demand = {
-      food: foodNeed, goods: goodsNeed,
-      ore: gCap * 0.5, fuel: gCap * 0.3 + s.pop * 0.05,
-    };
+    // when the gap gets loud enough, it spills into the streets
+    if (s.unrest > 0.8 && s.pop > 2 && s.riotCd <= 0 && rng.chance(0.08)) {
+      s.wealth = Math.max(-20, s.wealth - s.wealth * 0.1 - 5);
+      s.stock.consumer *= 0.85;
+      s.unrest *= 0.6; // the streets have spoken; the pressure vents
+      s.riotCd = 8;
+      w.stats.c.riot++;
+      log(w, "riot", rng.pick([
+        `Bread riots at ${s.name}: the lower quarters burn the counting houses while the towers dine above the smoke.`,
+        `${s.name} erupts — dock crews and mine gangs storm the upper rings. The militia holds, barely.`,
+        `A general strike paralyzes ${s.name}. The elite pay for peace, this time.`,
+      ]), s.id);
+    }
+    s.riotCd--;
+
+    // prices from local scarcity: households plus industry bid for each good
+    const demand = {};
+    for (const g of GOODS)
+      demand[g] = (classDemand[g] || 0) + (mfgDemand[g] || 0);
+    demand.fuel += s.pop * 0.05; // lights and lift fields
     for (const g of GOODS) {
       const scarcity = (demand[g] * 1.5 + 1) / (s.stock[g] + prod[g] * 0.5 + 1);
       s.price[g] = BASE_PRICE[g] * clamp(Math.pow(scarcity, 0.75), 0.15, 8);
@@ -101,6 +159,6 @@ export function runEconomy(w, rng, alive) {
       0.3, 3
     );
     s.tradeIn = 0; s.tradeOut = 0;
-    s.flow = { food: 0, ore: 0, fuel: 0, goods: 0 };
+    s.flow = Object.fromEntries(GOODS.map((g) => [g, 0]));
   }
 }

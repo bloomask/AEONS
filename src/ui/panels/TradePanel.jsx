@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GOODS } from "../../sim/constants.js";
+import { GOODS, GOOD_LABEL } from "../../sim/constants.js";
 import { fmtMoney } from "../format.js";
 import { Spark } from "../widgets.jsx";
 
@@ -180,7 +180,7 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
           const top = liveSystems.filter((s) => s.flow[g] < -0.5).sort((a, b) => a.flow[g] - b.flow[g])[0];
           return (
             <div key={g} className="flex gap-2 mb-0.5">
-              <span className="capitalize w-14">{g}</span>
+              <span className="w-24">{GOOD_LABEL[g]}</span>
               {top ? (
                 <span className="cursor-pointer" onClick={() => onOpenSystem(top.id)}>
                   {top.name} <span style={{ color: "#6FBF73" }}>({(-top.flow[g]).toFixed(1)}/yr)</span>
@@ -199,9 +199,10 @@ export default function TradePanel({ w, liveSystems, onOpenSystem }) {
           const last = w.stats.series[w.stats.series.length - 1];
           if (!last) return null;
           return (
-            <div className="flex gap-4">
-              <span>food <b style={{ color: last.pFood > 2 ? "#E4572E" : "#E6E1D3" }}>{last.pFood}</b></span>
+            <div className="flex gap-4 flex-wrap">
+              <span>grain <b style={{ color: last.pGrain > 2 ? "#E4572E" : "#E6E1D3" }}>{last.pGrain}</b></span>
               <span>goods <b style={{ color: last.pGoods > 6 ? "#E4572E" : "#E6E1D3" }}>{last.pGoods}</b></span>
+              <span>medicine <b style={{ color: last.pMeds > 10 ? "#E4572E" : "#E6E1D3" }}>{last.pMeds}</b></span>
               <span>trade vol <b style={{ color: "#5CC8DA" }}>{last.trade}</b></span>
               <span>fleet <b style={{ color: "#E8B04B" }}>{last.fleet}</b></span>
             </div>

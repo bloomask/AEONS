@@ -530,8 +530,10 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     let body = "";
     if (s.pop > 0.05) {
       const wbC = s.wb < 0.5 ? "#E4572E" : s.wb < 0.65 ? "#F2A93B" : "#6FBF73";
+      const unC = s.unrest > 0.6 ? "#E4572E" : s.unrest > 0.35 ? "#F2A93B" : "#7C8798";
       body = `<div style="color:#7C8798;margin-top:2px">pop <b style="color:#E6E1D3">${fmtPop(s.pop)}</b>
         · wellbeing <b style="color:${wbC}">${(s.wb * 100).toFixed(0)}%</b>
+        · unrest <b style="color:${unC}">${(s.unrest * 100).toFixed(0)}%</b>
         ${s.siege ? '<span style="color:#E4572E"> · UNDER SIEGE</span>' : ""}</div>`;
     }
     el.innerHTML = `<div style="font-weight:600">${s.name}</div><div>${status}</div>${body}`;

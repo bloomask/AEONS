@@ -32,9 +32,13 @@ src/
   GalaxySim.jsx         top-level component: state, sim clock, layout
   sim/                  simulation engine (pure JS, no DOM — runs in Node too)
     index.js            public surface of the engine
-    constants.js        tuning table and static data (goods, cultures, colors)
+    constants.js        tuning table and static data: the commodity tree
+                        (food/minerals/energy/goods → 7 tradable goods with
+                        recipes), the four social classes, cultures, colors
     rng.js              seeded RNG (mulberry32)
     util.js             clamp, distances, culture math
+    society.js          the social pyramid: class mixes, migration skew,
+                        die-off skew, social mobility, unrest
     names.js            procedural system/house names
     events.js           chronicle log + inter-faction relations
     galaxy.js           world generation (systems, jumpgates, seeding)
@@ -42,7 +46,8 @@ src/
     houses.js           merchant house founding
     simulate.js         simulateYear — runs the phases in order
     phases/
-      economy.js        production, consumption, prices, demography
+      economy.js        production chains, class consumption, prices,
+                        social mobility, riots, demography
       trade.js          shipping, arbitrage, house & megacorp economics
       settlement.js     migration, colonization (corp-sponsored), system death
       politics.js       power politics: empires, republics, corporate

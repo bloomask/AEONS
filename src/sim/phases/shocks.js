@@ -2,15 +2,25 @@ import { T, GOODS } from "../constants.js";
 import { clamp, dist2 } from "../util.js";
 import { log } from "../events.js";
 import { rebuildAdj } from "../galaxy.js";
+import { skewDeaths } from "../society.js";
 
 // --- random shocks, gate shifts, and culture drift ---
 export function runShocks(w, rng, alive) {
   for (const s of alive) {
     if (rng.chance(0.004)) {
-      s.pop *= rng.range(0.4, 0.7);
+      // a stocked pharmacopoeia blunts the death toll — and is spent doing it
+      const med = clamp(s.stock.medicine / (s.pop * 0.25 + 0.01), 0, 1);
+      const before = s.pop;
+      s.pop *= rng.range(0.4, 0.7) + 0.25 * med;
+      s.stock.medicine *= 0.2;
+      skewDeaths(s, (before - s.pop) / before); // the poor quarters bury the most
       s.lastPlague = w.year;
       w.stats.c.plague++;
-      log(w, "plague", `Plague sweeps ${s.name}. Quarantine beacons burn for a generation.`, s.id);
+      log(w, "plague",
+        med > 0.5
+          ? `Plague sweeps ${s.name}, but its clinics hold the line; the pharmacopoeia is spent to the last vial.`
+          : `Plague sweeps ${s.name}. Quarantine beacons burn for a generation.`,
+        s.id);
     }
     if (rng.chance(0.005)) {
       s.minRes += s.minRes0 * rng.range(0.4, 1.2);

@@ -128,6 +128,16 @@ export default function GalaxyPanel({ w }) {
           <Chart title="average wellbeing" rows={rows} eras={eras} domainMax={1}
             fmt={(v) => (v * 100).toFixed(0) + "%"}
             series={[{ key: "avgWb", color: CHART.green }]} />
+          <Chart title="the social pyramid (% of humanity)" rows={rows} eras={eras} domainMax={100} fmt={pct} area={false}
+            series={[
+              { key: "cElite", color: CHART.amber, label: "elite" },
+              { key: "cUpper", color: CHART.purple, label: "upper" },
+              { key: "cMiddle", color: CHART.cyan, label: "middle" },
+              { key: "cWorker", color: CHART.green, label: "workers" },
+            ]} />
+          <Chart title="class unrest" rows={rows} eras={eras} domainMax={1}
+            fmt={(v) => (v * 100).toFixed(0) + "%"}
+            series={[{ key: "unrest", color: CHART.red }]} />
           <Chart title="worlds in misery" rows={rows} eras={eras} domainMax={100} fmt={pct}
             series={[{ key: "miseryPct", color: CHART.red }]} />
           <Chart title="largest power's share of humanity" rows={rows} eras={eras} domainMax={1}

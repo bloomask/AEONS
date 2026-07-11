@@ -82,6 +82,11 @@ export function buildStats(w) {
         livingFactions: now.factions ?? 0, activeWars: now.wars ?? 0,
         independentSystems: now.indep ?? 0,
       },
+      society: {
+        pctElite: now.cElite ?? 0, pctUpper: now.cUpper ?? 0,
+        pctMiddle: now.cMiddle ?? 0, pctWorker: now.cWorker ?? 0,
+        avgUnrest: now.unrest ?? 0, riots: S.c.riot,
+      },
     },
     systemDeaths: S.deaths,
     factionDeaths: S.factionDeaths,

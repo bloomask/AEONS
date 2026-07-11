@@ -1,4 +1,5 @@
-import { GOODS, BASE_PRICE } from "../../sim/constants.js";
+import { Fragment } from "react";
+import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF } from "../../sim/constants.js";
 import { Bar, Spark } from "../widgets.jsx";
 import { fmtPop, fmtMoney } from "../format.js";
 
@@ -61,6 +62,36 @@ export default function SystemPanel({ w, sel }) {
             <div className="flex justify-between"><span style={{ color: "#7C8798" }}>wellbeing</span><span>{(sel.wb * 100).toFixed(0)}%</span></div>
             <Bar v={sel.wb} color={sel.wb < 0.5 ? "#E4572E" : sel.wb < 0.65 ? "#F2A93B" : "#6FBF73"} />
           </div>
+          <div>
+            <div className="flex justify-between mb-1">
+              <span style={{ color: "#7C8798" }}>society</span>
+              <span style={{ color: sel.unrest > 0.6 ? "#E4572E" : sel.unrest > 0.35 ? "#F2A93B" : "#7C8798" }}>
+                unrest {(sel.unrest * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div className="flex h-2 rounded overflow-hidden" style={{ background: "rgba(230,225,211,0.08)" }}
+              title={CLASSES.map((c) => `${CLASS_DEF[c].label} ${(sel.classes[c] * 100).toFixed(0)}%`).join(" · ")}>
+              {CLASSES.map((c) => (
+                <div key={c} style={{ width: `${sel.classes[c] * 100}%`, background: CLASS_DEF[c].color }} />
+              ))}
+            </div>
+            <div className="mt-1 space-y-0.5">
+              {CLASSES.map((c) => {
+                const wb = sel.classWb[c];
+                const wc = wb < 0.5 ? "#E4572E" : wb < 0.65 ? "#F2A93B" : "#6FBF73";
+                return (
+                  <div key={c} className="flex items-baseline gap-2">
+                    <span style={{ color: CLASS_DEF[c].color }}>■</span>
+                    <span>{CLASS_DEF[c].label.toLowerCase()}</span>
+                    <span style={{ color: "#7C8798" }}>{(sel.classes[c] * 100).toFixed(0)}%</span>
+                    <span className="ml-auto" style={{ color: wc }} title="how well this class lives">
+                      {(wb * 100).toFixed(0)}% content
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           {(() => {
             const i = sel.infra;
             const seat = w.houses.filter((h) => !h.dead && h.home === sel.id);
@@ -92,8 +123,8 @@ export default function SystemPanel({ w, sel }) {
             );
           })()}
           {(() => {
-            const imp = GOODS.filter((g) => sel.flow[g] > 0.3);
-            const exp = GOODS.filter((g) => sel.flow[g] < -0.3);
+            const imp = GOODS.filter((g) => sel.flow[g] > 0.3).map((g) => GOOD_LABEL[g]);
+            const exp = GOODS.filter((g) => sel.flow[g] < -0.3).map((g) => GOOD_LABEL[g]);
             if (!imp.length && !exp.length) return null;
             return (
               <div style={{ color: "#7C8798" }}>
@@ -107,7 +138,7 @@ export default function SystemPanel({ w, sel }) {
             <div className="space-y-1">
               <div style={{ color: "#7C8798" }}>last {sel.trace.length} years</div>
               <Spark data={sel.trace.map((t) => t.p)} color="#E6E1D3" label="pop" fmt={fmtPop} />
-              <Spark data={sel.trace.map((t) => t.f)} color="#6FBF73" label="food ¤" fmt={(v) => v.toFixed(2)} />
+              <Spark data={sel.trace.map((t) => t.f)} color="#6FBF73" label="grain ¤" fmt={(v) => v.toFixed(2)} />
               <Spark data={sel.trace.map((t) => t.g)} color="#C05DD6" label="goods ¤" fmt={(v) => v.toFixed(2)} />
             </div>
           )}
@@ -118,6 +149,7 @@ export default function SystemPanel({ w, sel }) {
         <div style={{ color: "#7C8798" }}>endowments</div>
         <div className="flex items-center gap-2"><span className="w-14">fertile</span><div className="flex-1"><Bar v={sel.fert} color="#6FBF73" /></div></div>
         <div className="flex items-center gap-2"><span className="w-14">minerals</span><div className="flex-1"><Bar v={sel.min * Math.sqrt(Math.max(0, sel.minRes / sel.minRes0))} color="#E8B04B" /></div><span style={{ color: "#7C8798" }}>{((sel.minRes / sel.minRes0) * 100).toFixed(0)}% left</span></div>
+        <div className="flex items-center gap-2"><span className="w-14">rare earths</span><div className="flex-1"><Bar v={sel.rare * Math.sqrt(Math.max(0, sel.minRes / sel.minRes0))} color="#DA5CB0" /></div></div>
         <div className="flex items-center gap-2"><span className="w-14">energy</span><div className="flex-1"><Bar v={sel.en * Math.sqrt(Math.max(0, sel.enRes / sel.enRes0))} color="#5CC8DA" /></div></div>
         <div className="flex items-center gap-2"><span className="w-14">habitable</span><div className="flex-1"><Bar v={sel.hab} color="#C05DD6" /></div></div>
       </div>
@@ -127,21 +159,30 @@ export default function SystemPanel({ w, sel }) {
           <div style={{ color: "#7C8798" }} className="mb-1">market (stock · price vs galactic norm)</div>
           <table className="w-full">
             <tbody>
-              {GOODS.map((g) => {
-                const ratio = sel.price[g] / BASE_PRICE[g];
-                const c = ratio > 1.8 ? "#E4572E" : ratio < 0.6 ? "#6FBF73" : "#E6E1D3";
-                const arrow = ratio > 1.8 ? "▲" : ratio > 1.25 ? "△" : ratio < 0.6 ? "▼" : ratio < 0.8 ? "▽" : "·";
-                return (
-                  <tr key={g}>
-                    <td className="capitalize">{g}</td>
-                    <td className="text-right" style={{ color: "#7C8798" }}>{sel.stock[g].toFixed(1)}</td>
-                    <td className="text-right" style={{ color: c }}>{sel.price[g].toFixed(2)}</td>
-                    <td className="text-right" style={{ color: c, width: 52 }} title={`${(ratio * 100).toFixed(0)}% of base price`}>
-                      {arrow} ×{ratio.toFixed(1)}
+              {GOOD_CATS.map((cat) => (
+                <Fragment key={cat.key}>
+                  <tr>
+                    <td colSpan={4} className="uppercase tracking-widest pt-1" style={{ color: "#5A6472", fontSize: 10 }}>
+                      {cat.label}
                     </td>
                   </tr>
-                );
-              })}
+                  {cat.goods.map((g) => {
+                    const ratio = sel.price[g] / BASE_PRICE[g];
+                    const c = ratio > 1.8 ? "#E4572E" : ratio < 0.6 ? "#6FBF73" : "#E6E1D3";
+                    const arrow = ratio > 1.8 ? "▲" : ratio > 1.25 ? "△" : ratio < 0.6 ? "▼" : ratio < 0.8 ? "▽" : "·";
+                    return (
+                      <tr key={g}>
+                        <td className="pl-2">{GOOD_LABEL[g]}</td>
+                        <td className="text-right" style={{ color: "#7C8798" }}>{sel.stock[g].toFixed(1)}</td>
+                        <td className="text-right" style={{ color: c }}>{sel.price[g].toFixed(2)}</td>
+                        <td className="text-right" style={{ color: c, width: 52 }} title={`${(ratio * 100).toFixed(0)}% of base price`}>
+                          {arrow} ×{ratio.toFixed(1)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))}
             </tbody>
           </table>
         </div>

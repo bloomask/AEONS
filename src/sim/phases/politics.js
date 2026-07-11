@@ -59,10 +59,12 @@ export function runPolitics(w, rng, alive) {
     // stability tracks the treasury AND how citizens actually live —
     // but how much the rulers care depends on the form of power
     const avgWbM = members.reduce((a, s) => a + s.wb, 0) / members.length;
+    const avgUnrest = members.reduce((a, s) => a + (s.unrest || 0), 0) / members.length;
     if (f.gov !== "pirate") {
       f.stability = clamp(
         f.stability + (f.treasury > 0 ? 0.04 : -0.08) + (atWar ? gov.warStab : 0.01)
-          - members.length * 0.003 + (avgWbM - 0.58) * gov.wbStab,
+          - members.length * 0.003 + (avgWbM - 0.58) * gov.wbStab
+          - avgUnrest * 0.05, // class anger corrodes every form of power
         0, 1
       );
     }
@@ -95,7 +97,7 @@ export function runPolitics(w, rng, alive) {
     // war effort consumes member stockpiles — famine as a weapon of attrition
     if (atWar) {
       for (const s of members) {
-        s.stock.fuel *= 0.92; s.stock.goods *= 0.92;
+        s.stock.fuel *= 0.92; s.stock.consumer *= 0.92; s.stock.metals *= 0.94;
       }
     }
 
@@ -105,7 +107,7 @@ export function runPolitics(w, rng, alive) {
       const fCult = avgCult(members);
       for (const s of members) {
         if (s.id === f.capital) continue;
-        if (rng.chance(0.04 + cultDist(s.cult, fCult) * 0.1)) {
+        if (rng.chance(0.04 + cultDist(s.cult, fCult) * 0.1 + (s.unrest || 0) * 0.04)) {
           s.fid = null;
           w.stats.c.secede++;
           log(w, "secede", `${s.name} declares independence from the ${f.name}.`, s.id);

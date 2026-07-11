@@ -64,6 +64,8 @@ src/
       faith.js          creeds spreading along trade lanes, schisms
       chronicle.js      yearly statistics snapshot and era detection
     stats.js            statistics export (JSON summary)
+    diagnose.js         system diagnostics: names every problem holding a
+                        world back (a problem-free system thrives)
   ui/                   React presentation layer
     theme.js            event styling, overlay palettes, chart colors
     widgets.jsx         Btn, Bar, Spark
@@ -77,7 +79,8 @@ src/
     Timeline.jsx        history scrubber under the map (pop, eras, wars)
     TopBar.jsx          clock controls and exports
     StatsStrip.jsx      galaxy-wide counters
-    panels/             side-panel tabs: System, Powers, Trade, Market,
+    panels/             side-panel tabs: System (overview · society ·
+                        market · problems), Powers, Trade, Market,
                         Galaxy, Chronicle
 scripts/
   run-sim.js            headless CLI runner (npm run sim)

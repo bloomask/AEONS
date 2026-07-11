@@ -92,10 +92,10 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
   const px = (v) => v.toFixed(2);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div style={{ color: "#7C8798" }} className="italic">
-        All value in the galaxy is measured in the <b style={{ color: "#E8B04B" }}>credit (cr)</b> —
-        one universal unit of account, from the Core exchanges to the last free port on the rim.
+        All value is measured in the <b style={{ color: "#E8B04B" }}>credit (cr)</b> — one
+        universal unit of account, Core to rim.
       </div>
 
       <div className="grid grid-cols-2 gap-1.5">
@@ -106,17 +106,21 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
       </div>
 
       <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">galactic market board</div>
+        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest">galactic market board</div>
+        <div style={{ color: "#5A6472", fontSize: 10 }} className="mb-1.5">
+          average · <span style={{ color: "#6FBF73" }}>▼ cheapest</span> · <span style={{ color: "#E4572E" }}>▲ dearest</span> — hover a good for stockpile & top exporter
+        </div>
         {GOOD_CATS.map((cat) => (
           <Fragment key={cat.key}>
-            <div className="uppercase tracking-widest pt-1" style={{ color: "#5A6472", fontSize: 10 }}>{cat.label}</div>
+            <div className="uppercase tracking-widest pt-2" style={{ color: "#5A6472", fontSize: 10 }}>{cat.label}</div>
             {cat.goods.map((g) => {
               const b = board[g];
               const ratio = b.avg / BASE_PRICE[g];
               const c = ratio > 1.8 ? "#E4572E" : ratio > 1.25 ? "#F2A93B" : ratio < 0.6 ? "#6FBF73" : "#E6E1D3";
-              const spread = b.min.price[g] > 0 ? b.max.price[g] / b.min.price[g] : 0;
+              const detail = `stockpiled ${fmtCompact(b.stock)} galaxy-wide` +
+                (b.exp ? ` · top exporter ${b.exp.name} (${(-b.exp.flow[g]).toFixed(1)}/yr)` : " · no major exporter");
               return (
-                <div key={g} className="mb-1.5 pl-2">
+                <div key={g} className="mb-2 pl-2" title={detail}>
                   <div className="flex items-baseline gap-2">
                     <b>{GOOD_LABEL[g]}</b>
                     <span className="ml-auto" style={{ color: c }}>{px(b.avg)} cr</span>
@@ -126,14 +130,6 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
                     <span style={{ color: "#6FBF73" }}>▼</span> <Sys s={b.min} onOpen={onOpenSystem} /> {px(b.min.price[g])}
                     {" · "}
                     <span style={{ color: "#E4572E" }}>▲</span> <Sys s={b.max} onOpen={onOpenSystem} /> {px(b.max.price[g])}
-                    {" · "}spread ×{spread.toFixed(1)}
-                  </div>
-                  <div style={{ color: "#7C8798" }}>
-                    stockpiled {fmtCompact(b.stock)}
-                    {b.exp && <>
-                      {" · "}top exporter <Sys s={b.exp} onOpen={onOpenSystem} />{" "}
-                      <span style={{ color: "#6FBF73" }}>({(-b.exp.flow[g]).toFixed(1)}/yr)</span>
-                    </>}
                   </div>
                 </div>
               );
@@ -143,9 +139,12 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
       </div>
 
       <div>
-        <div style={{ color: "#7C8798" }} className="mb-1 uppercase tracking-widest">trader's almanac — best runs</div>
+        <div style={{ color: "#7C8798" }} className="mb-1.5 uppercase tracking-widest"
+          title="margins are net of freight, gate discounts, and tariffs">
+          trader's almanac — best runs
+        </div>
         {runs.map((r, i) => (
-          <div key={i} className="mb-1">
+          <div key={i} className="mb-1.5">
             <div className="flex items-baseline gap-2">
               <span>{GOOD_LABEL[r.good]}</span>
               <span className="ml-auto" style={{ color: "#6FBF73" }}>+{r.margin.toFixed(2)} cr/unit</span>
@@ -153,7 +152,6 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
             <div style={{ color: "#7C8798" }} className="pl-2">
               buy <Sys s={r.from} onOpen={onOpenSystem} /> @ {px(r.from.price[r.good])}
               {" → "}sell <Sys s={r.to} onOpen={onOpenSystem} /> @ {px(r.to.price[r.good])}
-              <span title="net of freight, gate discounts, and tariffs"> · net</span>
             </div>
           </div>
         ))}

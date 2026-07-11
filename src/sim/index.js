@@ -3,6 +3,7 @@
 export { genGalaxy, rebuildAdj } from "./galaxy.js";
 export { simulateYear } from "./simulate.js";
 export { buildStats } from "./stats.js";
+export { diagnoseSystem, SEV_CRISIS, SEV_WARNING, SEV_WATCH } from "./diagnose.js";
 export { log, relKey, getRel } from "./events.js";
 export {
   T, GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST, RECIPES,

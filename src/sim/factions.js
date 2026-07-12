@@ -49,6 +49,7 @@ export function foundPirateHaven(w, rng, sys) {
     dead: false, foundedYear: w.year,
     peakSystems: 1, peakPop: sys.pop,
     tariff: 0, trace: [], lootY: 0,
+    grievance: {}, // decaying ledger of raid losses per victim faction id
   };
   sys.fid = f.id;
   w.factions.push(f);

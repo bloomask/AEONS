@@ -106,6 +106,7 @@ export function genGalaxy(seed, cfgIn) {
       mfgEff: Object.fromEntries(Object.keys(RECIPES).map((m) => [m, 1])),
       classes: startMix(),
       classWb: Object.fromEntries(CLASSES.map((c) => [c, 0.7])),
+      wbEma: 0.7, // smoothed worker wellbeing driving labor allocation (breaks the grain cobweb)
       unrest: 0, riotCd: 0,
       wb: 0.7, fid: null, ruined: false, diedYear: null,
       famineCd: 0, tradeIn: 0, tradeOut: 0, history: [],

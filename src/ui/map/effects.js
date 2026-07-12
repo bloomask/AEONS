@@ -8,7 +8,7 @@ import { EV_STYLE } from "../theme.js";
 const PULSE_TYPES = new Set([
   "famine", "plague", "battle", "siege", "capture", "colony", "death",
   "found", "secede", "annex", "strike", "flare", "build", "house",
-  "mega", "faith", "corp", "pirate", "raid", "revolution",
+  "mega", "faith", "corp", "pirate", "raid", "revolution", "slave", "drug",
 ]);
 
 // collect fresh events into map pulses (skipped during burn-in)

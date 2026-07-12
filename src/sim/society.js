@@ -45,10 +45,23 @@ export function movePop(src, dst, m) {
   normalize(dst.classes);
 }
 
+// add `m` million people straight into the worker stratum — freed slaves,
+// manumitted labor. Keeps the class fractions summing to 1.
+export function addWorkers(s, m) {
+  if (m <= 0) return;
+  const p0 = s.pop;
+  s.pop += m;
+  for (const c of CLASSES)
+    s.classes[c] = (s.classes[c] * p0 + (c === "worker" ? m : 0)) / s.pop;
+  normalize(s.classes);
+}
+
 // a die-off reshapes the pyramid: deaths land hardest on the bottom.
 // `deadFrac` is the share of total pop lost (pop itself is cut by the caller).
 export function skewDeaths(s, deadFrac) {
-  if (deadFrac <= 0.005) return;
+  // guard non-finite input (a 0/0 death fraction from a zero-pop world) —
+  // written as a positive test so NaN falls through to the early return
+  if (!(deadFrac > 0.005)) return;
   for (const c of CLASSES)
     s.classes[c] *= 1 - clamp(deadFrac * CLASS_DEF[c].mortality, 0, 0.95);
   normalize(s.classes);

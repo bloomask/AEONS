@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF, T } from "../../sim/constants.js";
+import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF, T, allowsDrugs, allowsSlaves } from "../../sim/constants.js";
 import { diagnoseSystem, SEV_CRISIS, SEV_WARNING } from "../../sim/diagnose.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
 import { fmtPop, fmtCredits } from "../format.js";
@@ -51,6 +51,50 @@ function LocalRecord({ sel }) {
   );
 }
 
+function ArmsAndUnderworld({ w, sel }) {
+  const gov = sel.fid !== null ? w.factions[sel.fid].gov : null;
+  const need = sel.pop * T.ARMS_PER_POP;
+  const readiness = need > 0 ? Math.min(1, sel.stock.weapons / need) : 1;
+  const rc = readiness < 0.4 ? "var(--red)" : readiness < 0.75 ? "var(--amber)" : "var(--green)";
+  const drugsLegal = allowsDrugs(gov, sel.outlaw);
+  const slavesLegal = allowsSlaves(gov, sel.outlaw);
+  const showUnderworld = sel.slaves > 0.05 || sel.drugLoad > 0.03 || (sel.drugs || 0) > 0.3 || drugsLegal || slavesLegal;
+  return (
+    <>
+      <div>
+        <div className="flex justify-between mb-1">
+          <span className="muted" title="Combat strength is capped by the arms in the armory — a bare armory fights at a fraction of full weight">garrison arms</span>
+          <span style={{ fontFamily: "var(--font-display)", fontWeight: 600, color: rc }}>
+            {(readiness * 100).toFixed(0)}% armed
+          </span>
+        </div>
+        <Bar v={readiness} color={rc} />
+      </div>
+      {showUnderworld && (
+        <Section title="the underworld">
+          <div className="muted space-y-1">
+            {sel.slaves > 0.05 && (
+              <div>
+                bonded population <b style={{ color: "var(--red)" }}>{fmtPop(sel.slaves)}</b>
+                <span className="faint"> · {((sel.slaves / (sel.pop + sel.slaves)) * 100).toFixed(0)}% of all souls here</span>
+              </div>
+            )}
+            {(sel.drugs || 0) > 0.3 && (
+              <div>narcotics stockpiled <b style={{ color: "var(--purple)" }}>{sel.drugs.toFixed(1)}</b></div>
+            )}
+            {sel.drugLoad > 0.03 && (
+              <div>addicted underclass <b style={{ color: "var(--purple)" }}>{(sel.drugLoad * 100).toFixed(0)}%</b> <span className="faint">— feeds unrest</span></div>
+            )}
+            <div className="faint">
+              {slavesLegal ? "slave-holding lawful" : "abolitionist"} · narcotics {drugsLegal ? "tolerated" : "banned (smuggled)"}
+            </div>
+          </div>
+        </Section>
+      )}
+    </>
+  );
+}
+
 function Overview({ w, sel }) {
   const i = sel.infra;
   const seat = w.houses.filter((h) => !h.dead && h.home === sel.id);
@@ -79,6 +123,7 @@ function Overview({ w, sel }) {
         </div>
         <Bar v={sel.wb} color={sel.wb < 0.5 ? "var(--red)" : sel.wb < 0.65 ? "var(--amber)" : "var(--green)"} />
       </div>
+      <ArmsAndUnderworld w={w} sel={sel} />
       {hasInfra && (
         <Section title="on the ground">
           <div className="muted space-y-1">

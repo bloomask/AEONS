@@ -43,6 +43,27 @@ don't bolt new behavior onto an unrelated phase.
 Large phases become directories with a thin orchestrator (see
 `phases/politics.js` → `phases/politics/*`).
 
+### Commodities & contraband
+
+Two tiers of tradable goods:
+
+- **`GOODS`** (constants.js) are the ordinary commodities — grain, ores,
+  fuel, manufactures, and **weapons**. They flow through the whole engine
+  automatically: produced/priced in `economy.js`, arbitraged across lanes in
+  `trade.js`, shown in every market view. Adding one means touching
+  `GOODS`/`BASE_PRICE`/`FREIGHT_COST` (+ `RECIPES`/`MFG_YIELD` if
+  manufactured) and it appears everywhere. Weapons also gate combat: a
+  world fights at `ARMS_FLOOR..1` of its weight by how stocked its armory
+  is (`war.js`), and battles burn arms.
+- **`CONTRABAND`** (`drugs`, `slaves`) are *not* in `GOODS` — they never ride
+  the ordinary loops. They live in dedicated system fields (`s.drugs`,
+  `s.slaves`, `s.drugLoad`) and are handled by `phases/contraband.js`, which
+  enforces legality (`GOV_CONTRABAND` + a free world's `outlaw` flag; use
+  `allowsDrugs`/`allowsSlaves`), smuggling, and effects. Slaves are a
+  population/commodity hybrid: they supply labor, can revolt, and are freed
+  into the worker class wherever slavery is unlawful. **Invariant: no
+  republic or corporate world ever holds slaves** (the test enforces it).
+
 ### UI layout
 
 `GalaxySim.jsx` owns app state and the sim clock. The canvas map lives in

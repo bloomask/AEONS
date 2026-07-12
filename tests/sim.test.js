@@ -67,3 +67,24 @@ test("300 years produce a coherent galaxy", () => {
       `${s.name} has non-finite state`);
   }
 });
+
+test("commodities and contraband stay lawful and finite", () => {
+  // sweep several seeds — slavery is rare on any single one
+  for (const seed of [3, 11, 42, 77]) {
+    const w = run(seed, 400);
+    for (const s of w.systems) {
+      if (s.pop <= 0.05) continue;
+      assert.ok(Number.isFinite(s.stock.weapons) && s.stock.weapons >= 0, `${s.name} arms non-finite`);
+      assert.ok(Number.isFinite(s.slaves) && s.slaves >= 0, `${s.name} slaves non-finite/negative`);
+      assert.ok(Number.isFinite(s.drugs) && s.drugs >= 0, `${s.name} drugs non-finite/negative`);
+      assert.ok(s.drugLoad >= 0 && s.drugLoad <= 1, `${s.name} drugLoad out of range`);
+      // the load-bearing legality invariant: no republic or corporation
+      // ever holds slaves — abolition is absolute under those flags
+      if (s.fid !== null && s.slaves > 0.01) {
+        const gov = w.factions[s.fid].gov;
+        assert.ok(gov !== "republic" && gov !== "corporate",
+          `${s.name} is a ${gov} yet holds ${s.slaves}M slaves`);
+      }
+    }
+  }
+});

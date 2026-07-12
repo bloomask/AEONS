@@ -16,6 +16,7 @@ import TradePanel from "./ui/panels/TradePanel.jsx";
 import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
 import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
+import RoutePanel from "./ui/panels/RoutePanel.jsx";
 
 // inspection lives in the side window; everything else takes the full screen
 const SIDE_TABS = [
@@ -29,6 +30,9 @@ export default function GalaxySim() {
 
   const [, setVersion] = useState(0);
   const [selected, setSelected] = useState(null);
+  // a selected lane is stored by its endpoint pair, not its index — gate
+  // flux splices w.edges, so indices are not stable across years
+  const [selEdge, setSelEdge] = useState(null);
   const [sideTab, setSideTab] = useState("system");
   const [screen, setScreen] = useState(null);
   const [speed, setSpeed] = useState(0);
@@ -66,6 +70,7 @@ export default function GalaxySim() {
     setSeed(newSeed);
     setCfg(newCfg);
     setSelected(null);
+    setSelEdge(null);
     setSideTab("system");
     setScreen(null);
     setFacFilter("all");
@@ -105,11 +110,18 @@ export default function GalaxySim() {
     ? Object.entries(w.relations).filter(([, r]) => r.war).map(([k, r]) => ({ k, r }))
     : [];
   const sel = w && selected !== null ? w.systems[selected] : null;
+  // resolve the selected lane's endpoints back to a live edge index each
+  // render — it stays valid even after gate flux reshuffles w.edges
+  const selEdgeIdx = w && selEdge
+    ? w.edges.findIndex((e) =>
+      (e.a === selEdge.a && e.b === selEdge.b) || (e.a === selEdge.b && e.b === selEdge.a))
+    : -1;
 
   // selecting a system closes any full-screen panel, opens the side
   // inspector, AND flies the camera there
   const openSystem = useCallback((id) => {
     setSelected(id);
+    setSelEdge(null);
     if (id !== null) {
       setScreen(null);
       setSideTab("system");
@@ -120,7 +132,19 @@ export default function GalaxySim() {
   // plain map clicks select without yanking the camera around
   const selectOnMap = useCallback((id) => {
     setSelected(id);
-    if (id !== null) setSideTab("system");
+    if (id !== null) { setSelEdge(null); setSideTab("system"); }
+  }, []);
+
+  // selecting a lane: remember its endpoints, drop any system selection,
+  // and bring the inspection window forward
+  const selectRoute = useCallback((ei) => {
+    const wd = worldRef.current;
+    if (!wd || !wd.edges[ei]) return;
+    const e = wd.edges[ei];
+    setSelEdge({ a: e.a, b: e.b });
+    setSelected(null);
+    setScreen(null);
+    setSideTab("system");
   }, []);
 
   const scrubTo = useCallback((year) => {
@@ -187,6 +211,8 @@ export default function GalaxySim() {
             worldRef={worldRef}
             selected={selected}
             onSelect={selectOnMap}
+            selectedEdge={selEdgeIdx >= 0 ? selEdgeIdx : null}
+            onSelectRoute={selectRoute}
             overlay={overlay}
             setOverlay={setOverlay}
             burn={burn}
@@ -210,15 +236,24 @@ export default function GalaxySim() {
           style={{ background: "var(--panel)", borderLeft: "1px solid var(--line)" }}
         >
           <nav className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
-            {SIDE_TABS.map(({ key, glyph }) => (
-              <button key={key} onClick={() => setSideTab(key)} className={`navtab${sideTab === key ? " on" : ""}`}>
-                <span className="glyph">{glyph}</span>
-                {key}
-              </button>
-            ))}
+            {SIDE_TABS.map(({ key, glyph }) => {
+              const isRoute = key === "system" && !!selEdge;
+              return (
+                <button key={key} onClick={() => setSideTab(key)} className={`navtab${sideTab === key ? " on" : ""}`}>
+                  <span className="glyph">{isRoute ? "⇌" : glyph}</span>
+                  {isRoute ? "route" : key}
+                </button>
+              );
+            })}
           </nav>
           <div className="flex-1 overflow-y-auto p-4 text-xs" style={{ lineHeight: 1.6 }}>
-            {sideTab === "system" && <SystemPanel w={w} sel={sel} />}
+            {sideTab === "system" && (
+              selEdge
+                ? (selEdgeIdx >= 0
+                  ? <RoutePanel w={w} ei={selEdgeIdx} onOpenSystem={openSystem} />
+                  : <div className="muted italic leading-relaxed">This jumpgate lane has since collapsed — its stars drift apart on the map. Pick another lane or a system to inspect.</div>)
+                : <SystemPanel w={w} sel={sel} />
+            )}
             {sideTab === "powers" && w && (
               <PowersPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
             )}

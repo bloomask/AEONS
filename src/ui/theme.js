@@ -19,6 +19,8 @@ export const EV_STYLE = {
   pirate: { c: "#A34A3A", tag: "CORSAIR" }, raid: { c: "#A34A3A", tag: "RAID" },
   revolution: { c: "#F2A93B", tag: "REVOLT" },
   riot: { c: "#E4572E", tag: "RIOT" },
+  slave: { c: "#B0453A", tag: "CHAINS" },
+  drug: { c: "#C05DD6", tag: "VICE" },
   tech: { c: "#4FD0A5", tag: "EUREKA" },
   credit: { c: "#E8D14B", tag: "LEDGER" },
 };
@@ -27,8 +29,8 @@ export const EV_FILTERS = {
   all: null,
   war: new Set(["war", "peace", "battle", "siege", "capture", "cede", "pirate", "raid"]),
   realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith", "revolution"]),
-  economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare", "tech", "credit"]),
-  life: new Set(["famine", "plague", "colony", "death", "riot"]),
+  economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare", "tech", "credit", "drug"]),
+  life: new Set(["famine", "plague", "colony", "death", "riot", "slave"]),
 };
 
 // ---------- overlay colors ----------

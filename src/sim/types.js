@@ -56,6 +56,15 @@
  * @property {number[]} depots House depot markers (house ids with a depot here).
  * @property {?number} sponsor House id that sponsored this colony, or null.
  * @property {boolean} freePort  Neutral port: no fid may claim it (corps can buy it out).
+ * @property {boolean} outlaw  Frontier world tolerant of contraband when free/unowned
+ *   (decides drug/slave legality for a free system; ignored once a flag flies here).
+ * @property {number} slaves   Bonded population held here, in millions — NOT part of `pop`
+ *   or `classes`. Supplies labor (T.SLAVE_LABOR), inflames the free poor, can revolt.
+ *   Freed into the worker class wherever slavery is unlawful (contraband.js / conquest).
+ * @property {number} drugs    Narcotics stockpiled here (contraband, not a GOODS member).
+ * @property {number} drugLoad Addicted-underclass level 0..1; decays yearly, feeds unrest.
+ *   Note: `stock.weapons`/`price.weapons` exist because weapons IS a normal GOODS member;
+ *   `price.drugs`/`price.slaves` are set by contraband.js for the black markets.
  */
 
 /**

@@ -59,13 +59,14 @@ export function runContraband(w, rng, alive) {
   for (const s of alive)
     if (s.drugLoad > 0.05) s.unrest = clamp(s.unrest + s.drugLoad * 0.04, 0, 1);
 
-  // --- the slave trade ---
+  // --- the slave trade: a bonded workforce that can be bought and shipped ---
+  // Slaves are a population/commodity hybrid — they work the fields and mines
+  // (economy.js folds them into the labor pool) and they change hands on a
+  // market. First settle legality and this year's price at every world.
   for (const s of alive) {
-    const legalHere = allowsSlaves(govOf(w, s), s.outlaw);
-
-    // manumission by law: where bondage is outlawed, the chains come off —
-    // this also fires the year a world changes hands or a republic is born
-    if (!legalHere) {
+    if (!allowsSlaves(govOf(w, s), s.outlaw)) {
+      // manumission by law: where bondage is outlawed, the chains come off —
+      // this also fires the year a world changes hands or a republic is born
       if (s.slaves > 0.01) {
         const freed = s.slaves; s.slaves = 0;
         addWorkers(s, freed);
@@ -73,13 +74,41 @@ export function runContraband(w, rng, alive) {
         if (freed > 0.5)
           log(w, "slave", `Abolition reaches ${s.name}: ${freed.toFixed(1)}M are struck from the ledgers and freed into the workers' ranks.`, s.id);
       }
+      s.price.slaves = 0; // no market here
       continue;
     }
+    // rich, industrious slaving worlds bid up bonded labor; the price gradient
+    // is what pulls captives from the frontier to the great estates
+    s.price.slaves = BASE_PRICE.slaves * clamp(s.wealth / (s.pop * 10 + 1) + 0.4, 0.4, 2.5);
+  }
 
-    // a slave market price tracks who can afford to buy
-    s.price.slaves = BASE_PRICE.slaves * clamp(s.wealth / (s.pop * 10 + 1) + 0.5, 0.5, 2);
+  // the market: bonded labor is shipped down the lanes from where it is cheap
+  // and plentiful to the slaving powers that will pay for it. Only ever between
+  // worlds where the trade is lawful — an abolitionist market frees what lands.
+  for (const e of w.edges) {
+    const A = w.systems[e.a], B = w.systems[e.b];
+    if (A.pop <= 0.05 || B.pop <= 0.05 || A.siege || B.siege) continue;
+    if (!(A.price.slaves > 0) || !(B.price.slaves > 0)) continue; // both must be slaving
+    const [lo, hi] = A.price.slaves <= B.price.slaves ? [A, B] : [B, A];
+    if (lo.slaves < 0.2) continue; // nothing to sell
+    if (hi.price.slaves - lo.price.slaves < BASE_PRICE.slaves * 0.2) continue; // need a real margin
+    const q = Math.min(lo.slaves * 0.3, Math.max(0, hi.wealth) / hi.price.slaves * 0.3);
+    if (q < 0.05) continue;
+    lo.slaves -= q; hi.slaves += q; // the workforce moves with the sale
+    const pay = q * hi.price.slaves;
+    hi.wealth = Math.max(-20, hi.wealth - pay);
+    lo.wealth += pay;
+    lo.tradeOut += pay; hi.tradeIn += pay;
+    w.stats.c.slaveTrade++;
+    if (q > 1 && rng.chance(0.15))
+      log(w, "slave", `Slavers ship ${q.toFixed(1)}M in bondage down the ${lo.name}–${hi.name} lane to the blocks of ${hi.name}.`, hi.id);
+  }
 
-    // debt bondage: a starving world in a slaving realm sells its poor
+  // holding, unrest, and revolt at each slaving world
+  for (const s of alive) {
+    if (!(s.price.slaves > 0)) continue; // abolitionist worlds handled above
+
+    // debt bondage: a starving world in a slaving realm sells its own poor
     if (s.wb < 0.5 && s.pop > 1 && s.wealth < 25 && rng.chance(0.05 * cb)) {
       const sold = s.pop * rng.range(0.02, 0.06);
       s.pop -= sold; s.slaves += sold;
@@ -88,7 +117,7 @@ export function runContraband(w, rng, alive) {
       log(w, "slave", `Hunger drives ${s.name} to the block: ${sold.toFixed(1)}M sell themselves or their children into bondage.`, s.id);
     }
 
-    s.slaves *= 0.99; // bondage is lethal; the numbers thin without fresh captives
+    s.slaves *= 0.995; // bondage is lethal; the numbers thin without fresh captives
     if (s.slaves > 0.05) {
       const share = s.slaves / (s.pop + s.slaves);
       s.unrest = clamp(s.unrest + share * T.SLAVE_UNREST * 0.05, 0, 1);

@@ -23,12 +23,13 @@ export const EV_STYLE = {
   drug: { c: "#C05DD6", tag: "VICE" },
   tech: { c: "#4FD0A5", tag: "EUREKA" },
   credit: { c: "#E8D14B", tag: "LEDGER" },
+  reign: { c: "#E8B04B", tag: "REIGN" },
 };
 
 export const EV_FILTERS = {
   all: null,
   war: new Set(["war", "peace", "battle", "siege", "capture", "cede", "pirate", "raid"]),
-  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith", "revolution"]),
+  realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith", "revolution", "reign"]),
   economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare", "tech", "credit", "drug"]),
   life: new Set(["famine", "plague", "colony", "death", "riot", "slave"]),
 };

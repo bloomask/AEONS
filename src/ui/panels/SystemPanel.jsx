@@ -371,7 +371,7 @@ export default function SystemPanel({ w, sel }) {
             : !settled
               ? "Uncolonized"
               : sel.fid !== null
-                ? <span><span style={{ color: w.factions[sel.fid].color }}>■</span> {w.factions[sel.fid].name}{w.factions[sel.fid].capital === sel.id ? " · CAPITAL" : ""}</span>
+                ? <span><span style={{ color: w.factions[sel.fid].color }}>■</span> {w.factions[sel.fid].name}{w.factions[sel.fid].capital === sel.id ? (w.factions[sel.fid].ruler ? ` · seat of ${w.factions[sel.fid].ruler.title} ${w.factions[sel.fid].ruler.name}` : " · CAPITAL") : ""}</span>
                 : "Free System — no authority, no duties"}
           {" · "}{sel.cultName} culture
           {w.faiths[sel.faith] && (

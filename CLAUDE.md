@@ -48,6 +48,13 @@ deterministic yet never perturbs the simulation's history. It does not (yet)
 *drive* the endowments — that inversion is a safe future step (the balance lab
 guards it). `describeComposition`/`primaryBody` are pure helpers for the UI.
 
+The same "descriptive layer from a sub-rng" pattern powers **notable figures**
+(`phases/figures.js`): every faction gets a named `ruler` with a title, reign,
+and natural succession, drawn from a per-faction sub-rng and logged without a
+stats counter — so it adds character (and the odd `reign` chronicle line) while
+leaving the simulation's numbers byte-identical. Anything descriptive that must
+not perturb history should follow this pattern.
+
 ### The yearly phase pipeline
 
 `sim/simulate.js` runs one year as an ordered list of phases, each a file in

@@ -96,10 +96,13 @@ export function runEconomy(w, rng, alive) {
     socialMobility(s);
     s.unrest = computeUnrest(s, w.cfg.unrest);
 
-    // demography — no rubber-banding
-    s.pop *= 1 + clamp((wb - T.GROWTH_THRESHOLD) * 0.05, -0.05, 0.025) * w.cfg.growth;
+    // demography — no rubber-banding. Growth follows the workers' lot as
+    // much as the average: a world where the majority queues for rations
+    // stops growing long before the towers notice.
+    const wbDemo = wb * (1 - T.GROWTH_WORKER_WT) + s.classWb.worker * T.GROWTH_WORKER_WT;
+    s.pop *= 1 + clamp((wbDemo - T.GROWTH_THRESHOLD) * 0.05, -0.05, 0.025) * w.cfg.growth;
     s.peakPop = Math.max(s.peakPop, s.pop);
-    if (fs < 0.45) {
+    if (fs < T.FAMINE_THRESHOLD) {
       const before = s.pop;
       s.pop *= 0.85 + 0.3 * fs;
       const lost = before - s.pop;

@@ -1,4 +1,4 @@
-import { GOODS } from "../constants.js";
+import { GOODS, techFx } from "../constants.js";
 import { clamp, dist2 } from "../util.js";
 import { log } from "../events.js";
 import { rebuildAdj } from "../galaxy.js";
@@ -8,10 +8,11 @@ import { skewDeaths } from "../society.js";
 export function runShocks(w, rng, alive) {
   for (const s of alive) {
     if (rng.chance(0.004 * w.cfg.plague)) {
-      // a stocked pharmacopoeia blunts the death toll — and is spent doing it
+      // a stocked pharmacopoeia blunts the death toll — and is spent doing
+      // it; each medical age since the founding blunts it further
       const med = clamp(s.stock.medicine / (s.pop * 0.25 + 0.01), 0, 1);
       const before = s.pop;
-      s.pop *= rng.range(0.4, 0.7) + 0.25 * med;
+      s.pop *= Math.min(0.97, rng.range(0.4, 0.7) + 0.25 * med + techFx(w).med);
       s.stock.medicine *= 0.2;
       skewDeaths(s, (before - s.pop) / before); // the poor quarters bury the most
       s.lastPlague = w.year;

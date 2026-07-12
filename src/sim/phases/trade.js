@@ -1,7 +1,7 @@
-import { T, GOODS, FREIGHT_COST } from "../constants.js";
+import { T, GOODS, FREIGHT_COST, techFx } from "../constants.js";
 import { dist2 } from "../util.js";
 import { log, getRel } from "../events.js";
-import { foundHouse } from "../houses.js";
+import { foundHouse, runHouseIntrigues } from "../houses.js";
 import { foundCorporateState } from "../factions.js";
 
 // --- shipping, trade, and merchant-house economics ---
@@ -13,7 +13,10 @@ export function runTrade(w, rng) {
   // a gate nexus counts as three extra dock levels
   const gateLv = (s) => s.infra.gate + (s.mega.nexus ? 3 : 0);
   const gateDisc = (A, B) => Math.max(0.4, 1 - 0.12 * (gateLv(A) + gateLv(B)));
-  const fr = w.cfg.freight; // configured freight-cost multiplier
+  // configured freight cost, discounted by every technology era so far
+  const fr = w.cfg.freight * techFx(w).freight;
+  // in a credit crunch nobody finances cargo: effective hull capacity thins
+  const crunchMul = w.credit.crunch > 0 ? 0.8 : 1;
   const margins = w.edges.map((e) => {
     const A = w.systems[e.a], B = w.systems[e.b];
     if (A.pop <= 0.05 || B.pop <= 0.05) return -1;
@@ -65,7 +68,7 @@ export function runTrade(w, rng) {
       rel2 = getRel(w, A.fid, B.fid);
       if (rel2.war || rel2.embargo) continue; // war and embargo sever the lane
     }
-    let cap = ecap[ei] + (A.mega.nexus || B.mega.nexus ? 2 : 0);
+    let cap = (ecap[ei] + (A.mega.nexus || B.mega.nexus ? 2 : 0)) * crunchMul;
     const gf = gateDisc(A, B);
     const dutyRate = (dst) => {
       if (!rel2 || dst.fid === null) return 0;
@@ -196,7 +199,8 @@ export function runTrade(w, rng) {
         log(w, "house", `${h.name} abandons its dead seat and reflags at ${next.name}.`, next.id);
       }
     }
-    if (h.wealth > 150) {
+    // fleets are bought on credit — in a crunch only the very rich expand
+    if (h.wealth > (w.credit.crunch > 0 ? 280 : 150)) {
       const n = Math.min(8, (h.wealth - 100) / T.SHIP_COST);
       h.ships += n; h.wealth -= n * T.SHIP_COST;
     }
@@ -213,4 +217,6 @@ export function runTrade(w, rng) {
       foundHouse(w, rng, hub, 15, 60);
     }
   }
+
+  runHouseIntrigues(w, rng);
 }

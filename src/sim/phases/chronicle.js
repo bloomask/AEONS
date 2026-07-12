@@ -1,4 +1,5 @@
 import { CLASSES, GOODS, BASE_PRICE } from "../constants.js";
+import { techCost } from "./tech.js";
 import { log } from "../events.js";
 
 // --- yearly statistics snapshot, history traces, and era detection ---
@@ -48,6 +49,11 @@ export function recordYear(w, rng) {
     ])),
     fleet: +w.houses.reduce((a, h) => a + (h.dead ? 0 : h.ships), 0).toFixed(0),
     houses: w.houses.filter((h) => !h.dead).length,
+    // the slow climb and the ledger: tech level (fractional toward the next
+    // era), total debt outstanding, and whether credit is frozen this year
+    tech: +(w.tech.level + w.tech.progress / techCost(w.tech.level)).toFixed(2),
+    debt: +w.loans.reduce((a, l) => a + l.principal, 0).toFixed(0),
+    crunch: w.credit.crunch > 0 ? 1 : 0,
   });
 
   // per-system traces for sparklines (last 120 years)
@@ -81,7 +87,9 @@ export function recordYear(w, rng) {
     log(w, "era", `A new age is spoken of across the lanes: ${name}.`);
   };
   if (eraAge > 40) {
-    if (activeWars >= 2 && !w.era.name.includes("War") && !w.era.name.includes("Burning")) {
+    if (w.credit.crunch > 2 && w.stats.c.panic >= 2 && !w.era.name.includes("Default") && !w.era.name.includes("Lean")) {
+      setEra(rng.pick(["The Great Default", "The Lean Years", "The Age of Broken Credit"]));
+    } else if (activeWars >= 2 && !w.era.name.includes("War") && !w.era.name.includes("Burning")) {
       setEra(rng.pick(["The Burning Years", "The Gate Wars", "The Age of Iron", "The Long Reckoning"]));
     } else if (tp < w.popPeak100 * 0.62 && !w.era.name.includes("Withering") && !w.era.name.includes("Dying")) {
       setEra(rng.pick(["The Withering", "The Dying Years", "The Great Silence"]));

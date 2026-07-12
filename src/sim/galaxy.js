@@ -7,6 +7,7 @@ import { genName } from "./names.js";
 import { log } from "./events.js";
 import { foundFaction } from "./factions.js";
 import { foundHouse } from "./houses.js";
+import { genComposition } from "./cosmos.js";
 
 // ---------- world generation ----------
 export function genGalaxy(seed, cfgIn) {
@@ -123,6 +124,14 @@ export function genGalaxy(seed, cfgIn) {
   // frontier boomtowns — rich in rare-earth veins, thin on law — grow
   // tolerant of the vice and slave trades if they slip a government's grasp
   for (const s of w.systems) s.outlaw = s.rare > 0.6;
+
+  // physical composition: a star and worlds consistent with each system's
+  // endowments. Drawn from a per-system sub-rng seeded off (seed, id), so it is
+  // deterministic yet never touches w.rng — the simulation's history is unchanged.
+  for (const s of w.systems) {
+    const c = genComposition(seed, s);
+    s.star = c.star; s.bodies = c.bodies;
+  }
 
   // jumpgates: 2 nearest neighbors each, then force connectivity
   const addEdge = (a, b) => {

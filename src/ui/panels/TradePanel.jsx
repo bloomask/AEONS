@@ -140,6 +140,59 @@ export default function TradePanel({ w, onOpenSystem }) {
         )}
       </Section>
 
+      {(() => {
+        const cartels = w.cartels.filter((c) => c.ended === null);
+        const feuds = live.filter((h) => h.feud !== null && h.id < h.feud && !w.houses[h.feud].dead);
+        if (!cartels.length && !feuds.length) return null;
+        return (
+          <Section title="cartels & feuds">
+            {cartels.map((c) => (
+              <div key={c.id} className="mb-1">
+                <span style={{ color: "var(--gold)" }}>◆</span> <b>{c.name}</b>
+                <div className="muted">
+                  {c.members.map((hid) => w.houses[hid].name).join(" · ")} — since {c.since}
+                </div>
+              </div>
+            ))}
+            {feuds.map((h) => (
+              <div key={h.id} className="mb-0.5 muted">
+                <span style={{ color: "var(--red)" }}>⚔</span> <b style={{ color: "var(--text)" }}>{h.name}</b>
+                {" "}and <b style={{ color: "var(--text)" }}>{w.houses[h.feud].name}</b> are in open feud
+              </div>
+            ))}
+          </Section>
+        );
+      })()}
+
+      {(w.loans.length > 0 || w.credit.crunch > 0) && (
+        <Section title="the ledger">
+          {w.credit.crunch > 0 && (
+            <div className="px-2 py-1 rounded mb-1.5" style={{ background: "rgba(228,87,46,0.12)", color: "var(--red)", border: "1px solid rgba(228,87,46,0.35)" }}>
+              CREDIT CRUNCH — no new paper is being written; ~{w.credit.crunch} lean years remain
+            </div>
+          )}
+          {w.loans.slice(0, 8).map((l, i) => {
+            const b = l.kind === "sys" ? w.systems[l.bid] : w.factions[l.bid];
+            return (
+              <div key={i} className="flex gap-2 mb-0.5">
+                <span
+                  className={l.kind === "sys" ? "link" : undefined}
+                  onClick={l.kind === "sys" ? () => onOpenSystem(l.bid) : undefined}
+                >
+                  {l.kind === "sys" ? b.name : `the ${b.name}`}
+                </span>
+                <span className="faint">owes</span>
+                <span>{w.houses[l.lender].name}</span>
+                <span className="ml-auto" style={{ color: l.missed > 0 ? "var(--red)" : "var(--muted)" }}>
+                  {fmtCredits(l.principal)}{l.missed > 0 ? " · in arrears" : ""}
+                </span>
+              </div>
+            );
+          })}
+          {w.loans.length > 8 && <div className="faint">…and {w.loans.length - 8} smaller notes</div>}
+        </Section>
+      )}
+
       <Section title="busiest lanes">
         {[...w.edges]
           .filter((e) => e.vol > 0.3)

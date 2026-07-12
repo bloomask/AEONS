@@ -1,11 +1,13 @@
 import { runEconomy } from "./phases/economy.js";
 import { runTrade } from "./phases/trade.js";
+import { runFinance } from "./phases/finance.js";
 import { runSettlement } from "./phases/settlement.js";
 import { runPolitics } from "./phases/politics.js";
 import { runPirates } from "./phases/pirates.js";
 import { runProjects } from "./phases/projects.js";
 import { runShocks } from "./phases/shocks.js";
 import { runFaith } from "./phases/faith.js";
+import { runTech } from "./phases/tech.js";
 import { recordYear } from "./phases/chronicle.js";
 
 // ---------- yearly simulation ----------
@@ -20,11 +22,13 @@ export function simulateYear(w) {
 
   runEconomy(w, rng, alive);
   runTrade(w, rng);
+  runFinance(w, rng);
   runSettlement(w, rng, alive);
   runPolitics(w, rng, alive);
   runPirates(w, rng, alive);
   runProjects(w, rng);
   runShocks(w, rng, alive);
   runFaith(w, rng, alive);
+  runTech(w, rng, alive);
   recordYear(w, rng);
 }

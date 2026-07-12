@@ -40,6 +40,8 @@ export const CONFIG_GROUPS = [
         blurb: "eagerness to emigrate and found colonies — at ×0 nobody leaves home" },
       { key: "unrest", label: "class anger", def: 1, min: 0, max: 2.5, step: 0.05, kind: "mult",
         blurb: "how loudly the bottom notices the gap to the top; feeds riots and revolts" },
+      { key: "research", label: "ingenuity", def: 1, min: 0, max: 2.5, step: 0.05, kind: "mult",
+        blurb: "how fast rich, developed worlds push the galaxy into new technology eras" },
     ],
   },
   {

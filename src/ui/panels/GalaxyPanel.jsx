@@ -1,6 +1,7 @@
 import Chart from "../charts.jsx";
 import { CHART } from "../theme.js";
 import { Section, Tile } from "../widgets.jsx";
+import { TECH_ERAS } from "../../sim/constants.js";
 import { fmtPop, fmtCredits } from "../format.js";
 
 export default function GalaxyPanel({ w }) {
@@ -41,6 +42,41 @@ export default function GalaxyPanel({ w }) {
           <Tile label="systems gone dark" value={num(w.stats.deaths.length)} color="#B0453A" />
         </div>
       </Section>
+
+      <Section title="the slow climb">
+        <div className="mb-1">
+          <span style={{ color: "#4FD0A5" }}>⚙</span>{" "}
+          <b>{TECH_ERAS[w.tech.level].name}</b>
+          <span className="muted"> · tech era {w.tech.level} of {TECH_ERAS.length - 1}</span>
+        </div>
+        {w.tech.history.length > 0 ? (
+          [...w.tech.history].reverse().map((h) => (
+            <div key={h.level} className="flex gap-2 mb-0.5">
+              <span style={{ color: "var(--amber)", minWidth: 40 }}>{h.year}</span>
+              <span className="muted">{h.tech}</span>
+            </div>
+          ))
+        ) : (
+          <div className="muted italic">
+            No breakthrough yet — the workshops of the founding age still rule.
+          </div>
+        )}
+      </Section>
+
+      {(w.cartels.some((c) => c.ended === null) || w.credit.crunch > 0) && (
+        <Section title="the invisible hands">
+          {w.credit.crunch > 0 && (
+            <div className="px-2 py-1 rounded mb-1" style={{ background: "rgba(228,87,46,0.12)", color: "var(--red)", border: "1px solid rgba(228,87,46,0.35)" }}>
+              CREDIT CRUNCH — the counting houses are shut; ~{w.credit.crunch} lean years remain
+            </div>
+          )}
+          {w.cartels.filter((c) => c.ended === null).map((c) => (
+            <div key={c.id} className="mb-0.5 muted">
+              <span style={{ color: "var(--gold)" }}>◆</span> <b style={{ color: "var(--text)" }}>{c.name}</b> corners the market since {c.since}
+            </div>
+          ))}
+        </Section>
+      )}
 
       {w.projects.length > 0 && (
         <Section title="megaprojects">
@@ -134,6 +170,10 @@ export default function GalaxyPanel({ w }) {
             series={[{ key: "largestShare", color: CHART.purple }]} />
           <Chart title="merchant fleet" rows={rows} eras={eras} fmt={num}
             series={[{ key: "fleet", color: CHART.amber }]} />
+          <Chart title="technology level" rows={rows} eras={eras} fmt={(v) => v.toFixed(1)}
+            series={[{ key: "tech", color: CHART.green }]} />
+          <Chart title="galactic debt outstanding" rows={rows} eras={eras} fmt={num}
+            series={[{ key: "debt", color: CHART.amber }]} />
         </div>
       </Section>
 

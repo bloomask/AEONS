@@ -1,3 +1,4 @@
+import { TECH_ERAS } from "../sim/constants.js";
 import { fmtPop } from "./format.js";
 
 const Vital = ({ label, value, color }) => (
@@ -42,6 +43,11 @@ export default function TopBar({
       {w && (
         <div className="text-right hidden sm:block">
           <div className="italic" style={{ color: "var(--amber)", fontSize: 11, opacity: 0.85 }}>{w.era.name}</div>
+          {w.tech && w.tech.level > 0 && (
+            <div className="italic" style={{ color: "#4FD0A5", fontSize: 10, opacity: 0.8 }} title={`technology era ${w.tech.level}`}>
+              {TECH_ERAS[w.tech.level].name}
+            </div>
+          )}
         </div>
       )}
       <div className="display" style={{ fontWeight: 700, fontSize: 19, color: "var(--amber)", letterSpacing: "0.04em" }}>

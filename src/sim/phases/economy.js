@@ -23,7 +23,11 @@ export function runEconomy(w, rng, alive) {
     // with empty input hoppers attracts no hands.
     const inputCost = (g) =>
       Object.entries(RECIPES[g]).reduce((a, [inp, q]) => a + q * s.price[inp], 0);
-    const hunger = 1 + 2.5 * Math.max(0, 0.75 - s.classWb.worker); // the field hands know who eats last
+    // the field hands know who eats last — but they read the trend, not one
+    // bad harvest. Using a smoothed multi-year wellbeing (not last year's
+    // single value) is what breaks the grain cobweb: a world no longer floods
+    // labor into farming after one lean year and gluts the next.
+    const hunger = 1 + 2.5 * Math.max(0, 0.75 - (s.wbEma ?? s.classWb.worker));
     const wt = {
       grain: s.price.grain * s.fert * 2.2 * hunger,
       metals: s.price.metals * mq * 2.2,
@@ -36,8 +40,10 @@ export function runEconomy(w, rng, alive) {
       weapons: Math.max(0.02, (s.price.weapons - inputCost("weapons")) * 1.1 * s.dev * s.mfgEff.weapons),
     };
     const sum = GOODS.reduce((a, g) => a + wt[g], 0);
+    // labor reallocates with inertia; a higher hold-over damps the year-to-year
+    // over-correction that drives the cobweb (fields aren't replowed overnight)
     for (const g of GOODS)
-      s.shares[g] = s.shares[g] * 0.5 + (wt[g] / sum) * 0.5;
+      s.shares[g] = s.shares[g] * 0.72 + (wt[g] / sum) * 0.28;
 
     // the elite do not work; the labor pool is what the lower strata supply,
     // plus any bonded labor held here — slaves work the fields and mines
@@ -99,6 +105,10 @@ export function runEconomy(w, rng, alive) {
       for (const c of CLASSES) s.classWb[c] *= crowd;
     }
     s.wb = wb;
+    // slowly-moving read of the workers' lot, fed back into next year's labor
+    // allocation (see `hunger`). Averaged over ~4 years so a 2-year glut/famine
+    // alternation cancels instead of reinforcing.
+    s.wbEma = (s.wbEma ?? s.classWb.worker) * 0.72 + s.classWb.worker * 0.28;
 
     // the pyramid shifts: prosperity climbs, misery slides, anger simmers
     socialMobility(s);

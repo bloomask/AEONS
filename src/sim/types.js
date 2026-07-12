@@ -32,6 +32,9 @@
  * @property {Object<string,number>} mfgEff  Manufacturing efficiency per recipe good.
  * @property {Object<string,number>} classes Population share per class, keys = CLASSES.
  * @property {Object<string,number>} classWb Wellbeing per class 0..1.
+ * @property {number} wbEma   Smoothed (~4yr) worker wellbeing; drives next year's
+ *   labor allocation (`hunger` in economy.js) so farming responds to the trend,
+ *   not one harvest — this is what keeps grain out of an annual glut/famine cobweb.
  * @property {number} unrest   Class anger 0..1; feeds riots, secession, faction stability.
  * @property {number} riotCd   Cooldown years until the next riot can fire.
  * @property {number} wb       Overall wellbeing 0..1 (0.7 at founding).

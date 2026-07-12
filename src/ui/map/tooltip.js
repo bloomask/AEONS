@@ -1,4 +1,5 @@
 import { GOVS } from "../../sim/constants.js";
+import { classifySystem, systemTags } from "../../sim/classify.js";
 import { fmtPop } from "../format.js";
 import { routeStats } from "./routeStats.js";
 
@@ -18,7 +19,10 @@ export function tooltipHtml(w, s) {
   if (s.pop > 0.05) {
     const wbC = s.wb < 0.5 ? "#E4572E" : s.wb < 0.65 ? "#F2A93B" : "#6FBF73";
     const unC = s.unrest > 0.6 ? "#E4572E" : s.unrest > 0.35 ? "#F2A93B" : "#7C8798";
-    body = `<div style="color:#7C8798;margin-top:2px">pop <b style="color:#E6E1D3">${fmtPop(s.pop)}</b>
+    const arch = classifySystem(w, s);
+    const tags = systemTags(w, s).slice(0, 3).map((t) => `<span style="color:${t.tint}">${t.icon} ${t.label}</span>`).join(" · ");
+    body = `<div style="margin-top:2px"><span style="color:${arch.tint};font-weight:600">${arch.icon} ${arch.label}</span>${tags ? ` <span style="color:#7C8798">· ${tags}</span>` : ""}</div>`
+      + `<div style="color:#7C8798;margin-top:2px">pop <b style="color:#E6E1D3">${fmtPop(s.pop)}</b>
       · wellbeing <b style="color:${wbC}">${(s.wb * 100).toFixed(0)}%</b>
       · unrest <b style="color:${unC}">${(s.unrest * 100).toFixed(0)}%</b>
       ${s.slaves > 0.05 ? ` · <span style="color:#B0453A">${fmtPop(s.slaves)} bonded</span>` : ""}

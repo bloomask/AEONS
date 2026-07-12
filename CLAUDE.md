@@ -68,6 +68,21 @@ Two tiers of tradable goods:
   into the worker class wherever slavery is unlawful. **Invariant: no
   republic or corporate world ever holds slaves** (the test enforces it).
 
+### Derived read-only views
+
+Some files read the world and describe it without ever mutating it — pure
+functions the UI (and headless tools) can call every frame:
+
+- `sim/diagnose.js` (`diagnoseSystem`) — what's *wrong* with a world (its
+  crises/warnings), against the same thresholds the engine uses.
+- `sim/classify.js` (`classifySystem`, `systemTags`) — what *kind* of place a
+  world is: its single dominant archetype (Breadbasket, Trade Hub, Pleasure
+  World, Forge World…) plus stackable secondary tags (Capital, Free Port,
+  Besieged…). Every living world classifies to exactly one primary archetype.
+- `ui/describe.js` (`describeSystem`) — a prose gazetteer lede.
+
+Keep these pure (no rng, no mutation): they run in render.
+
 ### UI layout
 
 `GalaxySim.jsx` owns app state and the sim clock. The canvas map lives in

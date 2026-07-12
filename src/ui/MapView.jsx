@@ -4,16 +4,17 @@ import { OVERLAYS } from "./theme.js";
 import { drawScene } from "./map/render.js";
 import { collectPulses, collectFx } from "./map/effects.js";
 import { legendEntries } from "./map/legends.js";
-import { tooltipHtml } from "./map/tooltip.js";
+import { tooltipHtml, routeTooltipHtml } from "./map/tooltip.js";
 
 // The canvas map: owns the camera and input; the actual drawing lives in
 // map/render.js, territory rasterization in map/territory.js, and the
 // event→animation plumbing in map/effects.js.
-export default function MapView({ worldRef, selected, onSelect, overlay, setOverlay, burn, mapApi }) {
+export default function MapView({ worldRef, selected, onSelect, selectedEdge, onSelectRoute, overlay, setOverlay, burn, mapApi }) {
   const canvasRef = useRef(null);
   const viewRef = useRef({ x: 0, y: 0, scale: 0.55 });
   const dragRef = useRef(null);
   const hoverRef = useRef(null);
+  const hoverEdgeRef = useRef(null);
   const tooltipRef = useRef(null);
   const territoryRef = useRef({ year: -1, seed: null });
   // transient animation state fed by the sim's event/fx queues
@@ -101,6 +102,8 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
         drawScene(ctx, w, v, {
           bw, bh, now, overlay, selected,
           hover: hoverRef.current,
+          hoverEdge: hoverEdgeRef.current,
+          selectedEdge,
           territory: territoryRef.current,
           pulses: scene.pulses,
           fxAnims: scene.fxAnims,
@@ -110,7 +113,7 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [worldRef, selected, overlay]);
+  }, [worldRef, selected, selectedEdge, overlay]);
 
   // input
   const screenToWorld = (mx, my) => {
@@ -131,11 +134,33 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     }
     return best;
   };
-  const updateTooltip = (id, mx, my) => {
+  // nearest jumpgate lane to the cursor, in SCREEN pixels (zoom-independent).
+  // Systems win ties — this is only consulted when no system is under the cursor.
+  const nearestEdge = (mx, my) => {
+    const w = worldRef.current, v = viewRef.current;
+    if (!w) return null;
+    const cv = canvasRef.current;
+    const sx = (x) => cv.clientWidth / 2 + (x + v.x) * v.scale;
+    const sy = (y) => cv.clientHeight / 2 + (y + v.y) * v.scale;
+    let best = null, bd = 6; // px
+    for (let i = 0; i < w.edges.length; i++) {
+      const e = w.edges[i];
+      const A = w.systems[e.a], B = w.systems[e.b];
+      const ax = sx(A.x), ay = sy(A.y), bx = sx(B.x), by = sy(B.y);
+      const dx = bx - ax, dy = by - ay;
+      const len2 = dx * dx + dy * dy;
+      let t = len2 ? ((mx - ax) * dx + (my - ay) * dy) / len2 : 0;
+      t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(mx - (ax + t * dx), my - (ay + t * dy));
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  };
+  const updateTooltip = (id, edge, mx, my) => {
     const el = tooltipRef.current, w = worldRef.current, cv = canvasRef.current;
     if (!el) return;
-    if (id === null || !w || dragRef.current?.moved) { el.style.display = "none"; return; }
-    el.innerHTML = tooltipHtml(w, w.systems[id]);
+    if (!w || dragRef.current?.moved || (id === null && edge === null)) { el.style.display = "none"; return; }
+    el.innerHTML = id !== null ? tooltipHtml(w, w.systems[id]) : routeTooltipHtml(w, edge);
     el.style.display = "block";
     const flipX = mx > cv.clientWidth - 240;
     const flipY = my > cv.clientHeight - 90;
@@ -156,7 +181,12 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
   const onPointerMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-    hoverRef.current = nearest(mx, my);
+    const id = nearest(mx, my);
+    hoverRef.current = id;
+    // a lane is only a hover target when no system sits under the cursor
+    hoverEdgeRef.current = id === null ? nearestEdge(mx, my) : null;
+    const cv = canvasRef.current;
+    if (cv) cv.style.cursor = (id !== null || hoverEdgeRef.current !== null) ? "pointer" : "crosshair";
     const d = dragRef.current;
     if (d) {
       const dx = mx - d.sx, dy = my - d.sy;
@@ -166,19 +196,26 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
         viewRef.current.y = d.vy + dy / viewRef.current.scale;
       }
     }
-    updateTooltip(hoverRef.current, mx, my);
+    updateTooltip(hoverRef.current, hoverEdgeRef.current, mx, my);
   };
   const onPointerUp = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const d = dragRef.current;
     dragRef.current = null;
     if (d && !d.moved) {
-      const id = nearest(e.clientX - rect.left, e.clientY - rect.top);
-      onSelect(id);
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const id = nearest(mx, my);
+      if (id !== null) onSelect(id);
+      else {
+        const ei = nearestEdge(mx, my);
+        if (ei !== null) onSelectRoute?.(ei);
+        else onSelect(null);
+      }
     }
   };
   const onPointerLeave = () => {
     hoverRef.current = null;
+    hoverEdgeRef.current = null;
     if (tooltipRef.current) tooltipRef.current.style.display = "none";
   };
   const onWheel = (e) => {

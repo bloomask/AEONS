@@ -18,7 +18,7 @@ const diamond = (ctx, X, Y, r) => {
 };
 
 export function drawScene(ctx, w, v, frame) {
-  const { bw, bh, now, overlay, selected, hover } = frame;
+  const { bw, bh, now, overlay, selected, hover, hoverEdge, selectedEdge } = frame;
   const tx = (x) => bw / 2 + (x + v.x) * v.scale;
   const ty = (y) => bh / 2 + (y + v.y) * v.scale;
 
@@ -49,12 +49,21 @@ export function drawScene(ctx, w, v, frame) {
   // gates
   const tradeEmph = overlay === "trade" ? 2.2 : 1;
   const dashDrift = (now * 0.02) % 14;
-  for (const e of w.edges) {
+  for (let ei = 0; ei < w.edges.length; ei++) {
+    const e = w.edges[ei];
     const A = w.systems[e.a], B = w.systems[e.b];
     const atWar = A.fid !== null && B.fid !== null && A.fid !== B.fid &&
       w.relations[relKey(A.fid, B.fid)]?.war;
+    const ax = tx(A.x), ay = ty(A.y), bx = tx(B.x), by = ty(B.y);
+    // a hovered or selected lane gets a bright halo underneath the lane line
+    if (ei === selectedEdge || ei === hoverEdge) {
+      ctx.strokeStyle = ei === selectedEdge ? "rgba(230,225,211,0.85)" : "rgba(230,225,211,0.4)";
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      ctx.lineWidth = ei === selectedEdge ? 4 : 3;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.moveTo(tx(A.x), ty(A.y)); ctx.lineTo(tx(B.x), ty(B.y));
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
     if (atWar) {
       ctx.strokeStyle = "rgba(228,87,46,0.55)";
       ctx.setLineDash([4, 4]); ctx.lineDashOffset = 0; ctx.lineWidth = 1;
@@ -69,6 +78,12 @@ export function drawScene(ctx, w, v, frame) {
       ctx.setLineDash([]); ctx.lineWidth = 0.6;
     }
     ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    // endpoint rings mark the selected lane's two worlds
+    if (ei === selectedEdge) {
+      ctx.strokeStyle = "rgba(230,225,211,0.9)"; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(ax, ay, 7, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.stroke();
+    }
   }
 
   // convoys: little ships riding the busy lanes

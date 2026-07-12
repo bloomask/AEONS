@@ -8,11 +8,12 @@ import {
 
 // The corporate boardroom: the player's dashboard over a live Game. All display
 // logic is in present.js (tested); this is a thin render plus buttons that
-// dispatch commands. The game mutates in place, so a version counter forces a
-// re-render after each command. `sel` is the map's selected system id.
-export default function BoardroomPanel({ game, sel }) {
+// dispatch commands. The game mutates in place, so a re-render is forced after
+// each command — via the parent's `act` when given, else a local counter.
+// `sel` is the selected system id.
+export default function BoardroomPanel({ game, sel, act: actProp }) {
   const [, bump] = useState(0);
-  const act = (cmd) => { const r = apply(game, cmd); bump((n) => n + 1); return r; };
+  const act = actProp || ((cmd) => { const r = apply(game, cmd); bump((n) => n + 1); return r; });
   const [qty, setQty] = useState(10);
 
   const o = overview(game);

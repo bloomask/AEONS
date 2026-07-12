@@ -7,6 +7,10 @@ import { skewDeaths } from "../society.js";
 // --- random shocks, gate shifts, and culture drift ---
 export function runShocks(w, rng, alive) {
   for (const s of alive) {
+    // `alive` is snapshotted at year start; an earlier phase (famine) can
+    // have starved a world to nothing since. A corpse takes no plague — and
+    // rolling one would divide by a zero population.
+    if (s.pop <= 0.05) continue;
     if (rng.chance(0.004 * w.cfg.plague)) {
       // a stocked pharmacopoeia blunts the death toll — and is spent doing
       // it; each medical age since the founding blunts it further

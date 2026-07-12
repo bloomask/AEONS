@@ -46,6 +46,15 @@ export const T = {
   SUPP_BASE_COST: 18,   // fitting out a squadron
   SUPP_JUMP_COST: 6,    // supply train per gate to the target
   GRIEVANCE_DECAY: 0.9, // how long victims remember skimmed cargo
+  // arms & war readiness
+  ARMS_PER_POP: 0.12,   // weapons a world wants stocked per million people
+  ARMS_FLOOR: 0.4,      // combat strength of a totally disarmed world (vs 1.0 fully armed)
+  ARMS_BATTLE_USE: 0.18, // fraction of a world's arms spent in a year of fighting at its gates
+  // contraband: narcotics & the slave trade
+  DRUG_YIELD: 0.05,     // narcotics refined per unit of (pop x dev) at an outlaw world
+  DRUG_ADDICT: 1.4,     // how fast consumption builds an addicted underclass
+  SLAVE_LABOR: 0.7,     // labor a held slave supplies vs a free worker
+  SLAVE_UNREST: 0.5,    // how much a large bonded population inflames the free poor
 };
 
 // faction-funded works of generations; cost is treasury paid in over decades
@@ -105,11 +114,18 @@ export const GOOD_CATS = [
   { key: "minerals", label: "Minerals", goods: ["metals", "rares"] },
   { key: "energy", label: "Energy", goods: ["fuel"] },
   { key: "goods", label: "Goods", goods: ["consumer", "medicine", "electronics"] },
+  { key: "arms", label: "Arms", goods: ["weapons"] },
 ];
 export const GOODS = GOOD_CATS.flatMap((c) => c.goods);
+// Contraband is NOT part of GOODS: it never flows through the ordinary
+// production/consumption/trade loops. It has its own phase (contraband.js),
+// its own legality rules, and lives in dedicated system fields. Slaves are
+// a population/commodity hybrid — moving them moves people.
+export const CONTRABAND = ["drugs", "slaves"];
 export const GOOD_LABEL = {
   grain: "grain", metals: "metals", rares: "rare earths", fuel: "fuel",
   consumer: "consumer goods", medicine: "medicine", electronics: "electronics",
+  weapons: "weapons", drugs: "narcotics", slaves: "slaves",
 };
 // All value in the galaxy is denominated in the credit (cr) — the universal
 // unit of account. Prices, wealth, treasuries, freight margins, tariffs and
@@ -117,22 +133,26 @@ export const GOOD_LABEL = {
 // each good fetches on a market at perfect equilibrium.
 export const BASE_PRICE = {
   grain: 1.0, metals: 1.3, rares: 4.0, fuel: 1.6,
-  consumer: 3.0, medicine: 5.0, electronics: 6.5,
+  consumer: 3.0, medicine: 5.0, electronics: 6.5, weapons: 8.0,
+  // reference prices for the contraband markets (contraband.js sets the
+  // live figures); vice and human cargo both fetch a heavy premium
+  drugs: 12.0, slaves: 9.0,
 };
 // per-good freight cost multiplier for hauling across a gate:
 // bulk cargo is dear to move, high-value-per-ton cargo is cheap
 export const FREIGHT_COST = {
   grain: 1.3, metals: 1.6, rares: 0.5, fuel: 1.0,
-  consumer: 0.8, medicine: 0.5, electronics: 0.5,
+  consumer: 0.8, medicine: 0.5, electronics: 0.5, weapons: 0.6,
 };
 // what one unit of each manufactured good eats off the local stockpile
 export const RECIPES = {
   consumer: { metals: 0.4, fuel: 0.25 },
   medicine: { grain: 0.3, rares: 0.1, fuel: 0.1 },
   electronics: { metals: 0.25, rares: 0.3, fuel: 0.2 },
+  weapons: { metals: 0.5, electronics: 0.15 }, // arms need steel and circuits
 };
 // industry output per unit of labor share, scaled by development
-export const MFG_YIELD = { consumer: 2.7, medicine: 1.3, electronics: 1.1 };
+export const MFG_YIELD = { consumer: 2.7, medicine: 1.3, electronics: 1.1, weapons: 0.9 };
 
 // ---------- the social pyramid ----------
 // Every settled world's population splits into four strata. `labor` is how
@@ -235,6 +255,27 @@ export const GOVS = {
     expandMul: 0,
   },
 };
+
+// --- contraband legality by government ---
+// Narcotics and the slave trade are lawful only under some flags. Republics
+// abolish both on principle; empires keep slaves but outlaw the drug trade;
+// chartered corporations ban both to protect their trading access; only the
+// corsairs deal openly in everything. Free systems each decide for
+// themselves — an "outlaw" free port tolerates both (s.outlaw).
+export const GOV_CONTRABAND = {
+  empire: { drugs: false, slaves: true },
+  republic: { drugs: false, slaves: false },
+  corporate: { drugs: false, slaves: false },
+  pirate: { drugs: true, slaves: true },
+};
+// `gov` is a faction government key, or null for a free system (then the
+// world's own outlaw flag decides).
+export function allowsDrugs(gov, outlaw) {
+  return gov ? !!GOV_CONTRABAND[gov]?.drugs : !!outlaw;
+}
+export function allowsSlaves(gov, outlaw) {
+  return gov ? !!GOV_CONTRABAND[gov]?.slaves : !!outlaw;
+}
 
 export const PIRATE_COLORS = ["#A34A3A", "#8A3B4C", "#95502E"];
 export const CORP_STATE_COLORS = ["#E8B04B", "#D9A63F", "#C99648"];

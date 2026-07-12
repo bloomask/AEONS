@@ -66,6 +66,8 @@ export const CONFIG_GROUPS = [
         blurb: "duties every power charges at its borders; ×0 is galactic free trade" },
       { key: "piracy", label: "corsair activity", def: 1, min: 0, max: 3, step: 0.05, kind: "mult",
         blurb: "how readily desperate worlds raise the black flag, and how hard they raid" },
+      { key: "contraband", label: "underworld", def: 1, min: 0, max: 3, step: 0.05, kind: "mult",
+        blurb: "vigor of the narcotics and slave trades — ×0 is a galaxy with no underworld" },
     ],
   },
   {

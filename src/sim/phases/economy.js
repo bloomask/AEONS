@@ -7,6 +7,10 @@ import { laborForce, skewDeaths, socialMobility, computeUnrest } from "../societ
 // --- production, consumption, prices, and the social pyramid ---
 export function runEconomy(w, rng, alive) {
   const fx = techFx(w); // each technology era lifts yields galaxy-wide
+  // powers at war (from last year's relations) mobilize and bid up arms
+  const atWarFac = new Set();
+  for (const [k, r] of Object.entries(w.relations))
+    if (r.war) k.split("|").forEach((x) => atWarFac.add(+x));
   for (const s of alive) {
     s.stock.grain *= Math.min(0.97, T.FOOD_SPOILAGE + 0.04 * s.infra.gran); // grain is perishable; granaries help
     const mq = s.min * Math.max(T.MIN_QUALITY_FLOOR + 0.15 * s.infra.mine, Math.sqrt(Math.max(0, s.minRes / s.minRes0)));
@@ -28,13 +32,16 @@ export function runEconomy(w, rng, alive) {
       consumer: Math.max(0.05, (s.price.consumer - inputCost("consumer")) * 1.8 * s.dev * s.mfgEff.consumer),
       medicine: Math.max(0.02, (s.price.medicine - inputCost("medicine")) * 1.2 * s.dev * s.mfgEff.medicine),
       electronics: Math.max(0.02, (s.price.electronics - inputCost("electronics")) * 1.4 * s.dev * s.mfgEff.electronics),
+      // arms are an industrial good: only developed worlds make them at scale
+      weapons: Math.max(0.02, (s.price.weapons - inputCost("weapons")) * 1.1 * s.dev * s.mfgEff.weapons),
     };
     const sum = GOODS.reduce((a, g) => a + wt[g], 0);
     for (const g of GOODS)
       s.shares[g] = s.shares[g] * 0.5 + (wt[g] / sum) * 0.5;
 
-    // the elite do not work; the labor pool is what the lower strata supply
-    const L = s.pop * Math.max(0.3, laborForce(s.classes));
+    // the elite do not work; the labor pool is what the lower strata supply,
+    // plus any bonded labor held here — slaves work the fields and mines
+    const L = s.pop * Math.max(0.3, laborForce(s.classes)) + s.slaves * T.SLAVE_LABOR;
     const prod = {
       grain: T.FOOD_YIELD * w.cfg.fertility * fx.yield * s.fert * L * s.shares.grain,
       metals: T.ORE_YIELD * fx.yield * mq * L * s.shares.metals,
@@ -150,6 +157,9 @@ export function runEconomy(w, rng, alive) {
     for (const g of GOODS)
       demand[g] = (classDemand[g] || 0) + (mfgDemand[g] || 0);
     demand.fuel += s.pop * 0.05; // lights and lift fields
+    // standing garrisons keep an armory; war empties and refills it faster
+    const wartime = s.fid !== null && atWarFac.has(s.fid);
+    demand.weapons += s.pop * T.ARMS_PER_POP * (wartime ? 0.55 : 0.14);
     for (const g of GOODS) {
       const scarcity = (demand[g] * 1.5 + 1) / (s.stock[g] + prod[g] * 0.5 + 1);
       s.price[g] = BASE_PRICE[g] * clamp(Math.pow(scarcity, 0.75), 0.15, 8)

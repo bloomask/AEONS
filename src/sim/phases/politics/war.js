@@ -1,7 +1,16 @@
 import { clamp } from "../../util.js";
+import { T, allowsSlaves } from "../../constants.js";
 import { log, fx, relKey } from "../../events.js";
 import { relocateCapital } from "../../factions.js";
+import { addWorkers } from "../../society.js";
 import { revolt } from "./revolt.js";
+
+// a world fights at a fraction of its weight when its armories are bare —
+// full strength needs weapons stocked to ARMS_PER_POP of its population
+function armsReadiness(s) {
+  const r = clamp(s.stock.weapons / (s.pop * T.ARMS_PER_POP + 0.01), 0, 1);
+  return T.ARMS_FLOOR + (1 - T.ARMS_FLOOR) * r;
+}
 
 // --- war as geography: battles at gates, sieges, fronts that move ---
 // Runs one year of an active war between A and B. `border` is the list of
@@ -17,7 +26,7 @@ export function runWarYear(w, rng, A, B, rel, border) {
     let str = 0;
     for (const id of near) {
       const s = w.systems[id];
-      if (s.fid === f.id && s.pop > 0.05) str += s.pop * s.dev;
+      if (s.fid === f.id && s.pop > 0.05) str += s.pop * s.dev * armsReadiness(s);
     }
     return str * 0.7 + Math.max(0, f.treasury) * 0.05;
   };
@@ -37,6 +46,8 @@ export function runWarYear(w, rng, A, B, rel, border) {
     if (rec) rec.battles++;
     fx(w, { t: "battle", a: e.a, b: e.b });
     sa.pop *= 0.985; sb.pop *= 0.985;
+    sa.stock.weapons *= 1 - T.ARMS_BATTLE_USE; // munitions spent at the front
+    sb.stock.weapons *= 1 - T.ARMS_BATTLE_USE;
     sa.lastWar = w.year; sb.lastWar = w.year;
     const gate = `${sa.name}–${sb.name}`;
     const winSys = sa.fid === winF.id ? sa : sb;
@@ -75,6 +86,19 @@ export function runWarYear(w, rng, A, B, rel, border) {
       s.fid = taker.id; s.siege = null;
       for (const k of ["gran", "gate", "mine"])
         if (s.infra[k] > 0 && rng.chance(0.5)) s.infra[k]--;
+      // the spoils of conquest cut both ways: a slaver binds a share of the
+      // conquered into chains; an abolitionist victor strikes them off
+      if (allowsSlaves(taker.gov, false) && s.pop > 1 && rng.chance(0.5)) {
+        const taken = s.pop * rng.range(0.05, 0.15);
+        s.pop -= taken; s.slaves += taken;
+        w.stats.c.enslaved++;
+        log(w, "slave", `${taken.toFixed(1)}M of ${s.name} are dragged into bondage as the ${taker.name} sacks the world.`, s.id);
+      } else if (!allowsSlaves(taker.gov, false) && s.slaves > 0.1) {
+        const freed = s.slaves; s.slaves = 0;
+        addWorkers(s, freed);
+        w.stats.c.slavesFreed++;
+        log(w, "slave", `The ${taker.name} strike the chains from ${freed.toFixed(1)}M at ${s.name}; the freed swell the workers' ranks.`, s.id);
+      }
       rel.war.score += taker.id === A.id ? 2 : -2;
       w.stats.c.siegeFall++; w.stats.c.cede++;
       if (rec) rec.systemsCeded++;

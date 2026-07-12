@@ -4,6 +4,7 @@ import { runFinance } from "./phases/finance.js";
 import { runSettlement } from "./phases/settlement.js";
 import { runPolitics } from "./phases/politics.js";
 import { runPirates } from "./phases/pirates.js";
+import { runContraband } from "./phases/contraband.js";
 import { runProjects } from "./phases/projects.js";
 import { runShocks } from "./phases/shocks.js";
 import { runFaith } from "./phases/faith.js";
@@ -26,6 +27,7 @@ export function simulateYear(w) {
   runSettlement(w, rng, alive);
   runPolitics(w, rng, alive);
   runPirates(w, rng, alive);
+  runContraband(w, rng, alive);
   runProjects(w, rng);
   runShocks(w, rng, alive);
   runFaith(w, rng, alive);

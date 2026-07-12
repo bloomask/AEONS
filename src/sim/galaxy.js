@@ -1,4 +1,4 @@
-import { T, GOODS, BASE_PRICE, CULTURES, FAITH_COLORS, CLASSES } from "./constants.js";
+import { T, GOODS, BASE_PRICE, RECIPES, CULTURES, FAITH_COLORS, CLASSES } from "./constants.js";
 import { defaultConfig } from "./config.js";
 import { startMix } from "./society.js";
 import { makeRng } from "./rng.js";
@@ -45,6 +45,8 @@ export function genGalaxy(seed, cfgIn) {
         breakthrough: 0, cartelFormed: 0, cartelBroken: 0,
         feudStarted: 0, takeover: 0,
         loanMade: 0, loanDefault: 0, panic: 0,
+        enslaved: 0, slavesFreed: 0, slaveRevolt: 0, slaveTrade: 0,
+        drugBust: 0, drugTrade: 0,
       },
     },
   };
@@ -101,7 +103,7 @@ export function genGalaxy(seed, cfgIn) {
       stock: Object.fromEntries(GOODS.map((g) => [g, 0])),
       price: { ...BASE_PRICE },
       shares: Object.fromEntries(GOODS.map((g) => [g, 1 / GOODS.length])),
-      mfgEff: { consumer: 1, medicine: 1, electronics: 1 },
+      mfgEff: Object.fromEntries(Object.keys(RECIPES).map((m) => [m, 1])),
       classes: startMix(),
       classWb: Object.fromEntries(CLASSES.map((c) => [c, 0.7])),
       unrest: 0, riotCd: 0,
@@ -111,8 +113,15 @@ export function genGalaxy(seed, cfgIn) {
       siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
       faith: c.faith, mega: {}, depots: [], sponsor: null, freePort: false,
+      // contraband: enslaved population held here, narcotics stock, and an
+      // addicted-underclass load. `outlaw` free worlds tolerate both trades.
+      slaves: 0, drugs: 0, drugLoad: 0, outlaw: false,
     });
   }
+
+  // frontier boomtowns — rich in rare-earth veins, thin on law — grow
+  // tolerant of the vice and slave trades if they slip a government's grasp
+  for (const s of w.systems) s.outlaw = s.rare > 0.6;
 
   // jumpgates: 2 nearest neighbors each, then force connectivity
   const addEdge = (a, b) => {

@@ -38,6 +38,14 @@ export const T = {
   CORP_WEALTH: 350,
   CORP_FLEET: 80,
   MAX_FAITHS: 8,
+  // corsairs & suppression — all distances in gates (jumpHops), because
+  // fleets travel lanes, not empty space
+  RAID_JUMPS: 3,        // lanes within this many gates of a haven can be raided
+  SUPP_JUMPS: 4,        // how far a state can project a punitive squadron
+  SUPP_DECAY: 0.6,      // projected strength lost per gate transited
+  SUPP_BASE_COST: 18,   // fitting out a squadron
+  SUPP_JUMP_COST: 6,    // supply train per gate to the target
+  GRIEVANCE_DECAY: 0.9, // how long victims remember skimmed cargo
 };
 
 // faction-funded works of generations; cost is treasury paid in over decades

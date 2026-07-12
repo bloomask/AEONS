@@ -40,7 +40,7 @@ export function genGalaxy(seed, cfgIn) {
         conversion: 0, schism: 0,
         megaStarted: 0, megaBuilt: 0, megaAbandoned: 0,
         corpFounded: 0, depotBuilt: 0, colonySponsored: 0,
-        pirateHavens: 0, raids: 0, suppressions: 0,
+        pirateHavens: 0, raids: 0, suppressions: 0, pirateScatters: 0,
         charterStates: 0, revolution: 0, freePorts: 0, riot: 0,
         breakthrough: 0, cartelFormed: 0, cartelBroken: 0,
         feudStarted: 0, takeover: 0,

@@ -1,4 +1,5 @@
 import { GOODS, GOOD_LABEL, GOVS } from "../sim/constants.js";
+import { describeComposition } from "../sim/cosmos.js";
 import { fmtPop } from "./format.js";
 
 // ---------- the gazetteer: a wiki-style lede for any system ----------
@@ -73,14 +74,15 @@ function compose(w, s) {
     return t;
   }
 
+  const orbits = s.bodies && s.bodies.length ? ` It orbits ${describeComposition(s)}.` : "";
   if (s.pop <= 0.05) {
     if (barren && !traits.length)
       return `${s.name} is an unclaimed system, ${p(7, [
         "little but rock and hard radiation",
         "a sunless waste no charter has ever priced",
         "passed over by every wave of settlement",
-      ])}. No colony ship has yet thought it worth the fuel.`;
-    return `${s.name} is an unclaimed system${s.hab > 0.5 ? " with a temperate, habitable world" : ""}. `
+      ])}.${orbits} No colony ship has yet thought it worth the fuel.`;
+    return `${s.name} is an unclaimed system${s.hab > 0.5 ? " with a temperate, habitable world" : ""}.${orbits} `
       + (traits.length
         ? `Surveys record ${traits.slice(0, 2).join(" and ")}, awaiting a founder's flag.`
         : `Surveys record nothing remarkable; it waits all the same.`);
@@ -113,7 +115,7 @@ function compose(w, s) {
         : `held by the ${f.name}${GOVS[f.gov] ? ` (${GOVS[f.gov].label.toLowerCase()})` : ""}`
       : "independent, flying no flag";
 
-  let t = `${s.name} is ${character} of the ${s.cultName} culture, ${age} and today ${polity}. `;
+  let t = `${s.name} is ${character} of the ${s.cultName} culture, ${age} and today ${polity}.${orbits} `;
 
   // economy: name only the single defining export, if there clearly is one
   const topExp = GOODS.filter((g) => s.flow[g] < -0.5).sort((a, b) => s.flow[a] - s.flow[b])[0];

@@ -10,6 +10,10 @@ export {
   classifySystem, classifyContext, systemTags,
   ARCHETYPES, ARCHETYPE_BY_KEY, RUIN, WILDERNESS,
 } from "./classify.js";
+export {
+  genComposition, describeComposition, primaryBody,
+  STAR_TYPES, STAR_BY_KEY, BODY_TYPES,
+} from "./cosmos.js";
 export { CONFIG_GROUPS, CONFIG_PARAMS, PRESETS, defaultConfig, carryCap } from "./config.js";
 export { log, relKey, getRel } from "./events.js";
 export {

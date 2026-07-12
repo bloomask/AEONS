@@ -68,6 +68,19 @@
  * @property {number} drugLoad Addicted-underclass level 0..1; decays yearly, feeds unrest.
  *   Note: `stock.weapons`/`price.weapons` exist because weapons IS a normal GOODS member;
  *   `price.drugs`/`price.slaves` are set by contraband.js for the black markets.
+ * @property {string} star     Spectral-class key into STAR_TYPES (cosmos.js) — the system's sun.
+ * @property {Body[]} bodies   The system's worlds, ordered sunward→outward. Descriptive
+ *   worldbuilding generated to be consistent with the endowments above (a fertile world
+ *   gets a green homeworld, a mineral-rich one asteroid belts); NOT read by the simulation.
+ *   Exactly one body is flagged `primary` — the settled world.
+ */
+
+/**
+ * @typedef {Object} Body  One world/belt in a system (cosmos.js).
+ * @property {string} t       Type key into BODY_TYPES (terran, gasgiant, belt, …).
+ * @property {number} size    Relative size (flavor).
+ * @property {boolean} [primary]  The settled/settleable homeworld (one per system).
+ * @property {number} [moons]  Moon count, giants only (flavor).
  */
 
 /**

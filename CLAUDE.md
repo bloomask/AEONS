@@ -36,6 +36,18 @@ reference lives in `src/sim/types.js`** (JSDoc typedefs for World, System,
 Faction, House, …) — read that before adding or renaming fields, and keep it
 updated when you do.
 
+### System composition (stars & worlds)
+
+`sim/cosmos.js` gives every system a `star` (spectral class) and `bodies` (its
+planets/belts) at genesis. This is **descriptive worldbuilding**: the star and
+worlds are generated to be *consistent with* each system's endowments
+(`fert`/`min`/`en`/`hab`) — a lush, liveable world gets a warm star and a green
+homeworld; an energy-rich one gets gas giants. Crucially it draws from a
+**per-system sub-rng** (seeded off `(seed, id)`), NOT `w.rng`, so it is
+deterministic yet never perturbs the simulation's history. It does not (yet)
+*drive* the endowments — that inversion is a safe future step (the balance lab
+guards it). `describeComposition`/`primaryBody` are pure helpers for the UI.
+
 ### The yearly phase pipeline
 
 `sim/simulate.js` runs one year as an ordered list of phases, each a file in

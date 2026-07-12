@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF, T, allowsDrugs, allowsSlaves } from "../../sim/constants.js";
 import { diagnoseSystem, SEV_CRISIS, SEV_WARNING } from "../../sim/diagnose.js";
 import { classifySystem, systemTags } from "../../sim/classify.js";
+import { STAR_BY_KEY, BODY_TYPES } from "../../sim/cosmos.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
 import { fmtPop, fmtCredits } from "../format.js";
 import { describeSystem } from "../describe.js";
@@ -33,6 +34,52 @@ function Endowments({ sel }) {
             {note && <span className="faint">{note}</span>}
           </div>
         ))}
+      </div>
+    </Section>
+  );
+}
+
+function SystemBodies({ sel }) {
+  if (!sel.bodies || !sel.bodies.length) return null;
+  const star = STAR_BY_KEY[sel.star] || { label: "star", color: "#F2E7A8" };
+  return (
+    <Section title="the system">
+      {/* the star and its worlds, sunward → outward */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap"
+        style={{ paddingBottom: 8, borderBottom: "1px solid var(--line-2)" }}>
+        <span title={`${star.label} — the system's sun`} style={{ color: star.color, fontSize: 20, lineHeight: 1 }}>✷</span>
+        {sel.bodies.map((b, i) => {
+          const bt = BODY_TYPES[b.t] || { label: b.t, color: "#9AA5B5" };
+          const d = Math.round(7 + (b.size || 1) * 5);
+          return (
+            <span key={i} title={`${bt.label}${b.primary ? " (homeworld)" : ""}`}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20 }}>
+              <span style={{
+                width: d, height: d, borderRadius: "50%", background: bt.color,
+                boxShadow: b.primary ? `0 0 0 2px var(--bg), 0 0 0 3px ${bt.color}` : "none",
+              }} />
+            </span>
+          );
+        })}
+      </div>
+      <div className="muted flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span style={{ color: star.color }}>✷</span>
+          <span>{star.label}</span>
+          <span className="faint">· {sel.bodies.length} {sel.bodies.length === 1 ? "world" : "worlds"}</span>
+        </div>
+        {sel.bodies.map((b, i) => {
+          const bt = BODY_TYPES[b.t] || { label: b.t, color: "#9AA5B5" };
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <span style={{ color: bt.color }}>{b.primary ? "◉" : "·"}</span>
+              <span style={b.primary ? { color: "var(--bright)", fontWeight: 600 } : undefined}>
+                {bt.label}{b.primary ? " — the homeworld" : ""}
+              </span>
+              {b.moons ? <span className="faint">· {b.moons} moons</span> : null}
+            </div>
+          );
+        })}
       </div>
     </Section>
   );
@@ -126,6 +173,7 @@ function Overview({ w, sel }) {
         <Bar v={sel.wb} color={sel.wb < 0.5 ? "var(--red)" : sel.wb < 0.65 ? "var(--amber)" : "var(--green)"} />
       </div>
       <ArmsAndUnderworld w={w} sel={sel} />
+      <SystemBodies sel={sel} />
       {hasInfra && (
         <Section title="on the ground">
           <div className="muted space-y-1">
@@ -376,6 +424,7 @@ export default function SystemPanel({ w, sel }) {
         </>
       ) : (
         <>
+          <SystemBodies sel={sel} />
           <Endowments sel={sel} />
           <LocalRecord sel={sel} />
         </>

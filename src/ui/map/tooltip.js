@@ -1,5 +1,6 @@
 import { GOVS } from "../../sim/constants.js";
 import { classifySystem, systemTags } from "../../sim/classify.js";
+import { STAR_BY_KEY, BODY_TYPES, primaryBody } from "../../sim/cosmos.js";
 import { fmtPop } from "../format.js";
 import { routeStats } from "./routeStats.js";
 
@@ -15,6 +16,17 @@ export function tooltipHtml(w, s) {
       `${f.capital === s.id ? " · capital" : ""}` +
       (g ? ` · <span style="color:${g.badge}">${g.label.toLowerCase()}</span>` : "");
   } else status = `<span style="color:#8892A6">free system</span>`;
+  // the star and homeworld — the system's physical make-up, for every system
+  let starLine = "";
+  if (s.bodies && s.bodies.length) {
+    const star = STAR_BY_KEY[s.star];
+    const home = primaryBody(s);
+    const bt = home && BODY_TYPES[home.t];
+    starLine = `<div style="color:#7C8798;margin-top:2px;font-size:11px">`
+      + `<span style="color:${star ? star.color : "#F2E7A8"}">✷</span> ${star ? star.label : "star"}`
+      + `${bt ? ` · <span style="color:${bt.color}">${bt.label}</span>` : ""}`
+      + ` · ${s.bodies.length} ${s.bodies.length === 1 ? "world" : "worlds"}</div>`;
+  }
   let body = "";
   if (s.pop > 0.05) {
     const wbC = s.wb < 0.5 ? "#E4572E" : s.wb < 0.65 ? "#F2A93B" : "#6FBF73";
@@ -28,7 +40,7 @@ export function tooltipHtml(w, s) {
       ${s.slaves > 0.05 ? ` · <span style="color:#B0453A">${fmtPop(s.slaves)} bonded</span>` : ""}
       ${s.siege ? '<span style="color:#E4572E"> · UNDER SIEGE</span>' : ""}</div>`;
   }
-  return `<div style="font-weight:600">${s.name}</div><div>${status}</div>${body}`;
+  return `<div style="font-weight:600">${s.name}</div><div>${status}</div>${starLine}${body}`;
 }
 
 // hover-tooltip body for a jumpgate lane — returns an HTML string

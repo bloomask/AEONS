@@ -30,3 +30,22 @@ export function shortestPath(w, from, to) {
   for (let c = to; c !== -1; c = prev[c]) path.unshift(c);
   return { path, dist: dist[to] };
 }
+
+/** Lane-distance from `from` to every system (Infinity if unreachable). */
+export function allDistances(w, from) {
+  const n = w.systems.length;
+  const dist = new Array(n).fill(Infinity);
+  const seen = new Array(n).fill(false);
+  dist[from] = 0;
+  for (;;) {
+    let u = -1, best = Infinity;
+    for (let i = 0; i < n; i++) if (!seen[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u === -1) break;
+    seen[u] = true;
+    for (const { to: v, e } of w.adj[u] || []) {
+      const nd = dist[u] + w.edges[e].d;
+      if (nd < dist[v]) dist[v] = nd;
+    }
+  }
+  return dist;
+}

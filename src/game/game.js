@@ -3,6 +3,7 @@ import { GameClock } from "./clock.js";
 import { foundCorp, netWorth, logLedger, shipSpace, SHIP_CLASSES } from "./corp.js";
 import { buy, sell, dispatch, maxBuy, DEPOT } from "./actions.js";
 import { PIRACY, raidRng } from "./piracy.js";
+import { flushMacro } from "./capital.js";
 
 // ---------------------------------------------------------------------------
 // The Game: the player's corporation living on the two-clock galaxy. It owns the
@@ -22,9 +23,16 @@ export class Game {
    */
   constructor(w, opts = {}) {
     this.w = w;
-    this.clock = new GameClock(w, { daysPerYear: opts.daysPerYear });
+    // player influence on the galaxy is queued here and applied once a year, via
+    // the clock's onAdvance hook, just before each macro step
+    this.macroQueue = [];
     const home = opts.home != null ? opts.home : bestHub(w);
     this.corp = foundCorp(opts.corpName || "New Charter Company", { cash: opts.cash ?? 400, home });
+    // the clock fires onAdvance during construction, so the corp must exist first
+    this.clock = new GameClock(w, {
+      daysPerYear: opts.daysPerYear,
+      onAdvance: (world) => flushMacro(this, world),
+    });
     this.corp.founded = this.clock.year;
   }
 
@@ -32,7 +40,7 @@ export class Game {
   view() { return this.clock.view(); }
   get year() { return this.clock.year; }
   get day() { return this.clock.day; }
-  netWorth() { return netWorth(this.corp, this.view()); }
+  netWorth() { return netWorth(this.corp, this.view(), this.w); }
 
   /**
    * Advance the game by `n` days: step the two-clock (macro-sim at each year

@@ -26,10 +26,19 @@ export class GameClock {
   constructor(w, opts = {}) {
     this.w = w;
     this.daysPerYear = opts.daysPerYear || DAYS_PER_YEAR;
+    // called with (w) immediately before each macro step — the hook through
+    // which player influence (capital, statecraft…) folds into the galaxy. With
+    // nothing to apply it is a no-op, and the macro-sim stays byte-identical.
+    this.onAdvance = opts.onAdvance || null;
     this.day = 0;
     this.base = snapshot(w);   // the year the player starts in
-    simulateYear(w);           // realize the next year to interpolate toward
+    this._advance();           // realize the next year to interpolate toward
     this.forecast = snapshot(w);
+  }
+
+  _advance() {
+    if (this.onAdvance) this.onAdvance(this.w);
+    simulateYear(this.w);
   }
 
   /** The year the player is currently living through. */
@@ -52,7 +61,7 @@ export class GameClock {
       if (this.day >= this.daysPerYear) {
         this.day = 0;
         this.base = this.forecast;   // yesterday's forecast is today's truth
-        simulateYear(this.w);        // compute the next year to lerp toward
+        this._advance();             // apply player influence, then step the year
         this.forecast = snapshot(this.w);
         rolled++;
       }

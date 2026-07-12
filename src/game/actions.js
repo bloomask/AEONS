@@ -163,6 +163,57 @@ export function store(game, shipId, good, qty) {
   return { ok: true };
 }
 
+// --- capital & industry: lend, invest, and seize (the price-maker actions) ---
+
+import { CAPITAL } from "./capital.js";
+
+/**
+ * Lend to a system or faction. The principal leaves your cash now and reaches
+ * the borrower at year's end (a queued macro-intent); interest flows back yearly.
+ */
+export function lend(game, kind, id, principal, rate = 0.1) {
+  if (kind !== "sys" && kind !== "fac") return err("lend to a system or a faction");
+  if (!(principal > 0)) return err("principal must be positive");
+  if (game.corp.cash < principal) return err("insufficient cash");
+  const target = kind === "sys" ? game.w.systems[id] : game.w.factions[id];
+  if (!target) return err("no such borrower");
+  if (kind === "sys" ? target.pop <= 0.05 : target.dead) return err("borrower is gone");
+  game.corp.cash -= principal;
+  game.corp.loans.push({ kind, id, principal, rate, missed: 0, since: game.year });
+  game.macroQueue.push(kind === "sys" ? { t: "inject", sys: id, amount: principal } : { t: "grant", fac: id, amount: principal });
+  game.corp.stats.lent++;
+  logLedger(game.corp, `lent ${principal.toFixed(0)}cr to ${kind} ${id}`, -principal);
+  return { ok: true };
+}
+
+/**
+ * Invest capital to develop a system — the money builds docks and industry,
+ * raising its wealth and development (folded into the sim next year).
+ */
+export function invest(game, sys, amount) {
+  if (!isSystem(game, sys)) return err("not a real system");
+  if (game.w.systems[sys].pop <= 0.05) return err("nothing to develop here");
+  if (!(amount > 0)) return err("amount must be positive");
+  if (game.corp.cash < amount) return err("insufficient cash");
+  game.corp.cash -= amount;
+  game.macroQueue.push({ t: "develop", sys, wealth: amount * 0.6, dev: clamp(amount * 0.0006, 0, 0.06) });
+  logLedger(game.corp, `invested ${amount.toFixed(0)}cr in ${game.w.systems[sys].name}`, -amount);
+  return { ok: true };
+}
+
+/** Foreclose on a defaulting system loan, seizing the world as a company town. */
+export function foreclose(game, loanId) {
+  const loan = game.corp.loans[loanId];
+  if (!loan) return err("no such loan");
+  if (loan.kind !== "sys") return err("only a system can be foreclosed");
+  if (loan.missed < CAPITAL.FORECLOSE_AFTER) return err("the debtor is not far enough in arrears");
+  if (!game.corp.holdings.includes(loan.id)) game.corp.holdings.push(loan.id);
+  game.corp.loans.splice(loanId, 1);
+  game.corp.stats.foreclosed++;
+  logLedger(game.corp, `foreclosed on ${game.w.systems[loan.id].name} — seized as a company town`, 0);
+  return { ok: true };
+}
+
 /** Load `qty` of `good` from the local depot onto a docked ship. */
 export function load(game, shipId, good, qty) {
   const ship = getShip(game, shipId);

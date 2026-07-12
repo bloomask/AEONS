@@ -132,3 +132,48 @@ export function setInsurance(game, on) {
   game.corp.insured = !!on;
   return { ok: true, insured: game.corp.insured };
 }
+
+// --- depots & warehousing: own storage to buy low, hold, and sell dear ---
+
+export const DEPOT = { COST: 45, UPKEEP: 2.0 }; // build cost; annual upkeep
+
+/** Establish a warehouse at a living system (a standing storage presence). */
+export function buildDepot(game, sys) {
+  if (!isSystem(game, sys)) return err("not a real system");
+  if (game.corp.depots[sys]) return err("a depot already stands here");
+  if (game.w.systems[sys].pop <= 0.05) return err("no port to build on");
+  if (game.corp.cash < DEPOT.COST) return err("insufficient cash");
+  game.corp.cash -= DEPOT.COST;
+  game.corp.depots[sys] = { sys, stock: {} };
+  logLedger(game.corp, `built a depot at ${game.w.systems[sys].name}`, -DEPOT.COST);
+  return { ok: true };
+}
+
+/** Offload `qty` of `good` from a docked ship into the local depot. */
+export function store(game, shipId, good, qty) {
+  const ship = getShip(game, shipId);
+  if (!ship) return err("no such ship");
+  if (ship.location == null) return err("ship is in transit");
+  const depot = game.corp.depots[ship.location];
+  if (!depot) return err("no depot here");
+  if (!(qty > 0) || (ship.cargo[good] || 0) < qty) return err("not enough cargo aboard");
+  ship.cargo[good] -= qty;
+  if (ship.cargo[good] <= 1e-9) delete ship.cargo[good];
+  depot.stock[good] = (depot.stock[good] || 0) + qty;
+  return { ok: true };
+}
+
+/** Load `qty` of `good` from the local depot onto a docked ship. */
+export function load(game, shipId, good, qty) {
+  const ship = getShip(game, shipId);
+  if (!ship) return err("no such ship");
+  if (ship.location == null) return err("ship is in transit");
+  const depot = game.corp.depots[ship.location];
+  if (!depot) return err("no depot here");
+  if (!(qty > 0) || (depot.stock[good] || 0) < qty) return err("depot lacks the goods");
+  if (qty > shipSpace(ship)) return err("not enough cargo space");
+  depot.stock[good] -= qty;
+  if (depot.stock[good] <= 1e-9) delete depot.stock[good];
+  ship.cargo[good] = (ship.cargo[good] || 0) + qty;
+  return { ok: true };
+}

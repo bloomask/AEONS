@@ -21,6 +21,7 @@ export function tooltipHtml(w, s) {
     body = `<div style="color:#7C8798;margin-top:2px">pop <b style="color:#E6E1D3">${fmtPop(s.pop)}</b>
       · wellbeing <b style="color:${wbC}">${(s.wb * 100).toFixed(0)}%</b>
       · unrest <b style="color:${unC}">${(s.unrest * 100).toFixed(0)}%</b>
+      ${s.slaves > 0.05 ? ` · <span style="color:#B0453A">${fmtPop(s.slaves)} bonded</span>` : ""}
       ${s.siege ? '<span style="color:#E4572E"> · UNDER SIEGE</span>' : ""}</div>`;
   }
   return `<div style="font-weight:600">${s.name}</div><div>${status}</div>${body}`;

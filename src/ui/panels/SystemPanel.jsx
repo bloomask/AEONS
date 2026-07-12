@@ -112,7 +112,8 @@ function Overview({ w, sel }) {
         </div>
       )}
       <div className="grid grid-cols-3 gap-2">
-        <Tile label="population" value={fmtPop(sel.pop)} />
+        <Tile label="population" value={fmtPop(sel.pop)}
+          sub={sel.slaves > 0.05 ? `+${fmtPop(sel.slaves)} bonded` : undefined} />
         <Tile label="wealth" value={fmtCredits(sel.wealth)} color={sel.wealth < 0 ? "var(--red)" : undefined} />
         <Tile label="industry" value={`×${sel.dev.toFixed(2)}`} />
       </div>

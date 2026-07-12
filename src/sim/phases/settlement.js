@@ -55,6 +55,9 @@ export function runSettlement(w, rng, alive) {
           target.settledYear = w.year; target.peakPop = m;
           target.lastFamine = -99; target.lastPlague = -99; target.lastWar = -99;
           target.faith = s.faith; target.sponsor = null;
+          // a fresh colony inherits none of the dead world's underworld —
+          // no bonded population, no narcotics stock, no addicted underclass
+          target.slaves = 0; target.drugs = 0; target.drugLoad = 0;
 
           if (sponsored) {
             backer.wealth -= 25;

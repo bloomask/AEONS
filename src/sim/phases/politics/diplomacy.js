@@ -21,7 +21,7 @@ export function runDiplomacy(w, rng) {
       if (!border.length) {
         if (rel.war) {
           const rec = w.stats.wars[rel.war.rec];
-          if (rec) { rec.end = w.year; rec.duration = w.year - rel.war.since; rec.winner = "none (border lost)"; }
+          if (rec) { rec.end = w.year; rec.duration = w.year - rel.war.since; rec.winner = "none (border lost)"; rec.endReason = "border dissolved"; }
           const k2 = relKey(A.id, B.id);
           for (const s of w.systems) if (s.siege && s.siege.pair === k2) s.siege = null;
           rel.war = null; rel.rivalry = 30;
@@ -39,13 +39,20 @@ export function runDiplomacy(w, rng) {
       const holy = majorityFaith(mA) !== majorityFaith(mB);
 
       if (!rel.war) {
+        const aggr = Math.max(A.aggr, B.aggr);
         rel.rivalry = clamp(
-          rel.rivalry + 0.8 + cd * 1.4 + border.length * 0.2 - mutualTrade * 0.25
-            + (holy ? 0.35 : -0.35),
+          rel.rivalry
+            + 0.8 + cd * 1.4 + border.length * 0.2
+            // ambition and the era's temper stoke the frontier — THIS is what
+            // the aggression knob drives; without it, tension never climbs to war
+            + (0.5 + aggr) * w.cfg.aggression * 0.9
+            - Math.min(mutualTrade * 0.25, 2.5) // trade cools tempers, but only so far
+            + (holy ? 0.5 : -0.3),
           0, 100
         );
         const wasAllied = rel.allied;
-        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) * w.cfg.diplomacy && cd < 0.3;
+        // accords need genuine calm and kinship — an aggressive galaxy rarely finds it
+        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) * w.cfg.diplomacy && cd < 0.25;
         if (rel.allied && !wasAllied) {
           log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`);
         }
@@ -61,14 +68,14 @@ export function runDiplomacy(w, rng) {
           log(w, "embargo", `The embargo between the ${A.name} and the ${B.name} is lifted. Freighters queue at the reopened gates.`);
         }
         if (
-          rel.rivalry > 60 && !rel.allied &&
-          rng.chance(Math.max(A.aggr, B.aggr) * 0.35 * ((gA.warMul + gB.warMul) / 2) * w.cfg.aggression) &&
-          (A.treasury > 40 || B.treasury > 40)
+          rel.rivalry > 55 && !rel.allied &&
+          rng.chance(aggr * 0.45 * ((gA.warMul + gB.warMul) / 2) * w.cfg.aggression) &&
+          (A.treasury > 30 || B.treasury > 30)
         ) {
           rel.war = { since: w.year, score: 0, rec: w.stats.wars.length };
           w.stats.wars.push({
-            a: A.name, b: B.name, start: w.year,
-            end: null, duration: null, winner: null, systemsCeded: 0, battles: 0,
+            a: A.name, b: B.name, aId: A.id, bId: B.id, start: w.year,
+            end: null, duration: null, winner: null, endReason: null, systemsCeded: 0, battles: 0,
           });
           w.stats.c.warsDeclared++;
           w.warCount++;

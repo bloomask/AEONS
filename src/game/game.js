@@ -1,5 +1,8 @@
+import { BASE_PRICE } from "../sim/constants.js";
 import { GameClock } from "./clock.js";
-import { foundCorp, netWorth, SHIP_CLASSES } from "./corp.js";
+import { foundCorp, netWorth, logLedger, shipSpace, SHIP_CLASSES } from "./corp.js";
+import { buy, sell, dispatch, maxBuy } from "./actions.js";
+import { PIRACY, raidRng } from "./piracy.js";
 
 // ---------------------------------------------------------------------------
 // The Game: the player's corporation living on the two-clock galaxy. It owns the
@@ -39,14 +42,65 @@ export class Game {
     for (let i = 0; i < n; i++) {
       this.clock.tick(1);
       this.corp.day++;
+      // move ships in transit; corsairs may skim those crossing raided waters
       for (const sh of this.corp.ships) {
         if (!sh.transit) continue;
+        this._maybeRaid(sh);
         sh.transit.remaining -= SHIP_CLASSES[sh.class].speed;
         if (sh.transit.remaining <= 0) { sh.location = sh.transit.dest; sh.transit = null; }
       }
-      // annual upkeep, charged per day
-      const daily = this.corp.ships.reduce((a, sh) => a + SHIP_CLASSES[sh.class].upkeep, 0) / this.clock.daysPerYear;
-      if (daily) this.corp.cash -= daily;
+      this._charge();       // upkeep + insurance premium
+      this._serviceRoutes(); // standing routes buy/sell and re-dispatch on arrival
+    }
+  }
+
+  // a per-ship, per-day corsair roll on the lanes it is crossing
+  _maybeRaid(sh) {
+    const exp = sh.transit.exposure || 0;
+    if (exp <= 0) return;
+    const chance = PIRACY.BASE_DAILY * exp * (this.w.cfg.piracy ?? 1);
+    if (raidRng(this.w, sh.id, this.corp.day).n() >= chance) return;
+    let lost = 0;
+    for (const g of Object.keys(sh.cargo)) {
+      const take = sh.cargo[g] * PIRACY.LOSS;
+      sh.cargo[g] -= take;
+      if (sh.cargo[g] <= 1e-9) delete sh.cargo[g];
+      lost += take * (BASE_PRICE[g] || 1);
+    }
+    let reimburse = 0;
+    if (this.corp.insured && lost > 0) { reimburse = lost * PIRACY.REIMBURSE; this.corp.cash += reimburse; }
+    this.corp.stats.raided++;
+    logLedger(this.corp,
+      `corsairs raided a convoy — ${lost.toFixed(0)}cr of cargo lost${this.corp.insured ? `, insurer paid ${reimburse.toFixed(0)}` : ""}`,
+      reimburse);
+  }
+
+  _charge() {
+    let daily = 0;
+    for (const sh of this.corp.ships) {
+      const spec = SHIP_CLASSES[sh.class];
+      daily += spec.upkeep + (this.corp.insured ? spec.cost * PIRACY.PREMIUM_RATE : 0);
+    }
+    if (daily) this.corp.cash -= daily / this.clock.daysPerYear;
+  }
+
+  // a docked ship on a standing route executes its stop, then heads to the next
+  _serviceRoutes() {
+    for (const sh of this.corp.ships) {
+      if (!sh.route || sh.location == null) continue;
+      const stop = sh.route.stops[sh.route.leg];
+      if (sh.location !== stop.sys) { dispatch(this, sh.id, stop.sys); continue; }
+      for (const o of stop.buy || []) {
+        const q = Math.min(o.qty, maxBuy(this, sh.id, o.good), shipSpace(sh));
+        if (q > 0) buy(this, sh.id, o.good, q);
+      }
+      for (const g of stop.sell || []) {
+        const held = sh.cargo[g] || 0;
+        if (held > 0) sell(this, sh.id, g, held);
+      }
+      sh.route.leg = (sh.route.leg + 1) % sh.route.stops.length;
+      const next = sh.route.stops[sh.route.leg].sys;
+      if (next !== sh.location) dispatch(this, sh.id, next);
     }
   }
 }

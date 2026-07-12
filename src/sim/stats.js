@@ -1,4 +1,4 @@
-import { T, GOODS } from "./constants.js";
+import { T, GOODS, TECH_ERAS } from "./constants.js";
 
 // ---------- statistics export ----------
 const median = (arr) => {
@@ -100,6 +100,23 @@ export function buildStats(w) {
         pctMiddle: now.cMiddle ?? 0, pctWorker: now.cWorker ?? 0,
         avgUnrest: now.unrest ?? 0, riots: S.c.riot,
         pctGoingHungry: now.hungerPct ?? 0,
+      },
+      technology: {
+        era: TECH_ERAS[w.tech.level].name,
+        level: w.tech.level,
+        breakthroughs: w.tech.history.map((h) => ({ year: h.year, tech: h.tech, era: h.name })),
+      },
+      finance: {
+        loansOutstanding: w.loans.length,
+        debtOutstanding: +w.loans.reduce((a, l) => a + l.principal, 0).toFixed(0),
+        loansMade: S.c.loanMade, defaults: S.c.loanDefault, panics: S.c.panic,
+        creditCrunchNow: w.credit.crunch > 0,
+      },
+      commerce: {
+        cartelsFormed: S.c.cartelFormed,
+        cartelsActiveNow: w.cartels.filter((c) => c.ended === null).length,
+        feudsStarted: S.c.feudStarted,
+        hostileTakeovers: S.c.takeover,
       },
     },
     systemDeaths: S.deaths,

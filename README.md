@@ -53,12 +53,15 @@ src/
     events.js           chronicle log + inter-faction relations
     galaxy.js           world generation (systems, jumpgates, seeding)
     factions.js         faction lifecycle: founding, capital moves, collapse
-    houses.js           merchant house founding
+    houses.js           merchant house founding; rivalries, cartels,
+                        hostile takeovers, salvage auctions
     simulate.js         simulateYear — runs the phases in order
     phases/
       economy.js        production chains, class consumption, prices,
                         social mobility, riots, demography
       trade.js          shipping, arbitrage, house & megacorp economics
+      finance.js        the credit market: loans, defaults, panics that
+                        freeze lending galaxy-wide for years
       settlement.js     migration, colonization (corp-sponsored), system death
       politics.js       power politics: empires, republics, corporate
                         charters, revolutions, diplomacy, war (incl. holy)
@@ -66,6 +69,8 @@ src/
       projects.js       megaprojects: gate nexus, arcology, terraforming
       shocks.js         plagues, ore strikes, flares, gate shifts, culture drift
       faith.js          creeds spreading along trade lanes, schisms
+      tech.js           research from rich developed worlds; technology
+                        eras that lift yields and cut freight costs
       chronicle.js      yearly statistics snapshot and era detection
     stats.js            statistics export (JSON summary)
     diagnose.js         system diagnostics: names every problem holding a

@@ -59,6 +59,31 @@ export const PROJECT_TYPES = {
   },
 };
 
+// ---------- technology eras ----------
+// A slow galactic tech level, advanced by rich developed worlds and cheap
+// electronics. Each era arrives with a named headline technology and nudges
+// yields up and freight down — the 500-year arc gets a direction.
+export const TECH_ERAS = [
+  { name: "The Age of Sail-Gates", tech: null },
+  { name: "The Second Foundry Age", tech: "self-tuning smelters" },
+  { name: "The Age of Cold Chains", tech: "cryo-freight and cold-sleep shipping" },
+  { name: "The Verdant Turn", tech: "vat agriculture" },
+  { name: "The Age of Bright Gates", tech: "self-repairing jumpgates" },
+  { name: "The Clinical Age", tech: "gene-tailored medicine" },
+  { name: "The Age of Thinking Metal", tech: "mindful automata" },
+  { name: "The Luminous Age", tech: "zero-loss power lattices" },
+];
+// what the current tech level does to the world, everywhere at once
+export function techFx(w) {
+  const lv = w.tech?.level ?? 0;
+  return {
+    yield: 1 + 0.05 * lv,             // fields, mines, and wells
+    mfg: 1 + 0.07 * lv,               // industry gains compound faster
+    freight: Math.pow(0.94, lv),      // hauling gets cheaper every era
+    med: Math.min(0.35, 0.06 * lv),   // extra plague survival
+  };
+}
+
 export const FAITH_COLORS = [
   "#E8B04B", "#5CC8DA", "#C05DD6", "#6FBF73",
   "#E4708A", "#7B8CE8", "#E8D14B", "#4FD0A5",

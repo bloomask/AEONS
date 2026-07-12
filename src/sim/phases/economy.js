@@ -1,4 +1,4 @@
-import { T, GOODS, BASE_PRICE, RECIPES, MFG_YIELD, CLASSES, CLASS_DEF } from "../constants.js";
+import { T, GOODS, BASE_PRICE, RECIPES, MFG_YIELD, CLASSES, CLASS_DEF, techFx } from "../constants.js";
 import { carryCap } from "../config.js";
 import { clamp } from "../util.js";
 import { log } from "../events.js";
@@ -6,6 +6,7 @@ import { laborForce, skewDeaths, socialMobility, computeUnrest } from "../societ
 
 // --- production, consumption, prices, and the social pyramid ---
 export function runEconomy(w, rng, alive) {
+  const fx = techFx(w); // each technology era lifts yields galaxy-wide
   for (const s of alive) {
     s.stock.grain *= Math.min(0.97, T.FOOD_SPOILAGE + 0.04 * s.infra.gran); // grain is perishable; granaries help
     const mq = s.min * Math.max(T.MIN_QUALITY_FLOOR + 0.15 * s.infra.mine, Math.sqrt(Math.max(0, s.minRes / s.minRes0)));
@@ -35,10 +36,10 @@ export function runEconomy(w, rng, alive) {
     // the elite do not work; the labor pool is what the lower strata supply
     const L = s.pop * Math.max(0.3, laborForce(s.classes));
     const prod = {
-      grain: T.FOOD_YIELD * w.cfg.fertility * s.fert * L * s.shares.grain,
-      metals: T.ORE_YIELD * mq * L * s.shares.metals,
-      rares: T.RARE_YIELD * mq * s.rare * L * s.shares.rares,
-      fuel: T.FUEL_YIELD * eq * L * s.shares.fuel,
+      grain: T.FOOD_YIELD * w.cfg.fertility * fx.yield * s.fert * L * s.shares.grain,
+      metals: T.ORE_YIELD * fx.yield * mq * L * s.shares.metals,
+      rares: T.RARE_YIELD * fx.yield * mq * s.rare * L * s.shares.rares,
+      fuel: T.FUEL_YIELD * fx.yield * eq * L * s.shares.fuel,
       consumer: 0, medicine: 0, electronics: 0,
     };
     s.minRes = Math.max(0, s.minRes - prod.metals - prod.rares * 3); // rare veins run through hard rock
@@ -49,7 +50,7 @@ export function runEconomy(w, rng, alive) {
     // so a strained world makes soap before circuit boards
     const mfgDemand = {};
     for (const m of Object.keys(RECIPES)) {
-      const cap = MFG_YIELD[m] * s.dev * L * s.shares[m];
+      const cap = MFG_YIELD[m] * fx.mfg * s.dev * L * s.shares[m];
       let made = cap;
       for (const [inp, q] of Object.entries(RECIPES[m]))
         made = Math.min(made, s.stock[inp] / q);
@@ -151,7 +152,8 @@ export function runEconomy(w, rng, alive) {
     demand.fuel += s.pop * 0.05; // lights and lift fields
     for (const g of GOODS) {
       const scarcity = (demand[g] * 1.5 + 1) / (s.stock[g] + prod[g] * 0.5 + 1);
-      s.price[g] = BASE_PRICE[g] * clamp(Math.pow(scarcity, 0.75), 0.15, 8);
+      s.price[g] = BASE_PRICE[g] * clamp(Math.pow(scarcity, 0.75), 0.15, 8)
+        * (w.cartelMul[g] || 1); // a cartel's private duty rides on every unit
     }
 
     // wealth & development; past a point, luxury and graft eat the surplus

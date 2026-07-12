@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST } from "../../sim/constants.js";
+import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST, techFx } from "../../sim/constants.js";
 import { relKey } from "../../sim/events.js";
 import Chart from "../charts.jsx";
 import { CHART } from "../theme.js";
@@ -26,7 +26,7 @@ function bestRuns(w) {
       rel = w.relations[relKey(A.fid, B.fid)];
       if (rel && (rel.war || rel.embargo)) continue;
     }
-    const gf = gateDisc(A, B) * (w.cfg?.freight ?? 1);
+    const gf = gateDisc(A, B) * (w.cfg?.freight ?? 1) * techFx(w).freight;
     const duty = (dst) => {
       if (!rel || dst.fid === null) return 0;
       if (rel.allied) return 0;

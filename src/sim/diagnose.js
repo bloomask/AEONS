@@ -170,6 +170,18 @@ export function diagnoseSystem(w, s) {
     }
   }
 
+  // --- the weight of the ledger ---
+  const loan = w.loans?.find((l) => l.kind === "sys" && l.bid === s.id);
+  if (loan) {
+    if (loan.missed > 0) {
+      add(SEV_WARNING, "arrears",
+        `${loan.principal.toFixed(0)}cr owed to ${w.houses[loan.lender].name} and ${loan.missed} payment${loan.missed > 1 ? "s" : ""} behind — default ruins what credit remains.`);
+    } else {
+      add(SEV_WATCH, "indebted",
+        `Carrying a ${loan.principal.toFixed(0)}cr loan from ${w.houses[loan.lender].name}; interest leaves with every convoy.`);
+    }
+  }
+
   // --- the bottom line: below the growth threshold, a world shrinks ---
   // this check is what makes the contract hold: no problems ⇒ growing
   if (s.wb < 0.55) {

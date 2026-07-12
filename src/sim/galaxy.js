@@ -24,6 +24,9 @@ export function genGalaxy(seed, cfgIn) {
     eras: [{ name: "The Age of Foundation", since: 0 }],
     faiths: [], projects: [], fx: [], fxSeq: 0,
     peaceYears: 0, popPeak100: 0,
+    tech: { level: 0, progress: 0, history: [] },
+    cartels: [], cartelMul: {},
+    loans: [], credit: { crunch: 0, defaults: [], panics: 0, lastPanic: -99 },
     records: { longestWar: 0, largestRealm: 7, worstFamine: 4, richestHouse: 250 },
     houses: [],
     stats: {
@@ -39,6 +42,9 @@ export function genGalaxy(seed, cfgIn) {
         corpFounded: 0, depotBuilt: 0, colonySponsored: 0,
         pirateHavens: 0, raids: 0, suppressions: 0,
         charterStates: 0, revolution: 0, freePorts: 0, riot: 0,
+        breakthrough: 0, cartelFormed: 0, cartelBroken: 0,
+        feudStarted: 0, takeover: 0,
+        loanMade: 0, loanDefault: 0, panic: 0,
       },
     },
   };

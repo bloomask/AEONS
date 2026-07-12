@@ -29,8 +29,9 @@ export function runSettlement(w, rng, alive) {
         )
         .sort((a, b) => (b.fert * 2 + b.min + b.rare) - (a.fert * 2 + a.min + a.rare))[0];
       if (target) {
-        // a megacorp may bankroll the expedition for a share of its trade
-        const backer = w.houses.find(
+        // a megacorp may bankroll the expedition for a share of its trade —
+        // unless the credit market is frozen and no charter gets financed
+        const backer = w.credit.crunch > 0 ? null : w.houses.find(
           (h) => !h.dead && h.corp && h.wealth > 180 &&
             dist2(w.systems[h.home], target) < T.HOUSE_RANGE * 1.3
         );

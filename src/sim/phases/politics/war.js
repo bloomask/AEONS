@@ -31,8 +31,11 @@ export function runWarYear(w, rng, A, B, rel, border) {
     return str * 0.7 + Math.max(0, f.treasury) * 0.05;
   };
 
-  // 1-2 battles a year at contested gates
-  const nBattles = Math.min(border.length, 1 + (rng.chance(0.4) ? 1 : 0));
+  // 1-3 battles a year at contested gates — a wide front bleeds faster
+  const nBattles = Math.min(
+    border.length,
+    1 + (rng.chance(0.5) ? 1 : 0) + (border.length >= 4 && rng.chance(0.4) ? 1 : 0)
+  );
   const pool = [...border];
   for (let bi = 0; bi < nBattles; bi++) {
     const e = pool.splice(rng.int(0, pool.length - 1), 1)[0];
@@ -113,15 +116,21 @@ export function runWarYear(w, rng, A, B, rel, border) {
     }
   }
 
-  // peace: exhaustion, decisive score, capital sack, or sheer length
-  const exhausted = A.treasury < 0 || B.treasury < 0;
-  if (capitalSacked || (dur > 3 && Math.abs(rel.war.score) > 4) || exhausted || dur > 15) {
+  // peace: exhaustion, decisive score, capital sack, or sheer length.
+  // Wars run until one side is genuinely broken (a wide score margin), both
+  // treasuries are bled white, or a generation of stalemate exhausts everyone.
+  const exhausted = Math.min(A.treasury, B.treasury) < -45;
+  const decisive = dur > 5 && Math.abs(rel.war.score) > 8;
+  const stalemate = dur > 25;
+  if (capitalSacked || decisive || exhausted || stalemate) {
+    const reason = capitalSacked ? "capital sacked" : decisive ? "decisive" : exhausted ? "exhaustion" : "stalemate";
     const winner = rel.war.score > 0 ? A : rel.war.score < 0 ? B : (exhausted ? null : A);
     for (const s of w.systems)
       if (s.siege && s.siege.pair === key) s.siege = null;
     if (rec) {
       rec.end = w.year; rec.duration = dur;
       rec.winner = winner ? winner.name : "white peace";
+      rec.endReason = reason;
     }
     const taken = rec ? rec.systemsCeded : 0;
     if (winner && taken > 0) {

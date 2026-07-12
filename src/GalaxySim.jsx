@@ -17,6 +17,8 @@ import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
 import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
 import RoutePanel from "./ui/panels/RoutePanel.jsx";
+import DiplomacyPanel from "./ui/panels/DiplomacyPanel.jsx";
+import WarsPanel from "./ui/panels/WarsPanel.jsx";
 
 // inspection lives in the side window; everything else takes the full screen
 const SIDE_TABS = [
@@ -280,6 +282,8 @@ export default function GalaxySim() {
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className={`mx-auto p-6 text-xs ${scr.narrow ? "max-w-3xl" : "max-w-6xl fs-cols"}`} style={{ lineHeight: 1.6 }}>
+                {screen === "diplomacy" && <DiplomacyPanel w={w} liveFactions={liveFactions} onOpenSystem={openSystem} />}
+                {screen === "wars" && <WarsPanel w={w} wars={wars} onOpenSystem={openSystem} />}
                 {screen === "trade" && <TradePanel w={w} onOpenSystem={openSystem} />}
                 {screen === "market" && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
                 {screen === "galaxy" && <GalaxyPanel w={w} />}

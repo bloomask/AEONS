@@ -4,7 +4,7 @@ import { useState } from "react";
 // Series colors are validated against the dark panel surface
 // (OKLCH lightness band + CVD separation + contrast) — see CHART note
 // in theme.js before changing them.
-const W = 360, H = 82, PAD_T = 6, PAD_B = 14, PAD_R = 48;
+const W = 336, H = 82, PAD_T = 6, PAD_B = 14, PAD_R = 48;
 
 function downsample(arr, n = 240) {
   if (arr.length <= n) return arr;

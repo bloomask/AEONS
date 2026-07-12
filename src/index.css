@@ -238,6 +238,35 @@
   color: var(--faint);
 }
 
+/* full-screen panels (trade / market / galaxy / chronicle) */
+.fs-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.fs-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex: none;
+}
+/* the panel root flows into responsive columns; each section stays whole */
+.fs-cols > div {
+  columns: 336px 3;
+  column-gap: 32px;
+}
+.fs-cols > div > * {
+  break-inside: avoid;
+  margin-top: 0 !important;
+  margin-bottom: 28px;
+}
+
 /* config sliders on the New Game screen */
 input[type="range"].slider {
   -webkit-appearance: none;

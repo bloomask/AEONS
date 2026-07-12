@@ -46,6 +46,15 @@ export function wbColor(wb) {
 
 export const OVERLAYS = ["realm", "wealth", "life", "trade", "faith", "culture"];
 
+// full-screen panels summoned from the command bar; the side window is
+// reserved for system/power inspection
+export const SCREENS = {
+  trade: { glyph: "⇌", title: "Trade & Commerce", narrow: false },
+  market: { glyph: "◈", title: "The Galactic Market", narrow: false },
+  galaxy: { glyph: "✦", title: "The Long View", narrow: false },
+  chronicle: { glyph: "≡", title: "The Chronicle", narrow: true },
+};
+
 // Chart series colors — darker steps of the app palette, validated against
 // the dark panel surface (OKLCH lightness band 0.48–0.67, chroma floor,
 // CVD adjacent-pair separation, ≥3:1 contrast). Multi-series charts must

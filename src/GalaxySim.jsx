@@ -9,6 +9,7 @@ import MapView from "./ui/MapView.jsx";
 import Ticker from "./ui/Ticker.jsx";
 import Timeline from "./ui/Timeline.jsx";
 import TopBar from "./ui/TopBar.jsx";
+import { SCREENS } from "./ui/theme.js";
 import SystemPanel from "./ui/panels/SystemPanel.jsx";
 import PowersPanel from "./ui/panels/PowersPanel.jsx";
 import TradePanel from "./ui/panels/TradePanel.jsx";
@@ -16,13 +17,10 @@ import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
 import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
 
-const TABS = [
+// inspection lives in the side window; everything else takes the full screen
+const SIDE_TABS = [
   { key: "system", glyph: "⊙" },
   { key: "powers", glyph: "♜" },
-  { key: "trade", glyph: "⇌" },
-  { key: "market", glyph: "◈" },
-  { key: "galaxy", glyph: "✦" },
-  { key: "chronicle", glyph: "≡" },
 ];
 
 export default function GalaxySim() {
@@ -31,7 +29,8 @@ export default function GalaxySim() {
 
   const [, setVersion] = useState(0);
   const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState("chronicle");
+  const [sideTab, setSideTab] = useState("system");
+  const [screen, setScreen] = useState(null);
   const [speed, setSpeed] = useState(0);
   const [burn, setBurn] = useState(null);
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
@@ -67,7 +66,8 @@ export default function GalaxySim() {
     setSeed(newSeed);
     setCfg(newCfg);
     setSelected(null);
-    setTab("chronicle");
+    setSideTab("system");
+    setScreen(null);
     setFacFilter("all");
     setFocusYear(null);
     const w = genGalaxy(newSeed, newCfg);
@@ -90,6 +90,13 @@ export default function GalaxySim() {
     return () => clearInterval(iv);
   }, [speed, burn, bump]);
 
+  // Esc closes an open full-screen panel
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") setScreen(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const w = worldRef.current;
   const liveSystems = w ? w.systems.filter((s) => s.pop > 0.05) : [];
   const totalPop = liveSystems.reduce((a, s) => a + s.pop, 0);
@@ -99,11 +106,13 @@ export default function GalaxySim() {
     : [];
   const sel = w && selected !== null ? w.systems[selected] : null;
 
-  // selecting a system opens its panel AND flies the camera there
+  // selecting a system closes any full-screen panel, opens the side
+  // inspector, AND flies the camera there
   const openSystem = useCallback((id) => {
     setSelected(id);
     if (id !== null) {
-      setTab("system");
+      setScreen(null);
+      setSideTab("system");
       mapApi.current?.focus(id);
     }
   }, []);
@@ -111,12 +120,12 @@ export default function GalaxySim() {
   // plain map clicks select without yanking the camera around
   const selectOnMap = useCallback((id) => {
     setSelected(id);
-    if (id !== null) setTab("system");
+    if (id !== null) setSideTab("system");
   }, []);
 
   const scrubTo = useCallback((year) => {
     setFocusYear(year);
-    setTab("chronicle");
+    setScreen("chronicle");
   }, []);
 
   const exportJson = () => {
@@ -149,6 +158,8 @@ export default function GalaxySim() {
     );
   }
 
+  const scr = screen ? SCREENS[screen] : null;
+
   return (
     <div
       className="w-full h-screen flex flex-col overflow-hidden select-none"
@@ -160,9 +171,9 @@ export default function GalaxySim() {
         speed={speed}
         setSpeed={setSpeed}
         onCentury={() => w && !burn && runBurn(w, 100)}
-        onExportJson={exportJson}
-        onExportCsv={exportCsv}
         onNewGalaxy={() => { setSpeed(0); setSetupOpen(true); }}
+        screen={screen}
+        setScreen={setScreen}
         w={w}
         liveSystems={liveSystems}
         totalPop={totalPop}
@@ -170,7 +181,7 @@ export default function GalaxySim() {
         wars={wars}
       />
 
-      <div className="flex-1 flex flex-col md:flex-row min-h-0">
+      <div className="relative flex-1 flex flex-col md:flex-row min-h-0">
         <div className="relative flex-1 flex flex-col min-h-0">
           <MapView
             worldRef={worldRef}
@@ -186,47 +197,71 @@ export default function GalaxySim() {
               worldRef={worldRef}
               onOpen={(ev) => {
                 if (ev.sysId !== null) openSystem(ev.sysId);
-                else setTab("chronicle");
+                else setScreen("chronicle");
               }}
             />
           )}
           {w && !burn && <Timeline w={w} onScrub={scrubTo} focusYear={focusYear} />}
         </div>
 
-        {/* side panel */}
+        {/* the inspection window: system & power details only */}
         <div
           className="w-full md:w-[26rem] flex-1 md:flex-none flex flex-col min-h-0"
           style={{ background: "var(--panel)", borderLeft: "1px solid var(--line)" }}
         >
           <nav className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
-            {TABS.map(({ key, glyph }) => (
-              <button key={key} onClick={() => setTab(key)} className={`navtab${tab === key ? " on" : ""}`}>
+            {SIDE_TABS.map(({ key, glyph }) => (
+              <button key={key} onClick={() => setSideTab(key)} className={`navtab${sideTab === key ? " on" : ""}`}>
                 <span className="glyph">{glyph}</span>
                 {key}
               </button>
             ))}
           </nav>
-
           <div className="flex-1 overflow-y-auto p-4 text-xs" style={{ lineHeight: 1.6 }}>
-            {tab === "system" && <SystemPanel w={w} sel={sel} />}
-            {tab === "powers" && w && (
+            {sideTab === "system" && <SystemPanel w={w} sel={sel} />}
+            {sideTab === "powers" && w && (
               <PowersPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
-            )}
-            {tab === "trade" && w && <TradePanel w={w} onOpenSystem={openSystem} />}
-            {tab === "market" && w && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
-            {tab === "galaxy" && w && <GalaxyPanel w={w} />}
-            {tab === "chronicle" && w && (
-              <ChroniclePanel
-                w={w}
-                evFilter={evFilter} setEvFilter={setEvFilter}
-                facFilter={facFilter} setFacFilter={setFacFilter}
-                onOpenSystem={openSystem}
-                focusYear={focusYear}
-                onBackToLive={() => setFocusYear(null)}
-              />
             )}
           </div>
         </div>
+
+        {/* full-screen panels take over everything below the command bar */}
+        {scr && w && (
+          <div className="fs-overlay">
+            <div className="fs-head">
+              <span style={{ color: "var(--amber)", fontSize: 15 }}>{scr.glyph}</span>
+              <span className="display" style={{ fontWeight: 700, fontSize: 13, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--bright)" }}>
+                {scr.title}
+              </span>
+              <span className="faint">esc closes</span>
+              <div className="flex-1" />
+              {screen === "galaxy" && (
+                <>
+                  <button className="btn" onClick={exportJson} title="Download full statistics (summary + deaths + wars + yearly series) as JSON">⬇ json</button>
+                  <button className="btn" onClick={exportCsv} title="Download yearly time series as CSV">⬇ csv</button>
+                </>
+              )}
+              <button className="btn" onClick={() => setScreen(null)} title="Close (Esc)">✕ close</button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className={`mx-auto p-6 text-xs ${scr.narrow ? "max-w-3xl" : "max-w-6xl fs-cols"}`} style={{ lineHeight: 1.6 }}>
+                {screen === "trade" && <TradePanel w={w} onOpenSystem={openSystem} />}
+                {screen === "market" && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
+                {screen === "galaxy" && <GalaxyPanel w={w} />}
+                {screen === "chronicle" && (
+                  <ChroniclePanel
+                    w={w}
+                    evFilter={evFilter} setEvFilter={setEvFilter}
+                    facFilter={facFilter} setFacFilter={setFacFilter}
+                    onOpenSystem={openSystem}
+                    focusYear={focusYear}
+                    onBackToLive={() => setFocusYear(null)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

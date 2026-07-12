@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST } from "../../sim/constants.js";
+import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST, techFx } from "../../sim/constants.js";
 import { relKey } from "../../sim/events.js";
 import Chart from "../charts.jsx";
 import { CHART } from "../theme.js";
@@ -26,7 +26,7 @@ function bestRuns(w) {
       rel = w.relations[relKey(A.fid, B.fid)];
       if (rel && (rel.war || rel.embargo)) continue;
     }
-    const gf = gateDisc(A, B) * (w.cfg?.freight ?? 1);
+    const gf = gateDisc(A, B) * (w.cfg?.freight ?? 1) * techFx(w).freight;
     const duty = (dst) => {
       if (!rel || dst.fid === null) return 0;
       if (rel.allied) return 0;
@@ -162,25 +162,22 @@ export default function MarketPanel({ w, liveSystems, onOpenSystem }) {
         ))}
       </Section>
 
-      <Section title="price history" right={<span className="faint">galactic mean, cr</span>}>
-        <div className="space-y-4">
-          <Chart title="credit price index (100 = par)" rows={rows} eras={eras} fmt={(v) => v.toFixed(0)}
-            series={[{ key: "cpi", color: CHART.amber }]} />
-          <Chart title="raw goods" rows={rows} eras={eras} fmt={fmtCompact} area={false}
-            series={[
-              { key: "pxGrain", color: CHART.green, label: "grain" },
-              { key: "pxMetals", color: CHART.amber, label: "metals" },
-              { key: "pxFuel", color: CHART.cyan, label: "fuel" },
-              { key: "pxRares", color: CHART.purple, label: "rares" },
-            ]} />
-          <Chart title="manufactures" rows={rows} eras={eras} fmt={fmtCompact} area={false}
-            series={[
-              { key: "pxConsumer", color: CHART.cyan, label: "consumer" },
-              { key: "pxMedicine", color: CHART.green, label: "medicine" },
-              { key: "pxElectronics", color: CHART.purple, label: "electr" },
-            ]} />
-        </div>
-      </Section>
+      {/* price history: each chart its own block for the column layout */}
+      <Chart title="credit price index (100 = par)" rows={rows} eras={eras} fmt={(v) => v.toFixed(0)}
+        series={[{ key: "cpi", color: CHART.amber }]} />
+      <Chart title="raw goods — mean price (cr)" rows={rows} eras={eras} fmt={fmtCompact} area={false}
+        series={[
+          { key: "pxGrain", color: CHART.green, label: "grain" },
+          { key: "pxMetals", color: CHART.amber, label: "metals" },
+          { key: "pxFuel", color: CHART.cyan, label: "fuel" },
+          { key: "pxRares", color: CHART.purple, label: "rares" },
+        ]} />
+      <Chart title="manufactures — mean price (cr)" rows={rows} eras={eras} fmt={fmtCompact} area={false}
+        series={[
+          { key: "pxConsumer", color: CHART.cyan, label: "consumer" },
+          { key: "pxMedicine", color: CHART.green, label: "medicine" },
+          { key: "pxElectronics", color: CHART.purple, label: "electr" },
+        ]} />
     </div>
   );
 }

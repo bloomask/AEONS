@@ -11,13 +11,18 @@ export const T = {
   START_FACTIONS: 12,
   BURN_YEARS: 300,
   GALAXY_R: 460,
-  FOOD_YIELD: 7.5,
+  FOOD_YIELD: 8.5,
   ORE_YIELD: 3.6,
   RARE_YIELD: 1.3,
   FUEL_YIELD: 3.6,
   MIN_QUALITY_FLOOR: 0.25,
   FOOD_SPOILAGE: 0.85,
-  GROWTH_THRESHOLD: 0.58,
+  GROWTH_THRESHOLD: 0.6,
+  // demographic fate weighs the workers' lot, not just the average:
+  // births in the towers never outrun deaths in the tenements. Without
+  // this the equilibrium is a majority starving under a growing census.
+  GROWTH_WORKER_WT: 0.4,
+  FAMINE_THRESHOLD: 0.4, // grain satisfaction below this is famine
   ADMIN_BASE: 0.55,
   ADMIN_EXP: 1.35,
   TAX_RATE: 0.02,

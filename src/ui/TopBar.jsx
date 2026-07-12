@@ -1,5 +1,6 @@
 import { TECH_ERAS } from "../sim/constants.js";
 import { fmtPop } from "./format.js";
+import { SCREENS } from "./theme.js";
 
 const Vital = ({ label, value, color }) => (
   <div className="vital">
@@ -8,18 +9,19 @@ const Vital = ({ label, value, color }) => (
   </div>
 );
 
-// The command bar: brand · galaxy vitals · era · the clock · transport.
-// One bar owns the whole top of the screen; the year is the hero readout.
+// The command bar: brand · galaxy vitals · full-screen panel toggles ·
+// era · the clock · transport. The year is the hero readout; the four
+// screen buttons each summon a full-screen panel (toggle to dismiss).
 export default function TopBar({
-  seed, year, speed, setSpeed, onCentury, onExportJson, onExportCsv, onNewGalaxy,
-  w, liveSystems, totalPop, liveFactions, wars,
+  seed, year, speed, setSpeed, onCentury, onNewGalaxy,
+  screen, setScreen, w, liveSystems, totalPop, liveFactions, wars,
 }) {
   const ruins = w ? w.systems.filter((s) => s.ruined).length : 0;
   const fallen = w ? w.factions.length - liveFactions.length : 0;
   return (
     <header
-      className="flex items-center gap-x-5 gap-y-2 px-4 py-2 flex-wrap"
-      style={{ background: "var(--panel)", borderBottom: "1px solid var(--line)" }}
+      className="flex items-center gap-x-4 gap-y-2 px-4 py-2 flex-wrap"
+      style={{ background: "var(--panel)", borderBottom: "1px solid var(--line)", position: "relative", zIndex: 40 }}
     >
       <div className="flex items-baseline gap-2">
         <div className="display" style={{ fontWeight: 700, fontSize: 17, letterSpacing: "0.22em", color: "var(--bright)" }}>
@@ -38,10 +40,24 @@ export default function TopBar({
         </div>
       )}
 
+      <div className="seg" style={{ fontFamily: "var(--font-display)" }}>
+        {Object.entries(SCREENS).map(([key, s]) => (
+          <button
+            key={key}
+            className={screen === key ? "on" : ""}
+            onClick={() => setScreen(screen === key ? null : key)}
+            title={s.title}
+            style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10 }}
+          >
+            {s.glyph} {key}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1" />
 
       {w && (
-        <div className="text-right hidden sm:block">
+        <div className="text-right hidden lg:block">
           <div className="italic" style={{ color: "var(--amber)", fontSize: 11, opacity: 0.85 }}>{w.era.name}</div>
           {w.tech && w.tech.level > 0 && (
             <div className="italic" style={{ color: "#4FD0A5", fontSize: 10, opacity: 0.8 }} title={`technology era ${w.tech.level}`}>
@@ -61,11 +77,7 @@ export default function TopBar({
         <button className={speed === 20 ? "on" : ""} onClick={() => setSpeed(20)} title="20 yr/s">▶▶▶</button>
         <button onClick={onCentury} title="Fast-forward a century">+100y</button>
       </div>
-      <div className="flex gap-1.5">
-        <button className="btn" onClick={onExportJson} title="Download full statistics (summary + deaths + wars + yearly series) as JSON">⬇ json</button>
-        <button className="btn" onClick={onExportCsv} title="Download yearly time series as CSV">⬇ csv</button>
-        <button className="btn" onClick={onNewGalaxy} title="Generate a new galaxy">↻ new</button>
-      </div>
+      <button className="btn" onClick={onNewGalaxy} title="Found a new galaxy">↻ new</button>
     </header>
   );
 }

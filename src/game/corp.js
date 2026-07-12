@@ -29,6 +29,7 @@ export function foundCorp(name, { cash = 400, home = 0 } = {}) {
     depots: {},                // systemId -> { sys, stock: {good: qty} } warehousing
     loans: [],                 // { kind:"sys"|"fac", id, principal, rate, missed, since }
     holdings: [],              // system ids the corp owns as company towns
+    rep: {},                   // factionId -> standing with that power (-100..100)
     stats: { trades: 0, raided: 0, lent: 0, foreclosed: 0 },
   };
 }

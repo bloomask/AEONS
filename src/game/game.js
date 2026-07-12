@@ -1,4 +1,6 @@
 import { BASE_PRICE } from "../sim/constants.js";
+import { genGalaxy } from "../sim/galaxy.js";
+import { simulateYear } from "../sim/simulate.js";
 import { GameClock } from "./clock.js";
 import { foundCorp, netWorth, logLedger, shipSpace, SHIP_CLASSES } from "./corp.js";
 import { buy, sell, dispatch, maxBuy, DEPOT } from "./actions.js";
@@ -120,4 +122,24 @@ function bestHub(w) {
   let best = 0, bp = -1;
   for (const s of w.systems) if (s.pop > bp) { bp = s.pop; best = s.id; }
   return best;
+}
+
+/**
+ * Start a fresh game from a seed: build the galaxy, burn in its history, and
+ * charter the player's corp. Records genesis params + an empty action log so the
+ * game can be serialized and replayed exactly (save.js).
+ */
+export function newGame(seed, opts = {}) {
+  const cfg = opts.cfg || undefined;
+  const burnYears = opts.burnYears ?? 120;
+  const w = genGalaxy(seed, cfg);
+  for (let i = 0; i < burnYears; i++) simulateYear(w);
+  const g = new Game(w, opts);
+  g.genesis = {
+    seed, cfg: cfg || null, burnYears,
+    corpName: opts.corpName || null, cash: opts.cash ?? 400,
+    home: g.corp.home, daysPerYear: opts.daysPerYear || null,
+  };
+  g.actionLog = [];
+  return g;
 }

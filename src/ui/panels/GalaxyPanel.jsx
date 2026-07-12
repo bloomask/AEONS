@@ -97,45 +97,43 @@ export default function GalaxyPanel({ w }) {
           ))}
       </Section>
 
-      <Section title="the long view">
-        <div className="space-y-4">
-          <Chart title="population" rows={rows} eras={eras} fmt={fmtPop}
-            series={[{ key: "pop", color: CHART.amber }]} />
-          <Chart title="living systems vs ruins" rows={rows} eras={eras} fmt={num} area={false}
-            series={[
-              { key: "live", color: CHART.green, label: "live" },
-              { key: "ruins", color: CHART.red, label: "ruins" },
-            ]} />
-          <Chart title="living powers" rows={rows} eras={eras} fmt={num}
-            series={[{ key: "factions", color: CHART.cyan }]} />
-          <Chart title="active wars" rows={rows} eras={eras} fmt={num}
-            series={[{ key: "wars", color: CHART.red }]} />
-          <Chart title="trade volume" rows={rows} eras={eras} fmt={num}
-            series={[{ key: "trade", color: CHART.cyan }]} />
-          <Chart title="average wellbeing" rows={rows} eras={eras} domainMax={1}
-            fmt={(v) => (v * 100).toFixed(0) + "%"}
-            series={[{ key: "avgWb", color: CHART.green }]} />
-          <Chart title="humanity going hungry" rows={rows} eras={eras} domainMax={100} fmt={pct}
-            series={[{ key: "hungerPct", color: CHART.red }]} />
-          <Chart title="the social pyramid (% of humanity)" rows={rows} eras={eras} domainMax={100} fmt={pct} area={false}
-            series={[
-              { key: "cElite", color: CHART.amber, label: "elite" },
-              { key: "cUpper", color: CHART.purple, label: "upper" },
-              { key: "cMiddle", color: CHART.cyan, label: "middle" },
-              { key: "cWorker", color: CHART.green, label: "workers" },
-            ]} />
-          <Chart title="class unrest" rows={rows} eras={eras} domainMax={1}
-            fmt={(v) => (v * 100).toFixed(0) + "%"}
-            series={[{ key: "unrest", color: CHART.red }]} />
-          <Chart title="worlds in misery" rows={rows} eras={eras} domainMax={100} fmt={pct}
-            series={[{ key: "miseryPct", color: CHART.red }]} />
-          <Chart title="largest power's share of humanity" rows={rows} eras={eras} domainMax={1}
-            fmt={(v) => (v * 100).toFixed(0) + "%"}
-            series={[{ key: "largestShare", color: CHART.purple }]} />
-          <Chart title="merchant fleet" rows={rows} eras={eras} fmt={num}
-            series={[{ key: "fleet", color: CHART.amber }]} />
-        </div>
-      </Section>
+      {/* the long view: each chart is its own block so the full-screen
+          layout can flow them into columns */}
+      <Chart title="population" rows={rows} eras={eras} fmt={fmtPop}
+        series={[{ key: "pop", color: CHART.amber }]} />
+      <Chart title="living systems vs ruins" rows={rows} eras={eras} fmt={num} area={false}
+        series={[
+          { key: "live", color: CHART.green, label: "live" },
+          { key: "ruins", color: CHART.red, label: "ruins" },
+        ]} />
+      <Chart title="living powers" rows={rows} eras={eras} fmt={num}
+        series={[{ key: "factions", color: CHART.cyan }]} />
+      <Chart title="active wars" rows={rows} eras={eras} fmt={num}
+        series={[{ key: "wars", color: CHART.red }]} />
+      <Chart title="trade volume" rows={rows} eras={eras} fmt={num}
+        series={[{ key: "trade", color: CHART.cyan }]} />
+      <Chart title="average wellbeing" rows={rows} eras={eras} domainMax={1}
+        fmt={(v) => (v * 100).toFixed(0) + "%"}
+        series={[{ key: "avgWb", color: CHART.green }]} />
+      <Chart title="humanity going hungry" rows={rows} eras={eras} domainMax={100} fmt={pct}
+        series={[{ key: "hungerPct", color: CHART.red }]} />
+      <Chart title="the social pyramid (% of humanity)" rows={rows} eras={eras} domainMax={100} fmt={pct} area={false}
+        series={[
+          { key: "cElite", color: CHART.amber, label: "elite" },
+          { key: "cUpper", color: CHART.purple, label: "upper" },
+          { key: "cMiddle", color: CHART.cyan, label: "middle" },
+          { key: "cWorker", color: CHART.green, label: "workers" },
+        ]} />
+      <Chart title="class unrest" rows={rows} eras={eras} domainMax={1}
+        fmt={(v) => (v * 100).toFixed(0) + "%"}
+        series={[{ key: "unrest", color: CHART.red }]} />
+      <Chart title="worlds in misery" rows={rows} eras={eras} domainMax={100} fmt={pct}
+        series={[{ key: "miseryPct", color: CHART.red }]} />
+      <Chart title="largest power's share of humanity" rows={rows} eras={eras} domainMax={1}
+        fmt={(v) => (v * 100).toFixed(0) + "%"}
+        series={[{ key: "largestShare", color: CHART.purple }]} />
+      <Chart title="merchant fleet" rows={rows} eras={eras} fmt={num}
+        series={[{ key: "fleet", color: CHART.amber }]} />
 
       <Section title="the ages">
         {[...eras].reverse().map((e, i) => (

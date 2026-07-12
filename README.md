@@ -85,9 +85,11 @@ src/
                         every simulation knob, rendered from config.js
     TopBar.jsx          command bar: brand, galaxy vitals, era, clock,
                         transport controls, exports
-    panels/             side-panel tabs: System (overview · society ·
-                        market · problems), Powers, Trade, Market,
-                        Galaxy, Chronicle
+    panels/             System & Powers live in the side inspection
+                        window (System has overview · society · market ·
+                        problems sub-tabs); Trade, Market, Galaxy, and
+                        Chronicle are full-screen panels summoned from
+                        the command bar
 scripts/
   run-sim.js            headless CLI runner (npm run sim)
 ```

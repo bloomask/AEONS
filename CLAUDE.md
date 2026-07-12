@@ -98,6 +98,10 @@ functions the UI (and headless tools) can call every frame:
   world is: its single dominant archetype (Breadbasket, Trade Hub, Pleasure
   World, Forge World…) plus stackable secondary tags (Capital, Free Port,
   Besieged…). Every living world classifies to exactly one primary archetype.
+- `sim/explain.js` (`explainScarcity`, `warCause`, `dearestStaple`) — *why*
+  something happened: the chain of reasons a staple turned dear, or the
+  flashpoint that ignited a war (`warCause` is also called once at declaration
+  in `diplomacy.js` to record the cause on the war — a pure annotation).
 - `ui/describe.js` (`describeSystem`) — a prose gazetteer lede.
 
 Keep these pure (no rng, no mutation): they run in render.

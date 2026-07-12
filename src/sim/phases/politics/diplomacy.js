@@ -2,6 +2,7 @@ import { T, GOVS } from "../../constants.js";
 import { clamp, cultDist, avgCult } from "../../util.js";
 import { log, relKey, getRel } from "../../events.js";
 import { majorityFaith } from "../faith.js";
+import { warCause } from "../../explain.js";
 import { runWarYear } from "./war.js";
 
 // --- diplomacy: rivalry, alliance, embargo, war and peace ---
@@ -73,9 +74,13 @@ export function runDiplomacy(w, rng) {
           (A.treasury > 30 || B.treasury > 30)
         ) {
           rel.war = { since: w.year, score: 0, rec: w.stats.wars.length };
+          // record why it ignited — a pure annotation (no rng), so the chronicle
+          // and the wars panel can answer "what was this war about?"
+          const cause = warCause({ holy, cd, aggr, border: border.length, mutualTrade });
           w.stats.wars.push({
             a: A.name, b: B.name, aId: A.id, bId: B.id, start: w.year,
             end: null, duration: null, winner: null, endReason: null, systemsCeded: 0, battles: 0,
+            cause: cause.key, causeText: cause.label,
           });
           w.stats.c.warsDeclared++;
           w.warCount++;

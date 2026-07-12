@@ -10,6 +10,7 @@ export {
   classifySystem, classifyContext, systemTags,
   ARCHETYPES, ARCHETYPE_BY_KEY, RUIN, WILDERNESS,
 } from "./classify.js";
+export { warCause, explainWar, explainScarcity, dearestStaple } from "./explain.js";
 export {
   genComposition, describeComposition, primaryBody,
   STAR_TYPES, STAR_BY_KEY, BODY_TYPES,

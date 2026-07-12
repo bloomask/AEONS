@@ -40,6 +40,7 @@ function WarCard({ w, k, rel }) {
         <b style={{ color: B.color }}>{B.name}</b>
         <span className="ml-auto muted">year {dur} of war</span>
       </div>
+      {rec?.causeText && <div className="faint" style={{ fontSize: 11 }}>casus belli — {rec.causeText}</div>}
       <div className="flex h-1.5 rounded-full overflow-hidden my-2" style={{ background: "rgba(233,228,214,0.1)" }}>
         <div style={{ width: `${50 + lean * 50}%`, background: A.color, opacity: 0.85 }} />
         <div style={{ flex: 1, background: B.color, opacity: 0.85 }} />

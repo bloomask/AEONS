@@ -6,6 +6,10 @@ export { buildStats } from "./stats.js";
 export { checkInvariants, assertInvariants } from "./invariants.js";
 export { BALANCE_TARGETS, evaluateBalance } from "./balance.js";
 export { diagnoseSystem, SEV_CRISIS, SEV_WARNING, SEV_WATCH } from "./diagnose.js";
+export {
+  classifySystem, classifyContext, systemTags,
+  ARCHETYPES, ARCHETYPE_BY_KEY, RUIN, WILDERNESS,
+} from "./classify.js";
 export { CONFIG_GROUPS, CONFIG_PARAMS, PRESETS, defaultConfig, carryCap } from "./config.js";
 export { log, relKey, getRel } from "./events.js";
 export {

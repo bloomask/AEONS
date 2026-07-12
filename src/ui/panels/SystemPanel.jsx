@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF, T, allowsDrugs, allowsSlaves } from "../../sim/constants.js";
 import { diagnoseSystem, SEV_CRISIS, SEV_WARNING } from "../../sim/diagnose.js";
+import { classifySystem, systemTags } from "../../sim/classify.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
 import { fmtPop, fmtCredits } from "../format.js";
 import { describeSystem } from "../describe.js";
@@ -307,6 +308,8 @@ export default function SystemPanel({ w, sel }) {
   const settled = sel.pop > 0.05;
   const probs = settled ? diagnoseSystem(w, sel) : [];
   const worst = probs.length ? SEV_STYLE[probs[0].sev].color : "var(--green)";
+  const arch = settled ? classifySystem(w, sel) : null;
+  const tags = settled ? systemTags(w, sel) : [];
 
   return (
     <div className="space-y-4">
@@ -327,11 +330,22 @@ export default function SystemPanel({ w, sel }) {
             <> · <span style={{ color: w.faiths[sel.faith].color }}>{w.faiths[sel.faith].name}</span></>
           )}
         </div>
-        {(sel.mega.nexus || sel.mega.arcology || sel.mega.terraformed) && (
-          <div className="mt-1" style={{ color: "#4FD0A5" }}>
-            {sel.mega.nexus && <span title="Freight moves almost for free through its grand gates">◈ Gate Nexus </span>}
-            {sel.mega.arcology && <span title="Ring habitats carry millions beyond the world's natural limit">◍ Orbital Arcology </span>}
-            {sel.mega.terraformed && <span title="Terraformed — the rains came, and the rock turned green">❋ Terraformed</span>}
+        {arch && (
+          <div className="mt-1.5 flex items-baseline gap-2 flex-wrap">
+            <span className="display" style={{ color: arch.tint, fontWeight: 700 }} title={arch.blurb}>
+              {arch.icon} {arch.label}
+            </span>
+            <span className="faint italic">— {arch.blurb}</span>
+          </div>
+        )}
+        {tags.length > 0 && (
+          <div className="mt-1.5 flex gap-1.5 flex-wrap">
+            {tags.map((t) => (
+              <span key={t.key} title={t.label}
+                style={{ color: t.tint, border: `1px solid ${t.tint}55`, borderRadius: 6, padding: "0px 6px", fontSize: 11, whiteSpace: "nowrap" }}>
+                {t.icon} {t.label}
+              </span>
+            ))}
           </div>
         )}
       </div>

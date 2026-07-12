@@ -23,6 +23,7 @@ export class Game {
    */
   constructor(w, opts = {}) {
     this.w = w;
+    this.factionId = null;   // set when the player charters a state (statecraft.js)
     // player influence on the galaxy is queued here and applied once a year, via
     // the clock's onAdvance hook, just before each macro step
     this.macroQueue = [];

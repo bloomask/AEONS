@@ -129,17 +129,43 @@ player across the seed matrix so the tycoon economy is **tuned, not guessed**.
   `npm run sim` output stays byte-identical. Player influence on the galaxy is
   added later, explicitly, through the intent → next-macro-step path.
 
-## Roadmap
+## Roadmap & status
 
-- **P0 — the clock & the loop.** Two-clock engine (snapshot, interpolate, day
-  clock) + a player corporation with a hand-steered trade/logistics loop (dispatch
-  ships, buy/sell against interpolated prices, depots). Headless-testable core
-  first, then the boardroom/map UI. *(building now)*
-- **P1 — boardroom UI & advisor feed.** Fleet/route control on the map, the day
-  clock, an orders queue, the chronicle + cause-and-effect as intelligence.
-- **P2 — capital & industry.** Lending, leverage, foreclosure; infrastructure and
-  megaprojects; R&D.
-- **P3 — territory & statecraft.** Prospect, terraform, charter, and rule —
-  tariffs, law, war, diplomacy — with player influence folding into the macro-sim.
-- **P4 — influence & espionage.** Rulers, faiths, sabotage, reputation.
-- **P5 — scoring, saves, sharing, and AI-player balancing.**
+- **P0 — the clock & the loop.** ✅ Two-clock engine (`snapshot`/`interpolate`/
+  `clock`), player corporation, hand-steered trade loop, standing routes, corsair
+  hazard + insurance, depots/warehousing. All headless-tested; price-taking, so
+  the macro-sim stays byte-identical.
+- **Capital & industry.** ✅ Price-maker hook (`clock.onAdvance` → `capital.flushMacro`),
+  lending with interest/default/foreclosure, investment to develop worlds,
+  company-town dividends.
+- **Territory & statecraft.** ✅ Charter a player-controlled state (`f.player`),
+  annex, colonise, set tariffs, move the treasury.
+- **Influence & espionage.** ✅ Bribe, stoke rivalries, sabotage; reputation.
+- **Scoring, saves, sharing.** ✅ Sandbox scorecard; save/load by replay
+  (`seed + config + action-log`), so saves are tiny text and exact.
+- **Boardroom UI.** ⏳ Presenter (`ui/tycoon/present.js`, tested) + a thin React
+  panel (`ui/tycoon/BoardroomPanel.jsx`). Not yet wired into `GalaxySim.jsx`.
+
+### Still ahead
+
+- Wire the boardroom into the app: a "found a company" entry on the New Game
+  screen, the day-clock driving the map's interpolated view, the boardroom as a
+  side panel with the selected system feeding its market view.
+- Deeper mechanics: R&D / proprietary tech, terraforming as a corporate work,
+  equity stakes & hostile takeovers of AI houses, war you wage as a state,
+  contraband as a business, faith influence.
+- **AI-player balancing**: run a scripted AI corp across the balance-lab seed
+  matrix and add player-economy targets (time-to-megacorp, bankruptcy odds,
+  market-share ceilings).
+
+## Code map (`src/game/`)
+
+- `clock.js` / `snapshot.js` / `interpolate.js` — the two-clock time model.
+- `game.js` — the `Game` (world + clock + corp), `stepDay`, `newGame`.
+- `corp.js` — corp + fleet data and valuation; `actions.js` — trade/logistics
+  intents; `pathfind.js` — routing; `piracy.js` — corsair hazard.
+- `capital.js` — the price-maker macro-flush (loans, dividends, investment).
+- `statecraft.js` — charter/annex/colonise/govern. `influence.js` — bribe/stoke/
+  sabotage. `score.js` — the scorecard. `commands.js` — the dispatch + recorder.
+  `save.js` — serialize/load by replay.
+- UI: `src/ui/tycoon/present.js` (pure view-models) + `BoardroomPanel.jsx`.

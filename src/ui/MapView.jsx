@@ -1,97 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { mulberry32 } from "../sim/rng.js";
 import { clamp } from "../sim/util.js";
-import { relKey } from "../sim/events.js";
-import { GOVS } from "../sim/constants.js";
-import { hexToRgb, mixHex, wbColor, EV_STYLE, OVERLAYS } from "./theme.js";
-import { fmtPop } from "./format.js";
+import { OVERLAYS } from "./theme.js";
+import { drawScene } from "./map/render.js";
+import { collectPulses, collectFx } from "./map/effects.js";
+import { legendEntries } from "./map/legends.js";
+import { tooltipHtml } from "./map/tooltip.js";
 
-// ---- territory layer -------------------------------------------------
-// Ownership is rasterized once per sim year into a world-space offscreen
-// canvas (nearest living member system within reach, via bucket grid),
-// then drawn under the map with the current pan/zoom transform.
-const WORLD_R = 640;          // half-extent of the rasterized world square (covers the largest configurable galaxy)
-const GRID = 448;             // cells per side
-const CELL = (WORLD_R * 2) / GRID;
-const REACH = 60;             // world units a system projects territory over
-
-function computeTerritory(w, cache) {
-  if (!cache.canvas) {
-    cache.canvas = document.createElement("canvas");
-    cache.canvas.width = GRID; cache.canvas.height = GRID;
-    cache.owners = new Int16Array(GRID * GRID);
-  }
-  const owners = cache.owners;
-  owners.fill(-1);
-  const src = w.systems.filter((s) => s.pop > 0.05 && s.fid !== null);
-  const buckets = new Map();
-  const bk = (bx, by) => bx * 4096 + by;
-  for (const s of src) {
-    const bx = Math.floor((s.x + WORLD_R) / REACH), by = Math.floor((s.y + WORLD_R) / REACH);
-    const k = bk(bx, by);
-    if (!buckets.has(k)) buckets.set(k, []);
-    buckets.get(k).push(s);
-  }
-  const r2max = REACH * REACH;
-  for (let gy = 0; gy < GRID; gy++) {
-    const y = -WORLD_R + (gy + 0.5) * CELL;
-    const by = Math.floor((y + WORLD_R) / REACH);
-    for (let gx = 0; gx < GRID; gx++) {
-      const x = -WORLD_R + (gx + 0.5) * CELL;
-      const bx = Math.floor((x + WORLD_R) / REACH);
-      let best = null, bd = r2max;
-      for (let ix = bx - 1; ix <= bx + 1; ix++)
-        for (let iy = by - 1; iy <= by + 1; iy++) {
-          const cell = buckets.get(bk(ix, iy));
-          if (!cell) continue;
-          for (const s of cell) {
-            const dx = s.x - x, dy = s.y - y;
-            const d = dx * dx + dy * dy;
-            if (d < bd) { bd = d; best = s; }
-          }
-        }
-      if (best) owners[gy * GRID + gx] = best.fid;
-    }
-  }
-  const colorCache = {};
-  const rgbOf = (fid) => colorCache[fid] || (colorCache[fid] = hexToRgb(w.factions[fid].color));
-  const ctx = cache.canvas.getContext("2d");
-  const img = ctx.createImageData(GRID, GRID);
-  const px = img.data;
-  for (let gy = 0; gy < GRID; gy++) {
-    for (let gx = 0; gx < GRID; gx++) {
-      const o = owners[gy * GRID + gx];
-      if (o < 0) continue;
-      const up = gy > 0 ? owners[(gy - 1) * GRID + gx] : -1;
-      const dn = gy < GRID - 1 ? owners[(gy + 1) * GRID + gx] : -1;
-      const lf = gx > 0 ? owners[gy * GRID + gx - 1] : -1;
-      const rt = gx < GRID - 1 ? owners[gy * GRID + gx + 1] : -1;
-      const border = up !== o || dn !== o || lf !== o || rt !== o;
-      const [r, g, b] = rgbOf(o);
-      const i = (gy * GRID + gx) * 4;
-      px[i] = r; px[i + 1] = g; px[i + 2] = b;
-      px[i + 3] = border ? 150 : 38;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  cache.year = w.year;
-  cache.seed = w.seed;
-}
-
-// map events worth flashing on the map to their chronicle colors
-const PULSE_TYPES = new Set([
-  "famine", "plague", "battle", "siege", "capture", "colony", "death",
-  "found", "secede", "annex", "strike", "flare", "build", "house",
-  "mega", "faith", "corp", "pirate", "raid", "revolution",
-]);
-
-const diamond = (ctx, X, Y, r) => {
-  ctx.beginPath();
-  ctx.moveTo(X, Y - r); ctx.lineTo(X + r, Y);
-  ctx.lineTo(X, Y + r); ctx.lineTo(X - r, Y);
-  ctx.closePath();
-};
-
+// The canvas map: owns the camera and input; the actual drawing lives in
+// map/render.js, territory rasterization in map/territory.js, and the
+// event→animation plumbing in map/effects.js.
 export default function MapView({ worldRef, selected, onSelect, overlay, setOverlay, burn, mapApi }) {
   const canvasRef = useRef(null);
   const viewRef = useRef({ x: 0, y: 0, scale: 0.55 });
@@ -99,10 +16,8 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
   const hoverRef = useRef(null);
   const tooltipRef = useRef(null);
   const territoryRef = useRef({ year: -1, seed: null });
-  const pulsesRef = useRef([]);
-  const lastSeqRef = useRef(0);
-  const fxSeqRef = useRef(0);
-  const fxAnimsRef = useRef([]);
+  // transient animation state fed by the sim's event/fx queues
+  const sceneRef = useRef({ pulses: [], fxAnims: [], lastSeq: 0, fxSeq: 0 });
   const focusRef = useRef(null);
   const burnRef = useRef(burn);
   burnRef.current = burn;
@@ -169,323 +84,27 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
             focusRef.current = null;
         }
 
-        const tx = (x) => bw / 2 + (x + v.x) * v.scale;
-        const ty = (y) => bh / 2 + (y + v.y) * v.scale;
-
         // new-world detection: reset pulses/event cursor, refit camera
+        const scene = sceneRef.current;
         if (territoryRef.current.seed !== w.seed) {
-          pulsesRef.current = [];
-          fxAnimsRef.current = [];
-          lastSeqRef.current = w.eventSeq || 0;
-          fxSeqRef.current = w.fxSeq || 0;
+          scene.pulses = [];
+          scene.fxAnims = [];
+          scene.lastSeq = w.eventSeq || 0;
+          scene.fxSeq = w.fxSeq || 0;
           territoryRef.current.year = -1;
           fitView();
         }
 
-        // collect fresh events into map pulses (skipped during burn-in)
-        const seq = w.eventSeq || 0;
-        if (burnRef.current) {
-          lastSeqRef.current = seq;
-        } else if (seq > lastSeqRef.current) {
-          const fresh = [];
-          for (let i = w.events.length - 1; i >= 0 && w.events[i].i > lastSeqRef.current; i--)
-            fresh.push(w.events[i]);
-          lastSeqRef.current = seq;
-          for (const ev of fresh.slice(0, 24).reverse()) {
-            if (ev.sysId === null || !PULSE_TYPES.has(ev.t)) continue;
-            const s = w.systems[ev.sysId];
-            pulsesRef.current.push({ x: s.x, y: s.y, color: (EV_STYLE[ev.t] || EV_STYLE.era).c, t0: now });
-          }
-          if (pulsesRef.current.length > 40)
-            pulsesRef.current.splice(0, pulsesRef.current.length - 40);
-        }
+        collectPulses(w, scene, now, burnRef.current);
+        collectFx(w, scene, now, burnRef.current);
 
-        // collect battle/siege effects from the sim's fx queue
-        const fseq = w.fxSeq || 0;
-        if (burnRef.current) {
-          fxSeqRef.current = fseq;
-        } else if (fseq > fxSeqRef.current) {
-          const freshFx = [];
-          for (let i = w.fx.length - 1; i >= 0 && w.fx[i].i > fxSeqRef.current; i--)
-            freshFx.push(w.fx[i]);
-          fxSeqRef.current = fseq;
-          for (const f of freshFx.slice(0, 12)) {
-            if (f.t === "battle") {
-              const A = w.systems[f.a], B = w.systems[f.b];
-              fxAnimsRef.current.push({ kind: "battle", x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, t0: now });
-            } else if (f.t === "siege") {
-              const s = w.systems[f.sys];
-              fxAnimsRef.current.push({ kind: "siege", x: s.x, y: s.y, t0: now });
-            }
-          }
-          if (fxAnimsRef.current.length > 24)
-            fxAnimsRef.current.splice(0, fxAnimsRef.current.length - 24);
-        }
-
-        // faint starfield
-        ctx.fillStyle = "rgba(230,225,211,0.05)";
-        const srng = mulberry32(w.seed);
-        for (let i = 0; i < 90; i++)
-          ctx.fillRect(srng() * bw, srng() * bh, 1, 1);
-
-        // territory regions with crisp borders (realm overlay only)
-        if (overlay === "realm") {
-          // the raster is strategic-scale: fade it out as the camera closes in
-          const terrAlpha = clamp(1.35 - v.scale * 0.35, 0, 1);
-          if (terrAlpha > 0.02) {
-            const cache = territoryRef.current;
-            if (cache.year !== w.year || cache.seed !== w.seed) computeTerritory(w, cache);
-            ctx.imageSmoothingEnabled = true;
-            ctx.globalAlpha = terrAlpha;
-            ctx.drawImage(
-              cache.canvas,
-              tx(-WORLD_R), ty(-WORLD_R),
-              WORLD_R * 2 * v.scale, WORLD_R * 2 * v.scale
-            );
-            ctx.globalAlpha = 1;
-          }
-        }
-
-        // gates
-        const tradeEmph = overlay === "trade" ? 2.2 : 1;
-        const dashDrift = (now * 0.02) % 14;
-        for (const e of w.edges) {
-          const A = w.systems[e.a], B = w.systems[e.b];
-          const atWar = A.fid !== null && B.fid !== null && A.fid !== B.fid &&
-            w.relations[relKey(A.fid, B.fid)]?.war;
-          ctx.beginPath();
-          ctx.moveTo(tx(A.x), ty(A.y)); ctx.lineTo(tx(B.x), ty(B.y));
-          if (atWar) {
-            ctx.strokeStyle = "rgba(228,87,46,0.55)";
-            ctx.setLineDash([4, 4]); ctx.lineDashOffset = 0; ctx.lineWidth = 1;
-          } else if (e.vol > 0.3) {
-            // freight convoys: dashes drift along the lane in the net flow direction
-            ctx.strokeStyle = `rgba(92,200,218,${clamp((0.12 + e.vol * 0.03) * tradeEmph, 0, 0.85)})`;
-            ctx.setLineDash([5, 9]);
-            ctx.lineDashOffset = (e.net >= 0 ? -1 : 1) * dashDrift;
-            ctx.lineWidth = clamp((0.5 + e.vol * 0.06) * tradeEmph, 0.5, 3.5);
-          } else {
-            ctx.strokeStyle = "rgba(124,135,152,0.13)";
-            ctx.setLineDash([]); ctx.lineWidth = 0.6;
-          }
-          ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
-        }
-
-        // convoys: little ships riding the busy lanes
-        if (overlay === "realm" || overlay === "trade") {
-          for (let ei = 0; ei < w.edges.length; ei++) {
-            const e = w.edges[ei];
-            if (e.vol <= 0.5) continue;
-            const A = w.systems[e.a], B = w.systems[e.b];
-            if (A.pop <= 0.05 || B.pop <= 0.05 || A.siege || B.siege) continue;
-            const n = clamp(Math.round(e.vol / 2) + 1, 1, 4);
-            const cycle = 3500 + e.d * 9;
-            const dxu = (B.x - A.x) / e.d, dyu = (B.y - A.y) / e.d;
-            const fwd = e.net >= 0 ? 1 : -1;
-            for (let k = 0; k < n; k++) {
-              let t = ((now + ei * 911 + k * (cycle / n)) % cycle) / cycle;
-              if (fwd < 0) t = 1 - t;
-              const X = tx(A.x + (B.x - A.x) * t), Y = ty(A.y + (B.y - A.y) * t);
-              ctx.strokeStyle = "rgba(196,236,246,0.9)";
-              ctx.lineWidth = 1.4;
-              ctx.beginPath();
-              ctx.moveTo(X, Y);
-              ctx.lineTo(X - dxu * fwd * 4, Y - dyu * fwd * 4);
-              ctx.stroke();
-            }
-          }
-        }
-
-        // systems
-        for (const s of w.systems) {
-          const X = tx(s.x), Y = ty(s.y);
-          if (s.ruined) {
-            ctx.strokeStyle = "rgba(176,69,58,0.8)"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(X, Y, 3.4, 0, 7); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(X - 2.2, Y - 2.2); ctx.lineTo(X + 2.2, Y + 2.2);
-            ctx.moveTo(X + 2.2, Y - 2.2); ctx.lineTo(X - 2.2, Y + 2.2);
-            ctx.stroke();
-            continue;
-          }
-          if (s.pop <= 0.05) {
-            ctx.fillStyle = "rgba(124,135,152,0.35)";
-            ctx.beginPath(); ctx.arc(X, Y, 1.3, 0, 7); ctx.fill();
-            continue;
-          }
-          const f = s.fid !== null ? w.factions[s.fid] : null;
-          const r = clamp(2 + Math.sqrt(s.pop) * 0.85, 2, 9);
-          if (overlay === "wealth") {
-            const wpc = clamp(s.wealth / (s.pop * 3 + 1), 0, 1);
-            ctx.fillStyle = mixHex("#2E3A52", "#F2A93B", wpc);
-          } else if (overlay === "life") {
-            ctx.fillStyle = wbColor(s.wb);
-          } else if (overlay === "trade") {
-            const th = clamp((s.tradeIn + s.tradeOut) / 40, 0, 1);
-            ctx.fillStyle = mixHex("#3A4657", "#5CC8DA", th);
-          } else if (overlay === "faith") {
-            ctx.fillStyle = w.faiths[s.faith]?.color || "#8892A6";
-          } else if (overlay === "culture") {
-            ctx.fillStyle = `rgb(${Math.round(90 + s.cult[0] * 165)},${Math.round(90 + s.cult[1] * 165)},${Math.round(90 + s.cult[2] * 165)})`;
-          } else {
-            ctx.fillStyle = f ? f.color : "#8892A6";
-          }
-          ctx.beginPath(); ctx.arc(X, Y, r, 0, 7); ctx.fill();
-          if (s.siege) {
-            ctx.strokeStyle = "#E4572E"; ctx.lineWidth = 1.2;
-            ctx.setLineDash([2.5, 2.5]);
-            ctx.beginPath(); ctx.arc(X, Y, r + 3.5, 0, 7); ctx.stroke();
-            ctx.setLineDash([]);
-          } else if (s.wb < 0.5 && overlay === "realm") {
-            ctx.strokeStyle = "#F2A93B"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(X, Y, r + 2.5, 0, 7); ctx.stroke();
-          }
-          if (f && f.capital === s.id && overlay === "realm") {
-            ctx.strokeStyle = "#E6E1D3"; ctx.lineWidth = 1;
-            ctx.strokeRect(X - r - 3, Y - r - 3, (r + 3) * 2, (r + 3) * 2);
-          }
-          // wonders are landmarks: nexus = teal diamond, arcology = halo
-          if (overlay === "realm" || overlay === "trade") {
-            if (s.mega.nexus) {
-              ctx.strokeStyle = "#4FD0A5"; ctx.lineWidth = 1.3;
-              diamond(ctx, X, Y, r + 5); ctx.stroke();
-            }
-            if (s.mega.arcology) {
-              ctx.strokeStyle = "rgba(230,225,211,0.75)"; ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.arc(X, Y, r + 4.5, 0, 7); ctx.stroke();
-              ctx.beginPath(); ctx.arc(X, Y, r + 6.5, 0, 7); ctx.stroke();
-            }
-          }
-        }
-
-        // megaproject construction sites: pulsing scaffold + progress arc
-        if (overlay === "realm" || overlay === "trade") {
-          for (const p of w.projects) {
-            if (p.done || p.abandoned) continue;
-            const s = w.systems[p.sysId];
-            const X = tx(s.x), Y = ty(s.y);
-            const pul = 0.5 + 0.5 * Math.sin(now * 0.004);
-            ctx.strokeStyle = `rgba(79,208,165,${(0.35 + 0.45 * pul).toFixed(2)})`;
-            ctx.lineWidth = 1.2;
-            ctx.setLineDash([3, 3]);
-            diamond(ctx, X, Y, 9); ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.strokeStyle = "#4FD0A5"; ctx.lineWidth = 1.6;
-            ctx.beginPath();
-            ctx.arc(X, Y, 11, -Math.PI / 2, -Math.PI / 2 + (p.progress / p.cost) * Math.PI * 2);
-            ctx.stroke();
-          }
-          // corp headquarters (gold diamond) and depots (gold tick)
-          for (const h of w.houses) {
-            if (h.dead || !h.corp) continue;
-            const hq = w.systems[h.home];
-            ctx.strokeStyle = "#E8B04B"; ctx.lineWidth = 1.2;
-            diamond(ctx, tx(hq.x), ty(hq.y), 8); ctx.stroke();
-            if (overlay === "trade") {
-              ctx.fillStyle = "#E8B04B";
-              for (const sid of h.depots) {
-                const s = w.systems[sid];
-                ctx.fillRect(tx(s.x) + 4, ty(s.y) - 7, 3, 3);
-              }
-            }
-          }
-        }
-
-        // event pulses: expanding rings where history just happened
-        const alivePulses = [];
-        for (const p of pulsesRef.current) {
-          const age = (now - p.t0) / 1400;
-          if (age >= 1) continue;
-          alivePulses.push(p);
-          ctx.strokeStyle = p.color;
-          ctx.globalAlpha = 0.85 * (1 - age);
-          ctx.lineWidth = 1.8;
-          ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), 5 + age * 30, 0, 7); ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        pulsesRef.current = alivePulses;
-
-        // battle shockwaves and siege rings
-        const aliveFx = [];
-        for (const a of fxAnimsRef.current) {
-          const age = (now - a.t0) / 1600;
-          if (age >= 1) continue;
-          aliveFx.push(a);
-          const X = tx(a.x), Y = ty(a.y);
-          if (a.kind === "battle") {
-            ctx.globalAlpha = Math.max(0, 0.95 - age * 2.2);
-            ctx.fillStyle = "#FFF3DE";
-            ctx.beginPath(); ctx.arc(X, Y, 3.5, 0, 7); ctx.fill();
-            ctx.globalAlpha = 0.9 * (1 - age);
-            ctx.strokeStyle = "#E4572E"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(X, Y, 4 + age * 28, 0, 7); ctx.stroke();
-            ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(X, Y, 2 + age * 15, 0, 7); ctx.stroke();
-          } else {
-            // siege: a dashed noose closing around the world
-            ctx.globalAlpha = 0.85 * (1 - age);
-            ctx.strokeStyle = "#F2A93B"; ctx.lineWidth = 1.6;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath(); ctx.arc(X, Y, 26 - age * 16, 0, 7); ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        }
-        ctx.globalAlpha = 1;
-        fxAnimsRef.current = aliveFx;
-
-        // faction name labels over their territory (realm overlay only);
-        // largest realms label first, colliding labels wait for a closer zoom
-        if (overlay === "realm") {
-          const cands = [];
-          for (const f of w.factions) {
-            if (f.dead) continue;
-            const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
-            if (!members.length) continue;
-            const fp = members.reduce((a, s) => a + s.pop, 0);
-            if (fp < 8) continue;
-            let cx = 0, cy = 0;
-            for (const s of members) { cx += s.x * s.pop; cy += s.y * s.pop; }
-            cands.push({ f, fp, cx: cx / fp, cy: cy / fp });
-          }
-          cands.sort((a, b) => b.fp - a.fp);
-          const placed = [];
-          ctx.textAlign = "center";
-          for (const { f, fp, cx, cy } of cands) {
-            const size = clamp(8 + Math.sqrt(fp) * 0.2, 9, 13.5) * clamp(v.scale / 0.55, 0.75, 1.15);
-            ctx.font = `700 ${size.toFixed(1)}px 'Chakra Petch', sans-serif`;
-            try { ctx.letterSpacing = `${(size * 0.14).toFixed(1)}px`; } catch { /* older engines */ }
-            const label = f.name.toUpperCase();
-            const tw = ctx.measureText(label).width;
-            const X = tx(cx), Y = ty(cy) - size * 0.8;
-            const box = { x0: X - tw / 2 - 4, x1: X + tw / 2 + 4, y0: Y - size - 2, y1: Y + 4 };
-            if (placed.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)) {
-              try { ctx.letterSpacing = "0px"; } catch { /* older engines */ }
-              continue;
-            }
-            placed.push(box);
-            ctx.lineWidth = Math.max(2.5, size * 0.22);
-            ctx.strokeStyle = "rgba(6,9,15,0.75)";
-            ctx.strokeText(label, X, Y);
-            ctx.fillStyle = f.color + "E6";
-            ctx.fillText(label, X, Y);
-            try { ctx.letterSpacing = "0px"; } catch { /* older engines */ }
-          }
-          ctx.textAlign = "left";
-        }
-
-        // selection ring + system labels
-        for (const s of w.systems) {
-          const isSel = s.id === selected, isHov = s.id === hoverRef.current;
-          if (!isSel && !isHov && !(v.scale > 1.3 && s.pop > 8)) continue;
-          const X = tx(s.x), Y = ty(s.y);
-          if (isSel) {
-            ctx.strokeStyle = "#E6E1D3"; ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.arc(X, Y, 11, 0, 7); ctx.stroke();
-          }
-          ctx.font = "10px 'IBM Plex Mono', monospace";
-          ctx.fillStyle = isSel || isHov ? "#E6E1D3" : "rgba(230,225,211,0.55)";
-          ctx.fillText(s.name, X + 9, Y - 7);
-        }
+        drawScene(ctx, w, v, {
+          bw, bh, now, overlay, selected,
+          hover: hoverRef.current,
+          territory: territoryRef.current,
+          pulses: scene.pulses,
+          fxAnims: scene.fxAnims,
+        });
       }
       raf = requestAnimationFrame(draw);
     };
@@ -516,27 +135,7 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     const el = tooltipRef.current, w = worldRef.current, cv = canvasRef.current;
     if (!el) return;
     if (id === null || !w || dragRef.current?.moved) { el.style.display = "none"; return; }
-    const s = w.systems[id];
-    const f = s.fid !== null ? w.factions[s.fid] : null;
-    let status;
-    if (s.ruined) status = `<span style="color:#B0453A">ruins · fell ${s.diedYear}</span>`;
-    else if (s.pop <= 0.05) status = `<span style="color:#7C8798">uncolonized</span>`;
-    else if (f) {
-      const g = GOVS[f.gov];
-      status = `<span style="color:${f.color}">■ ${f.name}</span>` +
-        `${f.capital === s.id ? " · capital" : ""}` +
-        (g ? ` · <span style="color:${g.badge}">${g.label.toLowerCase()}</span>` : "");
-    } else status = `<span style="color:#8892A6">free system</span>`;
-    let body = "";
-    if (s.pop > 0.05) {
-      const wbC = s.wb < 0.5 ? "#E4572E" : s.wb < 0.65 ? "#F2A93B" : "#6FBF73";
-      const unC = s.unrest > 0.6 ? "#E4572E" : s.unrest > 0.35 ? "#F2A93B" : "#7C8798";
-      body = `<div style="color:#7C8798;margin-top:2px">pop <b style="color:#E6E1D3">${fmtPop(s.pop)}</b>
-        · wellbeing <b style="color:${wbC}">${(s.wb * 100).toFixed(0)}%</b>
-        · unrest <b style="color:${unC}">${(s.unrest * 100).toFixed(0)}%</b>
-        ${s.siege ? '<span style="color:#E4572E"> · UNDER SIEGE</span>' : ""}</div>`;
-    }
-    el.innerHTML = `<div style="font-weight:600">${s.name}</div><div>${status}</div>${body}`;
+    el.innerHTML = tooltipHtml(w, w.systems[id]);
     el.style.display = "block";
     const flipX = mx > cv.clientWidth - 240;
     const flipY = my > cv.clientHeight - 90;
@@ -594,31 +193,7 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
     v.y = (my - cv.clientHeight / 2) / v.scale - p.y;
   };
 
-  const LEGENDS = {
-    realm: [
-      ["#C4ECF6", "moving sparks = freight convoys"],
-      ["#E4572E", "red dashed lane = war front · flash = battle · dashed ring = siege"],
-      ["#F2A93B", "amber ring = population in misery"],
-      ["#E6E1D3", "square = faction capital"],
-      ["#4FD0A5", "diamond = gate nexus · dashed diamond = under construction"],
-      ["#E8B04B", "gold diamond = megacorp headquarters"],
-      ["#A34A3A", "dark red realms = corsair havens preying on nearby lanes"],
-      ["#B0453A", "✕ = dead system (ruins)"],
-    ],
-    wealth: [["#2E3A52", "poor"], ["#F2A93B", "rich (wealth per capita)"]],
-    life: [["#E4572E", "starving"], ["#F2A93B", "strained"], ["#6FBF73", "thriving"]],
-    trade: [
-      ["#5CC8DA", "lane brightness = flow volume · dot = throughput"],
-      ["#E8B04B", "gold diamond = corp HQ · gold tick = corp depot"],
-    ],
-    culture: [["#E6E1D3", "dot color = culture vector; trade blurs borders, isolation sharpens them"]],
-  };
-  const legendEntries =
-    overlay === "faith" && worldRef.current
-      ? worldRef.current.faiths
-        .filter((f) => worldRef.current.systems.some((s) => s.faith === f.id && s.pop > 0.05))
-        .map((f) => [f.color, f.name])
-      : LEGENDS[overlay] || [];
+  const legend = legendEntries(worldRef.current, overlay);
 
   return (
     <div className="relative flex-1 min-h-0" style={{ minHeight: "45vh" }}>
@@ -663,7 +238,7 @@ export default function MapView({ worldRef, selected, onSelect, overlay, setOver
       <div className="absolute bottom-3 left-3 flex items-end gap-1.5" style={{ zIndex: 15 }}>
         {showLegend ? (
           <div className="text-xs px-3 py-2.5 glass space-y-1" style={{ color: "var(--muted)", maxWidth: 350 }}>
-            {legendEntries.map(([c, t], i) => (
+            {legend.map(([c, t], i) => (
               <div key={i} className="flex items-baseline gap-2">
                 <span style={{ color: c }}>●</span><span>{t}</span>
               </div>

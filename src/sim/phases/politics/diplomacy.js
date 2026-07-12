@@ -1,0 +1,91 @@
+import { T, GOVS } from "../../constants.js";
+import { clamp, cultDist, avgCult } from "../../util.js";
+import { log, relKey, getRel } from "../../events.js";
+import { majorityFaith } from "../faith.js";
+import { runWarYear } from "./war.js";
+
+// --- diplomacy: rivalry, alliance, embargo, war and peace ---
+// Corsairs are outlaws, not states, so they never appear at the table
+// (the pirates phase handles them).
+export function runDiplomacy(w, rng) {
+  const liveFactions = w.factions.filter((f) => !f.dead && f.gov !== "pirate");
+  for (let i = 0; i < liveFactions.length; i++) {
+    for (let j = i + 1; j < liveFactions.length; j++) {
+      const A = liveFactions[i], B = liveFactions[j];
+      const gA = GOVS[A.gov] || GOVS.republic, gB = GOVS[B.gov] || GOVS.republic;
+      const border = w.edges.filter((e) => {
+        const fa = w.systems[e.a].fid, fb = w.systems[e.b].fid;
+        return (fa === A.id && fb === B.id) || (fa === B.id && fb === A.id);
+      });
+      const rel = getRel(w, A.id, B.id);
+      if (!border.length) {
+        if (rel.war) {
+          const rec = w.stats.wars[rel.war.rec];
+          if (rec) { rec.end = w.year; rec.duration = w.year - rel.war.since; rec.winner = "none (border lost)"; }
+          const k2 = relKey(A.id, B.id);
+          for (const s of w.systems) if (s.siege && s.siege.pair === k2) s.siege = null;
+          rel.war = null; rel.rivalry = 30;
+          log(w, "peace", `The war between the ${A.name} and the ${B.name} peters out — their frontiers no longer touch.`);
+        }
+        rel.rivalry = Math.max(0, rel.rivalry - 1);
+        continue;
+      }
+      const mutualTrade = border.reduce((a, e) => a + e.vol, 0);
+      const mA = w.systems.filter((s) => s.fid === A.id && s.pop > 0);
+      const mB = w.systems.filter((s) => s.fid === B.id && s.pop > 0);
+      if (!mA.length || !mB.length) continue;
+      const cd = cultDist(avgCult(mA), avgCult(mB));
+      // shared creeds calm the frontier; rival creeds inflame it
+      const holy = majorityFaith(mA) !== majorityFaith(mB);
+
+      if (!rel.war) {
+        rel.rivalry = clamp(
+          rel.rivalry + 0.8 + cd * 1.4 + border.length * 0.2 - mutualTrade * 0.25
+            + (holy ? 0.35 : -0.35),
+          0, 100
+        );
+        const wasAllied = rel.allied;
+        rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) * w.cfg.diplomacy && cd < 0.3;
+        if (rel.allied && !wasAllied) {
+          log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`);
+        }
+        if (!rel.embargo && rel.rivalry > T.EMBARGO_RIVALRY && rng.chance(Math.max(A.aggr, B.aggr) * 0.15 * w.cfg.aggression)) {
+          rel.embargo = true;
+          w.stats.c.embargo++;
+          log(w, "embargo", rng.pick([
+            `The ${A.name} and the ${B.name} embargo one another. Customs houses shutter along the frontier.`,
+            `Trade war: freighters are turned back at every gate between the ${A.name} and the ${B.name}.`,
+          ]));
+        } else if (rel.embargo && rel.rivalry < 35) {
+          rel.embargo = false;
+          log(w, "embargo", `The embargo between the ${A.name} and the ${B.name} is lifted. Freighters queue at the reopened gates.`);
+        }
+        if (
+          rel.rivalry > 60 && !rel.allied &&
+          rng.chance(Math.max(A.aggr, B.aggr) * 0.35 * ((gA.warMul + gB.warMul) / 2) * w.cfg.aggression) &&
+          (A.treasury > 40 || B.treasury > 40)
+        ) {
+          rel.war = { since: w.year, score: 0, rec: w.stats.wars.length };
+          w.stats.wars.push({
+            a: A.name, b: B.name, start: w.year,
+            end: null, duration: null, winner: null, systemsCeded: 0, battles: 0,
+          });
+          w.stats.c.warsDeclared++;
+          w.warCount++;
+          log(w, "war", rng.pick(holy
+            ? [
+              `Holy war. The ${A.name} and the ${B.name} take up arms, each certain heaven rides with their fleets.`,
+              `The creeds collide: the ${A.name} declares the ${B.name} apostate, and the gates between them fall silent.`,
+            ]
+            : [
+              `The ${A.name} and the ${B.name} go to war. Jumpgates between them fall silent.`,
+              `War. ${A.name} warships mass along the ${B.name} frontier, and the trade lanes empty overnight.`,
+              `Old grievances boil over: the ${A.name} and the ${B.name} take up arms.`,
+            ]));
+        }
+      } else {
+        runWarYear(w, rng, A, B, rel, border);
+      }
+    }
+  }
+}

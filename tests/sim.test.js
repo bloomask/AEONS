@@ -1,0 +1,69 @@
+// Engine tests — plain node:test, no framework. Run with `npm test`.
+// These guard the two properties every change must preserve:
+//   1. determinism: same seed + config replays the same history
+//   2. structural sanity: a few centuries produce a living, coherent galaxy
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { genGalaxy, simulateYear, buildStats } from "../src/sim/index.js";
+
+function run(seed, years, cfg) {
+  const w = genGalaxy(seed, cfg);
+  for (let i = 0; i < years; i++) simulateYear(w);
+  return w;
+}
+
+test("same seed and config replay the identical history", () => {
+  const a = buildStats(run(42, 200));
+  const b = buildStats(run(42, 200));
+  assert.deepEqual(a.summary, b.summary);
+  assert.deepEqual(a.series, b.series);
+});
+
+test("different seeds diverge", () => {
+  const a = buildStats(run(1, 100));
+  const b = buildStats(run(2, 100));
+  assert.notDeepEqual(a.series, b.series);
+});
+
+test("config knobs change history", () => {
+  const base = buildStats(run(42, 100));
+  const hot = buildStats(run(42, 100, { aggression: 3 }));
+  assert.notDeepEqual(base.series, hot.series);
+});
+
+test("300 years produce a coherent galaxy", () => {
+  const w = run(7, 300);
+  assert.equal(w.year, 300);
+
+  const alive = w.systems.filter((s) => s.pop > 0.05);
+  assert.ok(alive.length > 0, "civilization survived");
+  assert.ok(w.factions.some((f) => !f.dead), "at least one power still stands");
+  assert.ok(w.events.length > 0 && w.events.length <= 800, "event log populated and capped");
+  assert.ok(w.stats.series.length === 300, "one stats row per year");
+
+  // every claimed system points at a real, living faction
+  for (const s of alive) {
+    if (s.fid !== null) {
+      const f = w.factions[s.fid];
+      assert.ok(f && !f.dead, `${s.name} is owned by a dead or missing faction`);
+      assert.ok(!s.freePort, `${s.name} is a free port but flies a flag`);
+    }
+  }
+  // every living faction's capital exists and belongs to it
+  for (const f of w.factions) {
+    if (f.dead) continue;
+    const cap = w.systems[f.capital];
+    assert.ok(cap, `${f.name} has no capital`);
+  }
+  // relations only reference known factions, war records are consistent
+  for (const [k, r] of Object.entries(w.relations)) {
+    const [a, b] = k.split("|").map(Number);
+    assert.ok(w.factions[a] && w.factions[b], `relation ${k} references unknown faction`);
+    if (r.war) assert.ok(r.war.since <= w.year);
+  }
+  // numeric health: nothing exploded into NaN
+  for (const s of alive) {
+    assert.ok(Number.isFinite(s.pop) && Number.isFinite(s.wealth) && Number.isFinite(s.wb),
+      `${s.name} has non-finite state`);
+  }
+});

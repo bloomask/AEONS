@@ -2,6 +2,7 @@ import { GOODS } from "../sim/constants.js";
 import { clamp } from "../sim/util.js";
 import { SHIP_CLASSES, makeShip, shipSpace, logLedger } from "./corp.js";
 import { shortestPath } from "./pathfind.js";
+import { pathExposure } from "./piracy.js";
 
 // ---------------------------------------------------------------------------
 // Player intents — the trade & logistics action surface. Each validates, then
@@ -60,6 +61,7 @@ export function buy(game, shipId, good, qty) {
   if (cost > game.corp.cash) return err("insufficient cash");
   game.corp.cash -= cost;
   ship.cargo[good] = (ship.cargo[good] || 0) + qty;
+  game.corp.stats.trades++;
   logLedger(game.corp, `bought ${qty} ${good} @ ${unit.toFixed(2)}`, -cost);
   return { ok: true, qty, unit, cost };
 }
@@ -90,7 +92,43 @@ export function dispatch(game, shipId, dest) {
   if (ship.location === dest) return err("ship is already there");
   const route = shortestPath(game.w, ship.location, dest);
   if (!route) return err("no route to destination");
-  ship.transit = { dest, from: ship.location, dist: route.dist, remaining: route.dist, path: route.path };
+  ship.transit = {
+    dest, from: ship.location, dist: route.dist, remaining: route.dist,
+    path: route.path, exposure: pathExposure(game.w, route.path),
+  };
   ship.location = null;
   return { ok: true, eta: Math.max(1, Math.ceil(route.dist / SHIP_CLASSES[ship.class].speed)), dist: +route.dist.toFixed(1) };
+}
+
+const isSystem = (game, id) => id >= 0 && id < game.w.systems.length;
+
+/**
+ * Assign a standing route: an ordered list of stops the ship cycles forever,
+ * buying and selling on autopilot. game.js services it each day.
+ * @param {{sys:number, buy?:{good:string,qty:number}[], sell?:string[]}[]} stops
+ */
+export function setRoute(game, shipId, stops) {
+  const ship = getShip(game, shipId);
+  if (!ship) return err("no such ship");
+  if (!Array.isArray(stops) || stops.length < 2) return err("a route needs at least two stops");
+  for (const st of stops) {
+    if (!isSystem(game, st.sys)) return err("route stop is not a real system");
+    for (const o of st.buy || []) if (!GOODS.includes(o.good)) return err("route buys an untradable good");
+    for (const g of st.sell || []) if (!GOODS.includes(g)) return err("route sells an untradable good");
+  }
+  ship.route = { stops, leg: 0 };
+  return { ok: true };
+}
+
+export function clearRoute(game, shipId) {
+  const ship = getShip(game, shipId);
+  if (!ship) return err("no such ship");
+  ship.route = null;
+  return { ok: true };
+}
+
+/** Toggle fleet insurance against corsair losses (premium charged as upkeep). */
+export function setInsurance(game, on) {
+  game.corp.insured = !!on;
+  return { ok: true, insured: game.corp.insured };
 }

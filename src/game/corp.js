@@ -24,6 +24,8 @@ export function foundCorp(name, { cash = 400, home = 0 } = {}) {
     ledger: [],                // recent transactions (for UI + audit)
     day: 0,                    // absolute days elapsed since founding
     founded: null,             // set to the world year at newGame()
+    insured: false,            // fleet insurance against corsair losses
+    stats: { trades: 0, raided: 0 },
   };
 }
 
@@ -32,7 +34,8 @@ export function makeShip(id, classKey, location) {
     id, class: classKey,
     location,                  // system id when docked, null when in transit
     cargo: {},                 // good -> qty aboard
-    transit: null,             // { dest, from, dist, remaining, path } when moving
+    transit: null,             // { dest, from, dist, remaining, path, exposure } when moving
+    route: null,               // standing route: { stops:[{sys,buy,sell}], leg } (game.js services it)
   };
 }
 

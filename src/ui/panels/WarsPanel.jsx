@@ -30,6 +30,9 @@ function ActiveWar({ w, k, rel, onOpenSystem }) {
         <b className="link" style={{ color: B.color }} onClick={() => onOpenSystem(B.capital)}>{B.name}</b>
         <span className="ml-auto muted">year {dur} · {border.length} front{border.length !== 1 ? "s" : ""}</span>
       </div>
+      {rec?.causeText && (
+        <div className="faint mt-0.5" style={{ fontSize: 11 }}>casus belli — {rec.causeText}</div>
+      )}
       <div className="flex h-2 rounded-full overflow-hidden my-2" style={{ background: "rgba(233,228,214,0.1)" }}>
         <div style={{ width: `${50 + lean * 50}%`, background: A.color, opacity: 0.85, transition: "width 0.4s" }} />
         <div style={{ flex: 1, background: B.color, opacity: 0.85 }} />
@@ -121,6 +124,7 @@ export default function WarsPanel({ w, wars, onOpenSystem }) {
                         <span style={{ color: facColor(w, r.aId, r.a) }}>{r.a}</span>
                         <span className="faint"> vs </span>
                         <span style={{ color: facColor(w, r.bId, r.b) }}>{r.b}</span>
+                        {r.causeText && <div className="faint" style={{ fontSize: 10 }}>{r.causeText}</div>}
                       </td>
                       <td className="text-right muted pl-4 whitespace-nowrap">{r.start}–{r.end}</td>
                       <td className="text-right muted pl-4">{r.duration}y</td>

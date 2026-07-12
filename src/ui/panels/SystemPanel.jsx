@@ -3,6 +3,7 @@ import { GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, CLASSES, CLASS_DEF, T, allows
 import { diagnoseSystem, SEV_CRISIS, SEV_WARNING } from "../../sim/diagnose.js";
 import { classifySystem, systemTags } from "../../sim/classify.js";
 import { STAR_BY_KEY, BODY_TYPES } from "../../sim/cosmos.js";
+import { dearestStaple, explainScarcity } from "../../sim/explain.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
 import { fmtPop, fmtCredits } from "../format.js";
 import { describeSystem } from "../describe.js";
@@ -258,9 +259,24 @@ function Society({ sel }) {
   );
 }
 
-function Market({ sel }) {
+function Market({ w, sel }) {
+  const dear = dearestStaple(w, sel);
+  const reasons = dear ? explainScarcity(w, sel, dear.good) : [];
   return (
     <div className="space-y-5">
+      {dear && reasons.length > 0 && (
+        <div className="px-3 py-2 rounded-lg" style={{ background: "rgba(228,87,46,0.08)", border: "1px solid rgba(228,87,46,0.25)" }}>
+          <div className="mb-0.5">
+            <b style={{ color: "var(--red)" }}>{GOOD_LABEL[dear.good]}</b>
+            <span className="muted"> is dear here — ×{dear.ratio.toFixed(1)} the base price. Why:</span>
+          </div>
+          <ul className="muted" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {reasons.map((r) => (
+              <li key={r.key} className="flex gap-1.5"><span style={{ color: "var(--amber)" }}>·</span>{r.text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <Section title="local market" right={<span className="faint">stock · price cr · vs norm</span>}>
         <table className="w-full">
           <tbody>
@@ -419,7 +435,7 @@ export default function SystemPanel({ w, sel }) {
           </div>
           {sub === "overview" && <Overview w={w} sel={sel} />}
           {sub === "society" && <Society sel={sel} />}
-          {sub === "market" && <Market sel={sel} />}
+          {sub === "market" && <Market w={w} sel={sel} />}
           {sub === "problems" && <Problems sel={sel} probs={probs} />}
         </>
       ) : (

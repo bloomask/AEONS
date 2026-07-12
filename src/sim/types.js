@@ -84,6 +84,16 @@
  */
 
 /**
+ * @typedef {Object} Ruler  A faction's current leader (phases/figures.js).
+ * @property {string} name    Given name, sometimes with an epithet.
+ * @property {string} title   Fits the government (Emperor, First Consul, Director, Corsair King…).
+ * @property {number} since   Accession year (reign length = w.year - since).
+ * @property {string} gov     Government at accession — a change means a new regime and leader.
+ * @property {number} tenure  Years this reign lasts before natural succession.
+ * @property {?number} [ended]  Year the reign ended (faction fell), else absent.
+ */
+
+/**
  * @typedef {Object} Faction  A political power (empire, republic, corporate state, pirate haven).
  * @property {number} id       Unique, from `w.nextFid` (never reused; dead factions stay in the array).
  * @property {string} name
@@ -100,6 +110,8 @@
  * @property {?number} diedYear
  * @property {number} peakSystems
  * @property {number} peakPop
+ * @property {Ruler} [ruler]  The power's current leader (phases/figures.js). Descriptive:
+ *   generated from a per-faction sub-rng, so it never touches the simulation's numbers.
  * @property {{p:number,s:number,t:number,st:number}[]} trace  Yearly pop/systems/treasury/stability (last 240).
  * @property {number} [corpId]  Corporate states: id of the founding house.
  * @property {number} [lootY]   Pirate havens: loot taken this year.

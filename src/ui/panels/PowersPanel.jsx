@@ -137,6 +137,12 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
             </span>
           </span>
         </div>
+        {f.ruler && (
+          <div className="mt-1.5" style={{ color: "var(--gold)" }}>
+            ♛ {f.ruler.title} <b>{f.ruler.name}</b>
+            <span className="faint"> · reigning {Math.max(0, w.year - f.ruler.since)} years</span>
+          </div>
+        )}
         {GOV_DESC[f.gov] && <div className="faint mt-1">{GOV_DESC[f.gov]}</div>}
         {f.corpId != null && w.houses[f.corpId] && (
           <div className="mt-1" style={{ color: "var(--gold)" }}>flag of {w.houses[f.corpId].name}</div>
@@ -270,6 +276,11 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
               <div className="muted">
                 {members.length} systems · {fmtPop(fp)} · treasury {fmtCredits(f.treasury)} · capital {w.systems[f.capital].name}
               </div>
+              {f.ruler && (
+                <div className="faint" style={{ color: "var(--gold)" }}>
+                  ♛ {f.ruler.title} {f.ruler.name}
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="faint">stability</span>
                 <div className="flex-1"><Bar v={f.stability} color={f.stability < 0.35 ? "var(--red)" : "var(--green)"} /></div>

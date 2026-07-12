@@ -42,7 +42,8 @@ the `contraband` phase, so it is only guaranteed from `contraband` onward (pass
 | 9 | `shocks` | `(w, rng, alive)` | plague, flare, ore strikes, gate flux, culture drift |
 | 10 | `faith` | `(w, rng, alive)` | conversion along lanes, schism in isolation |
 | 11 | `tech` | `(w, rng, alive)` | galaxy-wide research toward the next era |
-| 12 | `chronicle` | `(w, rng)` | yearly stats snapshot, traces, era detection |
+| 12 | `figures` | `(w)` | the ruling cast: seats leaders, handles succession |
+| 13 | `chronicle` | `(w, rng)` | yearly stats snapshot, traces, era detection |
 
 ---
 
@@ -190,7 +191,18 @@ the `contraband` phase, so it is only guaranteed from `contraband` onward (pass
   galaxy-wide next year via `techFx`.)
 - **Expects:** `economy` set this year's `dev`/`price.electronics`.
 
-## 12. chronicle — `phases/chronicle.js`
+## 12. figures — `phases/figures.js`
+
+- **Reads:** `f.{gov,capital,foundedYear,dead,ruler}`, the capital's `cultName`.
+- **Mutates:** `f.ruler` only — seats a leader for any power lacking one, and on
+  regime change or a reign's natural end installs a successor.
+- **Creates:** occasional `reign` chronicle events (a long reign ending). Adds no
+  `stats.c` counter and draws from a per-faction sub-rng, NOT `w.rng` — so, like
+  `cosmos.js`, it is descriptive and leaves the simulation's numbers byte-identical.
+- **Expects:** runs after every faction death / regime change is settled
+  (`politics`, `pirates`, `war`), so the cast reflects the year's final map.
+
+## 13. chronicle — `phases/chronicle.js`
 
 - **Reads:** the whole settled world (pop, price, wb, unrest, classes, fid,
   faction/house liveness, `e.vol`, `w.loans`, `w.credit`, `w.tech`).

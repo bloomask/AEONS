@@ -9,6 +9,7 @@ import { runProjects } from "./phases/projects.js";
 import { runShocks } from "./phases/shocks.js";
 import { runFaith } from "./phases/faith.js";
 import { runTech } from "./phases/tech.js";
+import { runFigures } from "./phases/figures.js";
 import { recordYear } from "./phases/chronicle.js";
 
 // ---------- yearly simulation ----------
@@ -35,6 +36,7 @@ export const PHASES = [
   { name: "shocks", run: (w, rng, alive) => runShocks(w, rng, alive) },
   { name: "faith", run: (w, rng, alive) => runFaith(w, rng, alive) },
   { name: "tech", run: (w, rng, alive) => runTech(w, rng, alive) },
+  { name: "figures", run: (w) => runFigures(w) },
   { name: "chronicle", run: (w, rng) => recordYear(w, rng) },
 ];
 

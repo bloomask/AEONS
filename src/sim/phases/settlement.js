@@ -114,6 +114,10 @@ export function runSettlement(w, rng, alive) {
       });
       s.siege = null;
       s.freePort = false;
+      // a dead world holds nothing: its bonded population perishes with it and
+      // its underworld goes dark. Clearing here (not only on resettlement) keeps
+      // a ruin's state consistent — no ghost slaves or narcotics on a corpse.
+      s.slaves = 0; s.drugs = 0; s.drugLoad = 0;
       const f = s.fid !== null ? w.factions[s.fid] : null;
       s.fid = null;
       const deathText = {

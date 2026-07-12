@@ -10,7 +10,11 @@ inspects. React + Vite front end; the simulation engine is plain JavaScript.
 - `npm run build` — production build (also the quickest full syntax check)
 - `npm run sim [-- <seed> <years> [preset]]` — headless run, prints summary stats
   (presets: standard, golden, longdark, bloodiron, freelanes, crowded)
-- `npm test` — determinism + sanity tests (node --test, no framework)
+- `npm run balance [-- <years> [seeds] [preset]]` — the balance laboratory: runs
+  a seed matrix across every preset and grades the results against the targets in
+  `sim/balance.js` (exit non-zero if a hard guard-rail fails)
+- `npm test` — determinism, invariants, focused phase, and balance tests
+  (node --test, no framework)
 
 ## Architecture
 
@@ -96,9 +100,25 @@ Full-screen and side panels live in `ui/panels/`.
 
 ## Verifying changes
 
-- `npm test` catches nondeterminism and gross breakage.
+- `npm test` catches nondeterminism and gross breakage. It runs four suites:
+  - **determinism + sanity** (`sim.test.js`) — same seed replays; a coherent
+    galaxy after centuries.
+  - **invariants** (`invariants.test.js`) — steps the year phase-by-phase (via
+    `simulateYear`'s `onPhase` hook) and asserts `checkInvariants` (`sim/invariants.js`)
+    finds nothing broken after *every* phase, across seeds and presets. This is
+    what pins a bug (a NaN, a ghost slave on a ruin, a dead-faction flag) to the
+    phase that caused it. Slavery legality is reconciled by the `contraband`
+    phase, so it's only asserted from there on (`{settled:false}` before it).
+  - **focused phase tests** (`phases.test.js` + `helpers.js`) — small handcrafted
+    worlds with predictable outcomes, one phase at a time. `helpers.js` builds a
+    tiny world on top of `genGalaxy`'s scaffolding and offers `fixedRng(v)` to
+    force/suppress rng-gated events. Add one here when you touch a phase's logic.
+  - **balance guard-rails** (`balance.test.js`) — a fast subset of the lab.
 - For refactors that must not change behavior: capture
   `npm run sim -- 42 500` output before and after and diff it — the engine
   is deterministic, so any diff means behavior changed.
-- For balance changes: `npm run sim` across a few seeds/presets and compare
-  summaries (extinction rates, war counts, faction lifespans).
+- For balance changes: run `npm run balance` — it grades a seed matrix across
+  every preset against the ranges in `sim/balance.js` and prints per-preset
+  tables. The targets encode the *current intended* balance; when a change moves
+  the balance on purpose, re-read the tables and update the targets to match.
+  Phase read/mutate/create contracts are documented in `docs/PHASES.md`.

@@ -1,8 +1,10 @@
 // Public surface of the simulation engine. Everything here is plain,
 // DOM-free JavaScript — it runs in the browser and in Node alike.
 export { genGalaxy, rebuildAdj } from "./galaxy.js";
-export { simulateYear } from "./simulate.js";
+export { simulateYear, PHASES } from "./simulate.js";
 export { buildStats } from "./stats.js";
+export { checkInvariants, assertInvariants } from "./invariants.js";
+export { BALANCE_TARGETS, evaluateBalance } from "./balance.js";
 export { diagnoseSystem, SEV_CRISIS, SEV_WARNING, SEV_WATCH } from "./diagnose.js";
 export { CONFIG_GROUPS, CONFIG_PARAMS, PRESETS, defaultConfig, carryCap } from "./config.js";
 export { log, relKey, getRel } from "./events.js";

@@ -1,4 +1,5 @@
 import { BASE_PRICE } from "../sim/constants.js";
+import { clamp } from "../sim/util.js";
 
 // ---------------------------------------------------------------------------
 // The player's corporation and its fleet — the heart of the tycoon layer.
@@ -26,7 +27,9 @@ export function foundCorp(name, { cash = 400, home = 0 } = {}) {
     founded: null,             // set to the world year at newGame()
     insured: false,            // fleet insurance against corsair losses
     depots: {},                // systemId -> { sys, stock: {good: qty} } warehousing
-    stats: { trades: 0, raided: 0 },
+    loans: [],                 // { kind:"sys"|"fac", id, principal, rate, missed, since }
+    holdings: [],              // system ids the corp owns as company towns
+    stats: { trades: 0, raided: 0, lent: 0, foreclosed: 0 },
   };
 }
 
@@ -65,13 +68,17 @@ function depotValue(corp, view) {
 }
 
 /**
- * Total net worth: cash + hull resale + cargo + warehoused goods, all at market.
- * `view` is the current interpolated day-view (game.view()).
+ * Total net worth: cash + hull resale + cargo + warehoused goods + loans
+ * outstanding + company towns, all valued at market. `view` is the current
+ * interpolated day-view (game.view()); `world` lets holdings be valued live.
  */
-export function netWorth(corp, view) {
+export function netWorth(corp, view, world) {
   let w = corp.cash;
   for (const sh of corp.ships) w += shipResale(sh) + cargoValue(sh, view);
-  return w + depotValue(corp, view);
+  w += depotValue(corp, view);
+  for (const l of corp.loans) w += l.principal;
+  if (world) for (const sid of corp.holdings) w += clamp(Math.max(0, world.systems[sid].wealth) * 0.5, 0, 200);
+  return w;
 }
 
 export function logLedger(corp, text, delta) {

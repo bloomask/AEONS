@@ -25,6 +25,7 @@ export function foundCorp(name, { cash = 400, home = 0 } = {}) {
     day: 0,                    // absolute days elapsed since founding
     founded: null,             // set to the world year at newGame()
     insured: false,            // fleet insurance against corsair losses
+    depots: {},                // systemId -> { sys, stock: {good: qty} } warehousing
     stats: { trades: 0, raided: 0 },
   };
 }
@@ -53,14 +54,24 @@ function cargoValue(ship, view) {
   return v;
 }
 
+// goods warehoused in a depot, valued at that system's going price
+function depotValue(corp, view) {
+  let v = 0;
+  for (const d of Object.values(corp.depots)) {
+    const sv = view.sys[d.sys];
+    for (const [g, q] of Object.entries(d.stock)) v += q * (sv ? sv.price[g] : BASE_PRICE[g]);
+  }
+  return v;
+}
+
 /**
- * Total net worth: cash + hull resale + cargo at market. `view` is the current
- * interpolated day-view (game.view()); pass it so cargo is valued live.
+ * Total net worth: cash + hull resale + cargo + warehoused goods, all at market.
+ * `view` is the current interpolated day-view (game.view()).
  */
 export function netWorth(corp, view) {
   let w = corp.cash;
   for (const sh of corp.ships) w += shipResale(sh) + cargoValue(sh, view);
-  return w;
+  return w + depotValue(corp, view);
 }
 
 export function logLedger(corp, text, delta) {

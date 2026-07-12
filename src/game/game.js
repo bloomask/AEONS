@@ -1,7 +1,7 @@
 import { BASE_PRICE } from "../sim/constants.js";
 import { GameClock } from "./clock.js";
 import { foundCorp, netWorth, logLedger, shipSpace, SHIP_CLASSES } from "./corp.js";
-import { buy, sell, dispatch, maxBuy } from "./actions.js";
+import { buy, sell, dispatch, maxBuy, DEPOT } from "./actions.js";
 import { PIRACY, raidRng } from "./piracy.js";
 
 // ---------------------------------------------------------------------------
@@ -76,12 +76,13 @@ export class Game {
   }
 
   _charge() {
-    let daily = 0;
+    let annual = 0;
     for (const sh of this.corp.ships) {
       const spec = SHIP_CLASSES[sh.class];
-      daily += spec.upkeep + (this.corp.insured ? spec.cost * PIRACY.PREMIUM_RATE : 0);
+      annual += spec.upkeep + (this.corp.insured ? spec.cost * PIRACY.PREMIUM_RATE : 0);
     }
-    if (daily) this.corp.cash -= daily / this.clock.daysPerYear;
+    annual += Object.keys(this.corp.depots).length * DEPOT.UPKEEP;
+    if (annual) this.corp.cash -= annual / this.clock.daysPerYear;
   }
 
   // a docked ship on a standing route executes its stop, then heads to the next

@@ -1,5 +1,9 @@
-// static legend entries per overlay; the faith overlay builds its
-// entries live from the world's surviving creeds
+import { ARCHETYPES } from "../../sim/classify.js";
+import { STAR_TYPES } from "../../sim/cosmos.js";
+
+// static legend entries per overlay; the faith/worlds/stars overlays build
+// their entries live (faith from the surviving creeds, the others from the
+// engine's archetype and star tables, so the key never drifts from the map)
 export const LEGENDS = {
   realm: [
     ["#C4ECF6", "moving sparks = freight convoys"],
@@ -26,5 +30,9 @@ export function legendEntries(w, overlay) {
       .filter((f) => w.systems.some((s) => s.faith === f.id && s.pop > 0.05))
       .map((f) => [f.color, f.name]);
   }
+  // dot color = a world's economic archetype
+  if (overlay === "worlds") return ARCHETYPES.map((a) => [a.tint, `${a.icon} ${a.label}`]);
+  // dot color = the system's star (dim empties shown too)
+  if (overlay === "stars") return STAR_TYPES.map((t) => [t.color, `${t.label} (${t.key})`]);
   return LEGENDS[overlay] || [];
 }

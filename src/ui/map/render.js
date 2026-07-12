@@ -1,6 +1,8 @@
 import { mulberry32 } from "../../sim/rng.js";
 import { clamp } from "../../sim/util.js";
 import { relKey } from "../../sim/events.js";
+import { classifySystem, classifyContext } from "../../sim/classify.js";
+import { STAR_BY_KEY } from "../../sim/cosmos.js";
 import { mixHex, wbColor } from "../theme.js";
 import { computeTerritory, WORLD_R } from "./territory.js";
 
@@ -112,6 +114,9 @@ export function drawScene(ctx, w, v, frame) {
   }
 
   // systems
+  // the "worlds" overlay colors each world by its economic archetype; the
+  // galaxy-relative thresholds are computed once per frame, not per system
+  const archCtx = overlay === "worlds" ? classifyContext(w) : null;
   for (const s of w.systems) {
     const X = tx(s.x), Y = ty(s.y);
     if (s.ruined) {
@@ -124,8 +129,15 @@ export function drawScene(ctx, w, v, frame) {
       continue;
     }
     if (s.pop <= 0.05) {
-      ctx.fillStyle = "rgba(124,135,152,0.35)";
-      ctx.beginPath(); ctx.arc(X, Y, 1.3, 0, 7); ctx.fill();
+      // the star map shows every sun, settled or not — an empty system is still
+      // a star; other overlays leave the unclaimed worlds a faint gray
+      if (overlay === "stars" && s.star) {
+        ctx.fillStyle = (STAR_BY_KEY[s.star]?.color || "#8892A6") + "80";
+        ctx.beginPath(); ctx.arc(X, Y, 1.6, 0, 7); ctx.fill();
+      } else {
+        ctx.fillStyle = "rgba(124,135,152,0.35)";
+        ctx.beginPath(); ctx.arc(X, Y, 1.3, 0, 7); ctx.fill();
+      }
       continue;
     }
     const f = s.fid !== null ? w.factions[s.fid] : null;
@@ -138,6 +150,10 @@ export function drawScene(ctx, w, v, frame) {
     } else if (overlay === "trade") {
       const th = clamp((s.tradeIn + s.tradeOut) / 40, 0, 1);
       ctx.fillStyle = mixHex("#3A4657", "#5CC8DA", th);
+    } else if (overlay === "worlds") {
+      ctx.fillStyle = classifySystem(w, s, archCtx).tint;
+    } else if (overlay === "stars") {
+      ctx.fillStyle = STAR_BY_KEY[s.star]?.color || "#8892A6";
     } else if (overlay === "faith") {
       ctx.fillStyle = w.faiths[s.faith]?.color || "#8892A6";
     } else if (overlay === "culture") {

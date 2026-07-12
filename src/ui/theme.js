@@ -46,7 +46,7 @@ export function wbColor(wb) {
     : mixHex("#F2A93B", "#6FBF73", clamp((wb - 0.55) / 0.45, 0, 1));
 }
 
-export const OVERLAYS = ["realm", "wealth", "life", "trade", "faith", "culture"];
+export const OVERLAYS = ["realm", "worlds", "stars", "wealth", "life", "trade", "faith", "culture"];
 
 // full-screen panels summoned from the command bar; the side window is
 // reserved for system/power inspection

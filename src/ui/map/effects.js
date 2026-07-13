@@ -9,6 +9,7 @@ const PULSE_TYPES = new Set([
   "famine", "plague", "battle", "siege", "capture", "colony", "death",
   "found", "secede", "annex", "strike", "flare", "build", "house",
   "mega", "faith", "corp", "pirate", "raid", "revolution", "slave", "drug",
+  "curate",
 ]);
 
 // collect fresh events into map pulses (skipped during burn-in)

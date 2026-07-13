@@ -28,6 +28,9 @@ export function genGalaxy(seed, cfgIn) {
     tech: { level: 0, progress: 0, history: [] },
     cartels: [], cartelMul: {},
     loans: [], credit: { crunch: 0, defaults: [], panics: 0, lastPanic: -99 },
+    // deterministic ledger of curator interventions (interventions.js) —
+    // replaying the same save with the same records replays the same history
+    commands: [],
     records: { longestWar: 0, largestRealm: 7, worstFamine: 4, richestHouse: 250 },
     houses: [],
     stats: {
@@ -48,6 +51,7 @@ export function genGalaxy(seed, cfgIn) {
         loanMade: 0, loanDefault: 0, panic: 0,
         enslaved: 0, slavesFreed: 0, slaveRevolt: 0, slaveTrade: 0,
         drugBust: 0, drugTrade: 0,
+        curated: 0,
       },
     },
   };

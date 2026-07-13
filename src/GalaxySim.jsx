@@ -12,7 +12,8 @@ import Timeline from "./ui/Timeline.jsx";
 import TopBar from "./ui/TopBar.jsx";
 import { SCREENS } from "./ui/theme.js";
 import SystemPanel from "./ui/panels/SystemPanel.jsx";
-import PowersPanel from "./ui/panels/PowersPanel.jsx";
+import FactionsPanel from "./ui/panels/FactionsPanel.jsx";
+import CuratorPanel from "./ui/panels/CuratorPanel.jsx";
 import TradePanel from "./ui/panels/TradePanel.jsx";
 import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
@@ -22,10 +23,13 @@ import RoutePanel from "./ui/panels/RoutePanel.jsx";
 import DiplomacyPanel from "./ui/panels/DiplomacyPanel.jsx";
 import WarsPanel from "./ui/panels/WarsPanel.jsx";
 
-// inspection lives in the side window; everything else takes the full screen
+// inspection lives in the side window; everything else takes the full screen.
+// "factions" inspects the simulation's powers (never the player's — see
+// docs/PRODUCT.md); "curate" appears only in Curate mode.
 const SIDE_TABS = [
   { key: "system", glyph: "⊙" },
-  { key: "powers", glyph: "♜" },
+  { key: "factions", glyph: "♜" },
+  { key: "curate", glyph: "✳", curateOnly: true },
 ];
 
 export default function GalaxySim() {
@@ -40,6 +44,9 @@ export default function GalaxySim() {
   // flux splices w.edges, so indices are not stable across years
   const [selEdge, setSelEdge] = useState(null);
   const [sideTab, setSideTab] = useState("system");
+  // the interaction contract (docs/PRODUCT.md): "observe" watches the galaxy
+  // run itself; "curate" adds the intervention instruments — nothing more
+  const [mode, setMode] = useState("observe");
   const [screen, setScreen] = useState(null);
   const [speed, setSpeed] = useState(0);
   const [burn, setBurn] = useState(null);
@@ -52,6 +59,12 @@ export default function GalaxySim() {
   const [focusYear, setFocusYear] = useState(null);
 
   const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // leaving Curate mode closes the curator tab it owns
+  const switchMode = useCallback((m) => {
+    setMode(m);
+    if (m === "observe") setSideTab((t) => (t === "curate" ? "system" : t));
+  }, []);
 
   // rotating autosave: once the clock has advanced a full interval past the
   // last one, snapshot the live world (best-effort — never interrupts play)
@@ -235,6 +248,8 @@ export default function GalaxySim() {
         year={w ? w.year : "—"}
         speed={speed}
         setSpeed={setSpeed}
+        mode={mode}
+        setMode={switchMode}
         onCentury={() => w && !burn && runBurn(w, 100, () => maybeAutosave(worldRef.current))}
         onNewGalaxy={() => { setSpeed(0); setSetupOpen(true); }}
         screen={screen}
@@ -277,7 +292,7 @@ export default function GalaxySim() {
           style={{ background: "var(--panel)", borderLeft: "1px solid var(--line)" }}
         >
           <nav className="flex" style={{ borderBottom: "1px solid var(--line)" }}>
-            {SIDE_TABS.map(({ key, glyph }) => {
+            {SIDE_TABS.filter((t) => !t.curateOnly || mode === "curate").map(({ key, glyph }) => {
               const isRoute = key === "system" && !!selEdge;
               return (
                 <button key={key} onClick={() => setSideTab(key)} className={`navtab${sideTab === key ? " on" : ""}`}>
@@ -295,8 +310,11 @@ export default function GalaxySim() {
                   : <div className="muted italic leading-relaxed">This jumpgate lane has since collapsed — its stars drift apart on the map. Pick another lane or a system to inspect.</div>)
                 : <SystemPanel w={w} sel={sel} />
             )}
-            {sideTab === "powers" && w && (
-              <PowersPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
+            {sideTab === "factions" && w && (
+              <FactionsPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
+            )}
+            {sideTab === "curate" && w && mode === "curate" && !burn && (
+              <CuratorPanel w={w} selected={selected} onApplied={bump} />
             )}
           </div>
         </div>

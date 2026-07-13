@@ -80,7 +80,7 @@ export default function DiplomacyPanel({ w, liveFactions, onOpenSystem }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <Tile label="powers" value={states.length} />
+        <Tile label="factions" value={states.length} />
         <Tile label="alliances" value={allies.length} color="var(--cyan)" />
         <Tile label="active wars" value={wars.length} color={wars.length ? "var(--red)" : undefined} />
         <Tile label="embargoes" value={embargoes.length} color={embargoes.length ? "var(--amber)" : undefined} />

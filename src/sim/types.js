@@ -206,6 +206,17 @@
  */
 
 /**
+ * @typedef {Object} Command  One applied curator intervention (interventions.js).
+ * The deterministic record of the player's hand: replaying the same save with
+ * the same commands at the same years reproduces the same history (interventions
+ * never touch `w.rng`).
+ * @property {number} i     1-based sequence number within `w.commands`.
+ * @property {number} year  Year it was applied.
+ * @property {string} key   Intervention key (INTERVENTION_BY_KEY).
+ * @property {Object} params  The exact params it was applied with (plain JSON scalars).
+ */
+
+/**
  * @typedef {Object} WorldEvent  One chronicle entry (see events.js `log`).
  * @property {number} y   Year.
  * @property {string} t   Type key (styled via EV_STYLE in ui/theme.js).
@@ -232,6 +243,7 @@
  * @property {House[]} houses
  * @property {Faith[]} faiths
  * @property {Object<string,Relation>} relations  Keyed by `relKey(a,b)`.
+ * @property {Command[]} commands  Ledger of curator interventions, in order (never trimmed).
  * @property {WorldEvent[]} events  Capped at 800; use `log()`, never push directly.
  * @property {number} eventSeq
  * @property {Object[]} fx        Short-lived map effect queue (capped 120); use `fx()`.

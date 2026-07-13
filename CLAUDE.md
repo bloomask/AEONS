@@ -87,6 +87,20 @@ Two tiers of tradable goods:
   into the worker class wherever slavery is unlawful. **Invariant: no
   republic or corporate world ever holds slaves** (the test enforces it).
 
+### The interaction model (Observe & Curate)
+
+The product contract lives in `docs/PRODUCT.md` — read it before adding any
+player-facing capability. Two modes: **Observe** (the default; the autonomous
+sim, strictly read-only) and **Curate** (lightweight interventions via
+`sim/interventions.js`). Interventions are bounded acts grounded in existing
+mechanics; each validates its target, offers a pure `preview` (anticipated
+pressure), logs a chronicle entry, and appends a deterministic command record
+to `w.commands`. **Interventions never touch `w.rng`** — same save + same
+commands replays the same history. Trading fleets, corporate management, and
+4X empire control are explicitly out of scope. `tests/interventions.test.js`
+runs `checkInvariants` immediately after every intervention; keep it that way
+when adding one.
+
 ### Derived read-only views
 
 Some files read the world and describe it without ever mutating it — pure

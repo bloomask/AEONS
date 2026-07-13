@@ -357,8 +357,12 @@ function Problems({ sel, probs }) {
   );
 }
 
-export default function SystemPanel({ w, sel }) {
-  const [sub, setSub] = useState("overview");
+// the sub-tab can be controlled from above (GalaxySim lends it to the guided
+// tour); standalone use falls back to internal state
+export default function SystemPanel({ w, sel, sub: subProp, onSub }) {
+  const [subState, setSubState] = useState("overview");
+  const sub = subProp ?? subState;
+  const setSub = onSub ?? setSubState;
   if (!sel) {
     return (
       <div className="muted italic leading-relaxed">

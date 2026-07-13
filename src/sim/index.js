@@ -22,4 +22,5 @@ export {
   CLASSES, CLASS_DEF, FACTION_COLORS, CULTURES,
 } from "./constants.js";
 export { mulberry32, makeRng } from "./rng.js";
+export { serializeWorld, deserializeWorld, migrateSave, SAVE_VERSION } from "./save.js";
 export { clamp, dist2, cultDist, avgCult } from "./util.js";

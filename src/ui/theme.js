@@ -58,6 +58,7 @@ export const SCREENS = {
   market: { glyph: "◈", title: "The Galactic Market", narrow: false },
   galaxy: { glyph: "✦", title: "The Long View", narrow: false },
   chronicle: { glyph: "≡", title: "The Chronicle", narrow: true },
+  saves: { glyph: "⬒", title: "Save & Load", narrow: true },
 };
 
 // Chart series colors — darker steps of the app palette, validated against

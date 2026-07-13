@@ -4,6 +4,7 @@ import { defaultConfig } from "./sim/config.js";
 import { simulateYear } from "./sim/simulate.js";
 import { buildStats } from "./sim/stats.js";
 import { downloadFile } from "./ui/download.js";
+import { loadWorld, safeAutosave, AUTOSAVE_EVERY } from "./ui/saves.js";
 import NewGameScreen from "./ui/NewGameScreen.jsx";
 import MapView from "./ui/MapView.jsx";
 import Ticker from "./ui/Ticker.jsx";
@@ -16,6 +17,7 @@ import TradePanel from "./ui/panels/TradePanel.jsx";
 import MarketPanel from "./ui/panels/MarketPanel.jsx";
 import ChroniclePanel from "./ui/panels/ChroniclePanel.jsx";
 import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
+import SavesPanel from "./ui/panels/SavesPanel.jsx";
 import RoutePanel from "./ui/panels/RoutePanel.jsx";
 import DiplomacyPanel from "./ui/panels/DiplomacyPanel.jsx";
 import WarsPanel from "./ui/panels/WarsPanel.jsx";
@@ -29,6 +31,8 @@ const SIDE_TABS = [
 export default function GalaxySim() {
   const worldRef = useRef(null);
   const mapApi = useRef(null);
+  // sim-year of the last autosave — a new one rotates in every AUTOSAVE_EVERY years
+  const lastAutoRef = useRef(0);
 
   const [, setVersion] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -48,6 +52,15 @@ export default function GalaxySim() {
   const [focusYear, setFocusYear] = useState(null);
 
   const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // rotating autosave: once the clock has advanced a full interval past the
+  // last one, snapshot the live world (best-effort — never interrupts play)
+  const maybeAutosave = useCallback((w) => {
+    if (!w) return;
+    if (w.year - lastAutoRef.current < AUTOSAVE_EVERY) return;
+    lastAutoRef.current = w.year;
+    safeAutosave(w);
+  }, []);
 
   const runBurn = useCallback((w, years, onDone) => {
     setBurn({ done: 0, total: years });
@@ -79,10 +92,35 @@ export default function GalaxySim() {
     setFocusYear(null);
     const w = genGalaxy(newSeed, newCfg);
     worldRef.current = w;
+    lastAutoRef.current = w.year;
     const burnY = Math.round(newCfg.burnYears);
-    if (burnY > 0) runBurn(w, burnY, () => setSpeed(1));
-    else { setSpeed(1); bump(); }
+    // start the autosave clock from the end of the pre-history burn, so the
+    // first autosave lands a full interval into live play, not on year one
+    const armAutosave = () => { lastAutoRef.current = worldRef.current?.year ?? 0; };
+    if (burnY > 0) runBurn(w, burnY, () => { armAutosave(); setSpeed(1); });
+    else { armAutosave(); setSpeed(1); bump(); }
   }, [runBurn, bump]);
+
+  // install a loaded galaxy (from a slot id, or an already-parsed world from a
+  // file import) in place of the running one. May throw (bad/newer save) — the
+  // Saves panel catches and surfaces the message.
+  const loadGame = useCallback((id, preloaded) => {
+    const w = preloaded || loadWorld(id);
+    setSpeed(0);
+    setSetupOpen(false);
+    setSeed(w.seed);
+    setCfg(w.cfg);
+    setSelected(null);
+    setSelEdge(null);
+    setSideTab("system");
+    setScreen(null);
+    setFacFilter("all");
+    setFocusYear(null);
+    setBurn(null);
+    worldRef.current = w;
+    lastAutoRef.current = w.year;
+    bump();
+  }, [bump]);
 
   // sim clock — render rate capped at 10/s; higher speeds batch years per tick
   useEffect(() => {
@@ -91,11 +129,12 @@ export default function GalaxySim() {
     const iv = setInterval(() => {
       if (worldRef.current) {
         for (let i = 0; i < yearsPerTick; i++) simulateYear(worldRef.current);
+        maybeAutosave(worldRef.current);
         bump();
       }
     }, 1000 / Math.min(speed, 10));
     return () => clearInterval(iv);
-  }, [speed, burn, bump]);
+  }, [speed, burn, bump, maybeAutosave]);
 
   // Esc closes an open full-screen panel
   useEffect(() => {
@@ -196,7 +235,7 @@ export default function GalaxySim() {
         year={w ? w.year : "—"}
         speed={speed}
         setSpeed={setSpeed}
-        onCentury={() => w && !burn && runBurn(w, 100)}
+        onCentury={() => w && !burn && runBurn(w, 100, () => maybeAutosave(worldRef.current))}
         onNewGalaxy={() => { setSpeed(0); setSetupOpen(true); }}
         screen={screen}
         setScreen={setScreen}
@@ -287,6 +326,7 @@ export default function GalaxySim() {
                 {screen === "trade" && <TradePanel w={w} onOpenSystem={openSystem} />}
                 {screen === "market" && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
                 {screen === "galaxy" && <GalaxyPanel w={w} />}
+                {screen === "saves" && <SavesPanel world={w} onLoad={loadGame} />}
                 {screen === "chronicle" && (
                   <ChroniclePanel
                     w={w}

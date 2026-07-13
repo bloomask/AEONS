@@ -220,8 +220,10 @@
  * @property {number} seed
  * @property {Object<string,number>} cfg  Player config knobs (config.js), mostly multipliers.
  * @property {number} year
- * @property {{n:()=>number, range:Function, int:Function, pick:Function, chance:Function, gauss:Function}} rng
+ * @property {{n:()=>number, range:Function, int:Function, pick:Function, chance:Function, gauss:Function, snapshot:()=>number, restore:(s:number)=>void}} rng
  *   Seeded RNG — the ONLY source of randomness allowed inside src/sim/.
+ *   `snapshot()`/`restore()` expose its 32-bit counter so a save can resume the
+ *   stream byte-for-byte (sim/save.js). Not serialized directly — it's a closure.
  * @property {System[]} systems   Index == system id; never reordered or filtered.
  * @property {Edge[]} edges       `w.adj` is derived from this — call `rebuildAdj(w)` after changing edges.
  * @property {{to:number, e:number}[][]} adj  Adjacency per system: neighbor id + edge index.

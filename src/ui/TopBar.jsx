@@ -14,7 +14,7 @@ const Vital = ({ label, value, color }) => (
 // screen buttons each summon a full-screen panel (toggle to dismiss).
 export default function TopBar({
   seed, year, speed, setSpeed, mode, setMode, onCentury, onNewGalaxy,
-  screen, setScreen, w, liveSystems, totalPop, liveFactions, wars,
+  onTour, touring, screen, setScreen, w, liveSystems, totalPop, liveFactions, wars,
 }) {
   const ruins = w ? w.systems.filter((s) => s.ruined).length : 0;
   const fallen = w ? w.factions.length - liveFactions.length : 0;
@@ -97,6 +97,7 @@ export default function TopBar({
         <button className={speed === 20 ? "on" : ""} onClick={() => setSpeed(20)} title="20 yr/s">▶▶▶</button>
         <button onClick={onCentury} title="Fast-forward a century">+100y</button>
       </div>
+      <button className={`btn${touring ? " on" : ""}`} onClick={onTour} title="Replay the five-minute guided tour of the bridge">⟡ tour</button>
       <button className="btn" onClick={onNewGalaxy} title="Found a new galaxy">↻ new</button>
     </header>
   );

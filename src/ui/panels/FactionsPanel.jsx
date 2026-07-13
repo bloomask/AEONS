@@ -211,7 +211,9 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
   );
 }
 
-export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem }) {
+// onInspect (optional) fires when a faction's detail view is opened — the
+// guided tour listens for it
+export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem, onInspect }) {
   const [detailFid, setDetailFid] = useState(null);
   const detail = detailFid !== null ? w.factions[detailFid] : null;
 
@@ -264,7 +266,7 @@ export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem }) {
             <div
               key={f.id}
               className="rowbtn mb-1"
-              onClick={() => setDetailFid(f.id)}
+              onClick={() => { setDetailFid(f.id); onInspect && onInspect(f.id); }}
               title="Open faction details"
             >
               <div className="flex items-center gap-2 flex-wrap">

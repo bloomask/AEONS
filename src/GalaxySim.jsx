@@ -6,6 +6,8 @@ import { buildStats } from "./sim/stats.js";
 import { downloadFile } from "./ui/download.js";
 import { loadWorld, safeAutosave, AUTOSAVE_EVERY } from "./ui/saves.js";
 import NewGameScreen from "./ui/NewGameScreen.jsx";
+import TutorialOverlay from "./ui/TutorialOverlay.jsx";
+import { TUT_STEPS, markTutorialSeen } from "./ui/tutorial.js";
 import MapView from "./ui/MapView.jsx";
 import Ticker from "./ui/Ticker.jsx";
 import Timeline from "./ui/Timeline.jsx";
@@ -44,6 +46,9 @@ export default function GalaxySim() {
   // flux splices w.edges, so indices are not stable across years
   const [selEdge, setSelEdge] = useState(null);
   const [sideTab, setSideTab] = useState("system");
+  // the system inspector's sub-tab lives here (not in SystemPanel) so the
+  // guided tour can watch it and steer it
+  const [sysSub, setSysSub] = useState("overview");
   // the interaction contract (docs/PRODUCT.md): "observe" watches the galaxy
   // run itself; "curate" adds the intervention instruments — nothing more
   const [mode, setMode] = useState("observe");
@@ -57,8 +62,32 @@ export default function GalaxySim() {
   const [evFilter, setEvFilter] = useState("all");
   const [facFilter, setFacFilter] = useState("all");
   const [focusYear, setFocusYear] = useState(null);
+  // the guided first session: null, or {i: step index, entry: snapshot taken
+  // when the step began (so "change the speed" means "since this step")}
+  const [tut, setTut] = useState(null);
+  const [tutFlags, setTutFlags] = useState({ factionOpened: false, eventFollowed: false });
 
   const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  // ---- the guided tour (skippable, replayable from the top bar) ----
+  const tutEntry = useCallback((spd) => ({
+    speed: spd,
+    commands: worldRef.current?.commands?.length || 0,
+  }), []);
+  const startTutorial = useCallback((spd) => {
+    markTutorialSeen();
+    setTutFlags({ factionOpened: false, eventFollowed: false });
+    setTut({ i: 0, entry: tutEntry(spd) });
+  }, [tutEntry]);
+  const endTutorial = useCallback(() => setTut(null), []);
+  const tutStep = useCallback((di, spd) => {
+    setTut((t) => {
+      if (!t) return t;
+      const i = t.i + di;
+      if (i >= TUT_STEPS.length) return null; // finished
+      return { i: Math.max(0, i), entry: tutEntry(spd) };
+    });
+  }, [tutEntry]);
 
   // leaving Curate mode closes the curator tab it owns
   const switchMode = useCallback((m) => {
@@ -92,7 +121,7 @@ export default function GalaxySim() {
   }, [bump]);
 
   // founding: generate the configured galaxy and burn its pre-history
-  const begin = useCallback((newSeed, newCfg) => {
+  const begin = useCallback((newSeed, newCfg, opts) => {
     setSetupOpen(false);
     setSpeed(0);
     setSeed(newSeed);
@@ -100,9 +129,11 @@ export default function GalaxySim() {
     setSelected(null);
     setSelEdge(null);
     setSideTab("system");
+    setSysSub("overview");
     setScreen(null);
     setFacFilter("all");
     setFocusYear(null);
+    if (opts?.tutorial) startTutorial(0); else endTutorial();
     const w = genGalaxy(newSeed, newCfg);
     worldRef.current = w;
     lastAutoRef.current = w.year;
@@ -112,7 +143,7 @@ export default function GalaxySim() {
     const armAutosave = () => { lastAutoRef.current = worldRef.current?.year ?? 0; };
     if (burnY > 0) runBurn(w, burnY, () => { armAutosave(); setSpeed(1); });
     else { armAutosave(); setSpeed(1); bump(); }
-  }, [runBurn, bump]);
+  }, [runBurn, bump, startTutorial, endTutorial]);
 
   // install a loaded galaxy (from a slot id, or an already-parsed world from a
   // file import) in place of the running one. May throw (bad/newer save) — the
@@ -126,14 +157,16 @@ export default function GalaxySim() {
     setSelected(null);
     setSelEdge(null);
     setSideTab("system");
+    setSysSub("overview");
     setScreen(null);
     setFacFilter("all");
     setFocusYear(null);
     setBurn(null);
+    endTutorial();
     worldRef.current = w;
     lastAutoRef.current = w.year;
     bump();
-  }, [bump]);
+  }, [bump, endTutorial]);
 
   // sim clock — render rate capped at 10/s; higher speeds batch years per tick
   useEffect(() => {
@@ -155,6 +188,14 @@ export default function GalaxySim() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // the tour's "follow an event" step also accepts opening the chronicle
+  // directly — latch it so esc-ing back out doesn't undo the deed
+  useEffect(() => {
+    if (tut && screen === "chronicle") {
+      setTutFlags((f) => (f.eventFollowed ? f : { ...f, eventFollowed: true }));
+    }
+  }, [tut, screen]);
 
   const w = worldRef.current;
   const liveSystems = w ? w.systems.filter((s) => s.pop > 0.05) : [];
@@ -252,6 +293,8 @@ export default function GalaxySim() {
         setMode={switchMode}
         onCentury={() => w && !burn && runBurn(w, 100, () => maybeAutosave(worldRef.current))}
         onNewGalaxy={() => { setSpeed(0); setSetupOpen(true); }}
+        onTour={() => startTutorial(speed)}
+        touring={!!tut}
         screen={screen}
         setScreen={setScreen}
         w={w}
@@ -278,6 +321,7 @@ export default function GalaxySim() {
             <Ticker
               worldRef={worldRef}
               onOpen={(ev) => {
+                setTutFlags((f) => (f.eventFollowed ? f : { ...f, eventFollowed: true }));
                 if (ev.sysId !== null) openSystem(ev.sysId);
                 else setScreen("chronicle");
               }}
@@ -308,10 +352,13 @@ export default function GalaxySim() {
                 ? (selEdgeIdx >= 0
                   ? <RoutePanel w={w} ei={selEdgeIdx} onOpenSystem={openSystem} />
                   : <div className="muted italic leading-relaxed">This jumpgate lane has since collapsed — its stars drift apart on the map. Pick another lane or a system to inspect.</div>)
-                : <SystemPanel w={w} sel={sel} />
+                : <SystemPanel w={w} sel={sel} sub={sysSub} onSub={setSysSub} />
             )}
             {sideTab === "factions" && w && (
-              <FactionsPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />
+              <FactionsPanel
+                w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem}
+                onInspect={() => setTutFlags((f) => (f.factionOpened ? f : { ...f, factionOpened: true }))}
+              />
             )}
             {sideTab === "curate" && w && mode === "curate" && !burn && (
               <CuratorPanel w={w} selected={selected} onApplied={bump} />
@@ -358,6 +405,27 @@ export default function GalaxySim() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* the guided first session floats above everything (including the
+            full-screen panels, so it survives a trip into the chronicle) */}
+        {tut && w && !burn && (
+          <TutorialOverlay
+            w={w}
+            step={tut.i}
+            entry={tut.entry}
+            flags={tutFlags}
+            sel={sel}
+            sideTab={sideTab}
+            sysSub={sysSub}
+            speed={speed}
+            mode={mode}
+            screen={screen}
+            actions={{ openSystem, setSideTab, setSysSub, setSpeed, setMode: switchMode, setScreen }}
+            onNext={() => tutStep(1, speed)}
+            onBack={() => tutStep(-1, speed)}
+            onSkip={endTutorial}
+          />
         )}
       </div>
     </div>

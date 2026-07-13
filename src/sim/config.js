@@ -125,6 +125,33 @@ export const PRESETS = [
   },
 ];
 
+// ---------- intensity ----------
+// A one-word temperament for a configuration — the Quick Start screen's
+// answer to "how rough will this history be?". Pure arithmetic over the
+// config: hostile tempers and calamities push it up, abundance pulls it
+// down. The tier boundaries are calibrated so the named presets read the
+// way their blurbs promise (Golden Age peaceful, The Long Dark catastrophic).
+export const INTENSITY_TIERS = [
+  { key: "peaceful", label: "peaceful", max: 0.85,
+    blurb: "calm lanes and mild tempers — history as a long afternoon" },
+  { key: "temperate", label: "temperate", max: 1.15,
+    blurb: "the classic balance — trouble comes, but so do the good years" },
+  { key: "volatile", label: "volatile", max: 1.5,
+    blurb: "wars, revolts, and lean harvests will shape this history" },
+  { key: "catastrophic", label: "catastrophic", max: Infinity,
+    blurb: "a hostile galaxy — survival itself will be the story" },
+];
+
+export function galaxyIntensity(cfg) {
+  const c = { ...defaultConfig(), ...cfg };
+  const lean = (v) => 1 / Math.max(0.25, v); // scarcity: below ×1 turns hostile
+  const hostility = (c.aggression + c.upheaval + c.unrest + c.piracy) / 4;
+  const calamity = (c.plague + c.flare) / 2;
+  const scarcity = (lean(c.fertility) + lean(c.richness) + lean(c.capacity)) / 3;
+  const score = hostility * 0.45 + calamity * 0.3 + scarcity * 0.25;
+  return { score, ...INTENSITY_TIERS.find((t) => score < t.max) };
+}
+
 // carrying capacity in millions — the one formula economy.js and
 // diagnose.js must agree on, so it lives here
 export function carryCap(w, s) {

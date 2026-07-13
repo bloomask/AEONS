@@ -58,20 +58,17 @@ export function runInternalPolitics(w, rng) {
 
     // revolutions from internal crisis: broke or crumbling empires birth
     // republics; desperate wartime republics fall to the generals
-    // player-chartered powers are governed by hand: they do not autonomously
-    // revolt, secede, collapse, or expand (the `player` flag exists only during
-    // a game, so a headless simulation is byte-identical)
     const crisis = f.treasury < -40 || f.stability < 0.45;
-    if (!f.player && f.gov === "empire" && crisis && rng.chance(0.25 * w.cfg.upheaval)) {
+    if (f.gov === "empire" && crisis && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "republic", (oldName, newName) =>
         `Revolution at ${cap.name}: crowds pull down the imperial sigils, and the ${oldName} is proclaimed the ${newName}.`);
-    } else if (!f.player && f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25 * w.cfg.upheaval)) {
+    } else if (f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "empire", (oldName, newName) =>
         `The generals suspend the assembly of the ${oldName}. It wakes as the ${newName}.`);
     }
 
     // a great trade hub under a heavy-handed crown may simply buy its way out
-    if (!f.player && f.gov === "empire" && f.stability < 0.7) {
+    if (f.gov === "empire" && f.stability < 0.7) {
       const hub = members.find((s) =>
         s.id !== f.capital && s.tradeIn > 20 && s.wealth > 200 && !s.freePort);
       if (hub && rng.chance(0.02)) {
@@ -93,7 +90,7 @@ export function runInternalPolitics(w, rng) {
 
     // secession of the resentful fringe — and the truly desperate
     // don't declare a republic, they raise the black flag
-    if (!f.player && f.stability < 0.35) {
+    if (f.stability < 0.35) {
       const fCult = avgCult(members);
       for (const s of members) {
         if (s.id === f.capital) continue;
@@ -111,14 +108,14 @@ export function runInternalPolitics(w, rng) {
     }
 
     // total collapse
-    if (!f.player && (f.treasury < -80 || f.stability < 0.12)) {
+    if (f.treasury < -80 || f.stability < 0.12) {
       killFaction(w, f, "collapses under its own weight; its worlds scatter into independence",
         f.treasury < -80 ? "bankruptcy" : "unrest");
       continue;
     }
 
     // absorbing free systems: each form of power does it its own way
-    if (!f.player && f.gov !== "pirate" && f.treasury > 50 && rng.chance((f.expans * 0.4 * (gov.expandMul || 1) + (f.gov === "corporate" ? 0.15 : 0)) * w.cfg.expansion)) {
+    if (f.gov !== "pirate" && f.treasury > 50 && rng.chance((f.expans * 0.4 * (gov.expandMul || 1) + (f.gov === "corporate" ? 0.15 : 0)) * w.cfg.expansion)) {
       const fCult = avgCult(members);
       const cands = [];
       for (const s of members)

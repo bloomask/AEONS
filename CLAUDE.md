@@ -55,20 +55,6 @@ stats counter — so it adds character (and the odd `reign` chronicle line) whil
 leaving the simulation's numbers byte-identical. Anything descriptive that must
 not perturb history should follow this pattern.
 
-### The tycoon layer (`src/game/`)
-
-A megacorp tycoon game sits on top of the engine (design: `docs/design/TYCOON.md`).
-Boundary rule: **`src/game/` may read `src/sim/`; `src/sim/` never imports
-`src/game/`.** Time runs on **two clocks** — the sim stays yearly and
-deterministic (authoritative keyframes), while the player lives at day resolution
-interpolating toward the next computed year (`game/clock.js`). The player is a
-price-taker at first (macro-sim byte-identical), becoming a price-maker through
-the `clock.onAdvance` → `capital.flushMacro` hook (lending, investment,
-statecraft mutate the world). A game is `seed + config + action-log`, so it
-saves/replays exactly (`game/save.js`). The one sim-side concession is the
-`f.player` flag (types.js), which only exists during a game — headless runs are
-unchanged. UI: `src/ui/tycoon/`.
-
 ### The yearly phase pipeline
 
 `sim/simulate.js` runs one year as an ordered list of phases, each a file in

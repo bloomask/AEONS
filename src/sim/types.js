@@ -113,9 +113,6 @@
  * @property {Ruler} [ruler]  The power's current leader (phases/figures.js). Descriptive:
  *   generated from a per-faction sub-rng, so it never touches the simulation's numbers.
  * @property {{p:number,s:number,t:number,st:number}[]} trace  Yearly pop/systems/treasury/stability (last 240).
- * @property {boolean} [player]  Player-chartered state (src/game): the sim runs its
- *   economy but never revolts, secedes, collapses, or expands it autonomously — the
- *   player governs it. Only set during a game, so headless runs are unaffected.
  * @property {number} [corpId]  Corporate states: id of the founding house.
  * @property {number} [lootY]   Pirate havens: loot taken this year.
  * @property {Object<string,number>} [grievance]  Pirate havens: decaying ledger of raid

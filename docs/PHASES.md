@@ -126,13 +126,18 @@ the `contraband` phase, so it is only guaranteed from `contraband` onward (pass
 ## 6. pirates — `phases/pirates.js`
 
 - **Reads:** `e.vol` (raidable traffic), `w.adj`/`jumpHops` (raid & suppression
-  reach), `f.{gov,treasury,grievance,stability,capital}`, member systems,
-  `w.relations`, `w.cfg.piracy`, `stats.wars` (demobilization spike).
+  reach; a new haven can't rise within raiding range of an existing one),
+  `f.{gov,treasury,grievance,stability,capital,fort}`, member systems,
+  `w.relations`, `w.cfg.piracy`, `stats.wars` (demob spike) + `stats.factionDeaths`
+  (collapse spike — masterless worlds breed havens).
 - **Mutates:** `s.wealth` (raided), `f.{treasury,lootY,grievance,stability,
-  capital}`, `s.fid/freePort` (recruits, burned-out havens, scattering fleets),
-  `s.lastWar`.
-- **Creates:** pirate havens (`foundPirateHaven`), raids/suppressions/scatters
-  + `stats.c.{raids,suppressions,pirateScatters}`; kills havens (`killFaction`).
+  capital,fort}`, `s.fid/freePort` (daughter anchorages, burned-out havens,
+  scattering fleets), `s.lastWar`. Plunder is spent into `f.fort` (saturating,
+  decaying fortification) rather than hoarded — this, not raw treasury, carries
+  a rooted haven's defensive strength against suppression.
+- **Creates:** pirate havens (`foundPirateHaven`), daughter anchorages, raids/
+  suppressions/scatters + `stats.c.{raids,suppressions,pirateScatters,pirateExpands}`;
+  kills havens (`killFaction`).
 - **Expects:** `trade` set `e.vol` (there is nothing to raid before it); runs
   after `politics` so this year's conquests and demob crews are settled.
 

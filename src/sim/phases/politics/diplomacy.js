@@ -1,6 +1,6 @@
 import { T, GOVS } from "../../constants.js";
 import { clamp, cultDist, avgCult } from "../../util.js";
-import { log, relKey, getRel } from "../../events.js";
+import { log, relKey, getRel, facRef } from "../../events.js";
 import { majorityFaith } from "../faith.js";
 import { warCause } from "../../explain.js";
 import { runWarYear } from "./war.js";
@@ -26,7 +26,10 @@ export function runDiplomacy(w, rng) {
           const k2 = relKey(A.id, B.id);
           for (const s of w.systems) if (s.siege && s.siege.pair === k2) s.siege = null;
           rel.war = null; rel.rivalry = 30;
-          log(w, "peace", `The war between the ${A.name} and the ${B.name} peters out — their frontiers no longer touch.`);
+          log(w, "peace", `The war between the ${A.name} and the ${B.name} peters out — their frontiers no longer touch.`, null, {
+            actors: [facRef(A), facRef(B)], cause: "peace.border-dissolved",
+            why: "their frontiers no longer touch — there was nothing left to fight over",
+          });
         }
         rel.rivalry = Math.max(0, rel.rivalry - 1);
         continue;
@@ -55,7 +58,11 @@ export function runDiplomacy(w, rng) {
         // accords need genuine calm and kinship — an aggressive galaxy rarely finds it
         rel.allied = rel.rivalry < Math.min(gA.allyRivalry, gB.allyRivalry) * w.cfg.diplomacy && cd < 0.25;
         if (rel.allied && !wasAllied) {
-          log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`);
+          log(w, "accord", `The ${A.name} and the ${B.name} sign open-lanes accords: no duties, no inspections, shared patrols.`, null, {
+            actors: [facRef(A), facRef(B)], cause: "accord.kinship",
+            why: `a calm frontier and kindred cultures (rivalry ${Math.round(rel.rivalry)})`,
+            effects: [{ k: "rivalry", v: Math.round(rel.rivalry) }],
+          });
         }
         if (!rel.embargo && rel.rivalry > T.EMBARGO_RIVALRY && rng.chance(Math.max(A.aggr, B.aggr) * 0.15 * w.cfg.aggression)) {
           rel.embargo = true;
@@ -63,10 +70,18 @@ export function runDiplomacy(w, rng) {
           log(w, "embargo", rng.pick([
             `The ${A.name} and the ${B.name} embargo one another. Customs houses shutter along the frontier.`,
             `Trade war: freighters are turned back at every gate between the ${A.name} and the ${B.name}.`,
-          ]));
+          ]), null, {
+            actors: [facRef(A), facRef(B)], cause: "embargo.rivalry",
+            why: `rivalry hardened to ${Math.round(rel.rivalry)} and spilled into the customs houses`,
+            effects: [{ k: "rivalry", v: Math.round(rel.rivalry) }],
+          });
         } else if (rel.embargo && rel.rivalry < 35) {
           rel.embargo = false;
-          log(w, "embargo", `The embargo between the ${A.name} and the ${B.name} is lifted. Freighters queue at the reopened gates.`);
+          log(w, "embargo", `The embargo between the ${A.name} and the ${B.name} is lifted. Freighters queue at the reopened gates.`, null, {
+            actors: [facRef(A), facRef(B)], cause: "embargo.lifted",
+            why: `rivalry cooled to ${Math.round(rel.rivalry)}`,
+            effects: [{ k: "rivalry", v: Math.round(rel.rivalry) }],
+          });
         }
         if (
           rel.rivalry > 55 && !rel.allied &&
@@ -93,7 +108,11 @@ export function runDiplomacy(w, rng) {
               `The ${A.name} and the ${B.name} go to war. Jumpgates between them fall silent.`,
               `War. ${A.name} warships mass along the ${B.name} frontier, and the trade lanes empty overnight.`,
               `Old grievances boil over: the ${A.name} and the ${B.name} take up arms.`,
-            ]));
+            ]), null, {
+            actors: [facRef(A), facRef(B)],
+            cause: `war.${cause.key}`, why: cause.label,
+            effects: [{ k: "rivalry", v: Math.round(rel.rivalry) }],
+          });
         }
       } else {
         runWarYear(w, rng, A, B, rel, border);

@@ -2,7 +2,7 @@ import {
   factionColor, FACTION_SUFFIX_AGGR, FACTION_SUFFIX_CALM,
   GOVS, PIRATE_COLORS, CORP_STATE_COLORS,
 } from "./constants.js";
-import { log } from "./events.js";
+import { log, facRef, houseRef, sysRef } from "./events.js";
 
 // tariffs everywhere scale with the configured multiplier, capped so a
 // duty never eats more than half a cargo's value
@@ -31,7 +31,10 @@ export function foundFaction(w, rng, cap, spread) {
     }
   }
   w.factions.push(f);
-  if (w.year > 0) log(w, "found", `${f.name} proclaimed at ${cap.name}.`, cap.id);
+  if (w.year > 0) log(w, "found", `${f.name} proclaimed at ${cap.name}.`, cap.id, {
+    actors: [facRef(f)], cause: "found.faction",
+    effects: [{ k: "owner", from: null, to: f.id }],
+  });
   return f;
 }
 
@@ -54,7 +57,11 @@ export function foundPirateHaven(w, rng, sys) {
   sys.fid = f.id;
   w.factions.push(f);
   w.stats.c.pirateHavens++;
-  log(w, "pirate", `${f.name} raise the black flag over ${sys.name}. No convoy on the nearby lanes is safe again.`, sys.id);
+  log(w, "pirate", `${f.name} raise the black flag over ${sys.name}. No convoy on the nearby lanes is safe again.`, sys.id, {
+    actors: [facRef(f)], targets: [sysRef(sys)], cause: "pirate.haven",
+    why: "a poor free world with prey in reach and no law nearby",
+    effects: [{ k: "owner", from: null, to: f.id }],
+  });
   return f;
 }
 
@@ -77,7 +84,12 @@ export function foundCorporateState(w, rng, h, sys) {
   h.stateId = f.id;
   w.factions.push(f);
   w.stats.c.charterStates++;
-  log(w, "corp", `${h.name} proclaims the ${f.name} at ${sys.name}. The boardroom becomes a government.`, sys.id);
+  log(w, "corp", `${h.name} proclaims the ${f.name} at ${sys.name}. The boardroom becomes a government.`, sys.id, {
+    actors: [houseRef(h), facRef(f)], targets: [sysRef(sys)],
+    cause: "corp.charter-state",
+    why: "a megacorp rich enough to want a flag of its own",
+    effects: [{ k: "owner", from: null, to: f.id }],
+  });
   return f;
 }
 
@@ -86,7 +98,10 @@ export function relocateCapital(w, f) {
   if (members.length) {
     members.sort((a, b) => b.pop - a.pop);
     f.capital = members[0].id;
-    log(w, "cap", `The ${f.name} moves its seat to ${members[0].name}.`, members[0].id);
+    log(w, "cap", `The ${f.name} moves its seat to ${members[0].name}.`, members[0].id, {
+      actors: [facRef(f)], cause: "politics.capital-moved",
+      why: "the old seat was lost or went dark",
+    });
   }
 }
 
@@ -109,9 +124,25 @@ export function killFaction(w, f, verb, cause = "extinction") {
   if (port && f.gov !== "pirate") {
     port.freePort = true;
     w.stats.c.freePorts++;
-    log(w, "found", `As the ${f.name} falls, ${port.name} declares itself a Free Port and keeps trading.`, port.id);
+    log(w, "found", `As the ${f.name} falls, ${port.name} declares itself a Free Port and keeps trading.`, port.id, {
+      actors: [sysRef(port)], targets: [facRef(f)], cause: "found.free-port",
+      why: `the fall of the ${f.name} left it masterless`,
+    });
   }
   for (const k of Object.keys(w.relations))
     if (k.split("|").map(Number).includes(f.id)) delete w.relations[k];
-  log(w, "collapse", `The ${f.name} ${verb}. (${f.foundedYear}–${w.year})`);
+  log(w, "collapse", `The ${f.name} ${verb}. (${f.foundedYear}–${w.year})`, null, {
+    actors: [facRef(f)], systems: freed.map((s) => s.id),
+    cause: `collapse.${cause}`,
+    why: {
+      bankruptcy: "its treasury sank past saving",
+      unrest: "its stability collapsed from within",
+      extinction: "its last worlds went silent",
+      suppression: "its last anchorage was burned out",
+    }[cause] || null,
+    effects: [
+      { k: "lifespan", v: w.year - f.foundedYear, u: "yr" },
+      { k: "worlds-freed", d: freed.length },
+    ],
+  });
 }

@@ -1,6 +1,6 @@
 import { clamp, jumpHops } from "../util.js";
 import { T } from "../constants.js";
-import { log } from "../events.js";
+import { log, facRef, sysRef } from "../events.js";
 import { foundPirateHaven, killFaction } from "../factions.js";
 
 // lane volume a ship based at `sysId` can reach through the gates —
@@ -104,7 +104,13 @@ export function runPirates(w, rng, alive) {
       log(w, "raid", rng.pick([
         `${f.name} take a convoy on the ${w.systems[richest.a].name}–${w.systems[richest.b].name} lane. Insurance rates triple.`,
         `Black sails on the ${w.systems[richest.a].name}–${w.systems[richest.b].name} run: freighters arrive stripped to the frames, or not at all.`,
-      ]), f.capital);
+      ]), f.capital, {
+        actors: [facRef(f)],
+        targets: [sysRef(richest.a), sysRef(richest.b)],
+        systems: [richest.a, richest.b],
+        cause: "raid.convoy", why: "the busiest lane within striking range of the haven",
+        effects: [{ k: "plunder", d: loot, u: "cr" }],
+      });
     }
 
     // a haven is only as loyal as its last haul: fat years bind the crews,
@@ -123,7 +129,11 @@ export function runPirates(w, rng, alive) {
         if (o) {
           o.fid = f.id;
           o.freePort = false;
-          log(w, "pirate", `The black banners of ${f.name} rise over ${o.name}.`, o.id);
+          log(w, "pirate", `The black banners of ${f.name} rise over ${o.name}.`, o.id, {
+            actors: [facRef(f)], targets: [sysRef(o)], cause: "pirate.expansion",
+            why: "a hungry free neighbor joined a haven fat on plunder",
+            effects: [{ k: "owner", from: null, to: f.id }],
+          });
           break;
         }
       }
@@ -186,18 +196,33 @@ export function runPirates(w, rng, alive) {
             refuge.freePort = false;
             f.stability = 0.5;
             w.stats.c.pirateScatters++;
-            log(w, "pirate", `Burned out of ${haven.name}, the ${f.name} slip away down the dark lanes. Two winters later the black flag rises over ${refuge.name}.`, refuge.id);
+            log(w, "pirate", `Burned out of ${haven.name}, the ${f.name} slip away down the dark lanes. Two winters later the black flag rises over ${refuge.name}.`, refuge.id, {
+              actors: [facRef(f)], targets: [facRef(hunter)],
+              systems: [haven.id, refuge.id],
+              cause: "pirate.scattered",
+              why: `the ${hunter.name}'s punitive squadron burned out the old anchorage`,
+              effects: [{ k: "owner", from: null, to: f.id }],
+            });
           } else {
             killFaction(w, f, "is burned out of its last anchorage; the survivors scatter into the dark", "suppression");
           }
         } else {
-          log(w, "pirate", `The ${hunter.name} burns out the corsair haven at ${haven.name}. The wrecks smoulder in orbit for years.`, haven.id);
+          log(w, "pirate", `The ${hunter.name} burns out the corsair haven at ${haven.name}. The wrecks smoulder in orbit for years.`, haven.id, {
+            actors: [facRef(hunter)], targets: [facRef(f), sysRef(haven)],
+            cause: "pirate.suppressed",
+            why: "the ledger of raid losses finally outweighed the cost of a fleet",
+            effects: [{ k: "owner", from: f.id, to: null }],
+          });
           const rest = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
           if (rest.length) f.capital = rest[0].id;
         }
       } else {
         f.treasury += cost * 0.5; // salvage and ransoms from the mauled squadron
-        log(w, "raid", `The ${hunter.name}'s punitive squadron is ambushed in the shoals off ${w.systems[f.capital].name} and limps home.`, f.capital);
+        log(w, "raid", `The ${hunter.name}'s punitive squadron is ambushed in the shoals off ${w.systems[f.capital].name} and limps home.`, f.capital, {
+          actors: [facRef(f)], targets: [facRef(hunter)], cause: "raid.ambush",
+          why: "the corsairs knew their own shoals better than the admiralty's charts",
+          effects: [{ k: "plunder", d: cost * 0.5, u: "cr" }],
+        });
       }
     }
   }

@@ -1,6 +1,6 @@
 import { T, BASE_PRICE, allowsDrugs, allowsSlaves } from "../constants.js";
 import { clamp } from "../util.js";
-import { log } from "../events.js";
+import { log, facRef, sysRef } from "../events.js";
 import { addWorkers } from "../society.js";
 
 // --- the underworld: narcotics and the slave trade ---
@@ -42,7 +42,11 @@ export function runContraband(w, rng, alive) {
         if (dst.fid !== null) w.factions[dst.fid].treasury += q * dst.price.drugs * 0.15;
         w.stats.c.drugBust++;
         if (q > 1.5 && rng.chance(0.3))
-          log(w, "drug", `Customs cutters off ${dst.name} seize a narcotics run out of ${src.name}. The wharves smell of burning contraband for a week.`, dst.id);
+          log(w, "drug", `Customs cutters off ${dst.name} seize a narcotics run out of ${src.name}. The wharves smell of burning contraband for a week.`, dst.id, {
+            actors: [sysRef(dst)], targets: [sysRef(src)], systems: [src.id],
+            cause: "drug.bust", why: "the run crossed a border where the trade is banned",
+            effects: [{ k: "drugs", d: -q }],
+          });
         continue;
       }
       src.drugs -= q;
@@ -72,7 +76,11 @@ export function runContraband(w, rng, alive) {
         addWorkers(s, freed);
         w.stats.c.slavesFreed++;
         if (freed > 0.5)
-          log(w, "slave", `Abolition reaches ${s.name}: ${freed.toFixed(1)}M are struck from the ledgers and freed into the workers' ranks.`, s.id);
+          log(w, "slave", `Abolition reaches ${s.name}: ${freed.toFixed(1)}M are struck from the ledgers and freed into the workers' ranks.`, s.id, {
+            sev: 2, actors: [sysRef(s)], cause: "slave.abolition",
+            why: "bondage became unlawful under the flag now flying here",
+            effects: [{ k: "slaves", d: -freed, u: "M" }, { k: "pop", d: freed, u: "M" }],
+          });
       }
       s.price.slaves = 0; // no market here
       continue;
@@ -101,7 +109,11 @@ export function runContraband(w, rng, alive) {
     lo.tradeOut += pay; hi.tradeIn += pay;
     w.stats.c.slaveTrade++;
     if (q > 1 && rng.chance(0.15))
-      log(w, "slave", `Slavers ship ${q.toFixed(1)}M in bondage down the ${lo.name}–${hi.name} lane to the blocks of ${hi.name}.`, hi.id);
+      log(w, "slave", `Slavers ship ${q.toFixed(1)}M in bondage down the ${lo.name}–${hi.name} lane to the blocks of ${hi.name}.`, hi.id, {
+        actors: [sysRef(lo)], targets: [sysRef(hi)], systems: [lo.id],
+        cause: "slave.trade", why: "the price gradient pulls captives to the great estates",
+        effects: [{ k: "slaves", d: q, u: "M" }],
+      });
   }
 
   // holding, unrest, and revolt at each slaving world
@@ -114,7 +126,11 @@ export function runContraband(w, rng, alive) {
       s.pop -= sold; s.slaves += sold;
       s.wealth += sold * s.price.slaves * 0.5;
       w.stats.c.slaveTrade++;
-      log(w, "slave", `Hunger drives ${s.name} to the block: ${sold.toFixed(1)}M sell themselves or their children into bondage.`, s.id);
+      log(w, "slave", `Hunger drives ${s.name} to the block: ${sold.toFixed(1)}M sell themselves or their children into bondage.`, s.id, {
+        actors: [sysRef(s)], cause: "slave.debt-bondage",
+        why: "a starving world in a slaving realm sold its own poor",
+        effects: [{ k: "pop", d: -sold, u: "M" }, { k: "slaves", d: sold, u: "M" }],
+      });
     }
 
     s.slaves *= 0.995; // bondage is lethal; the numbers thin without fresh captives
@@ -134,7 +150,15 @@ export function runContraband(w, rng, alive) {
         log(w, "slave", rng.pick([
           `Slave uprising at ${s.name}: the chains are broken in fire, the estates burn, and ${(freed - killed).toFixed(1)}M walk free.`,
           `${s.name} rises — the bonded overrun the compounds. Blood on the terraces, and a new free underclass by dawn.`,
-        ]), s.id);
+        ]), s.id, {
+          sev: 2, actors: [sysRef(s)], cause: "slave.revolt",
+          why: "the bonded grew numerous and angry enough to break their chains",
+          effects: [
+            { k: "slaves", d: -freed, u: "M" },
+            { k: "pop", d: freed - killed, u: "M" },
+            { k: "wealth", d: -20, u: "cr" },
+          ],
+        });
       }
     }
   }
@@ -154,6 +178,10 @@ export function runContraband(w, rng, alive) {
     victim.pop -= taken; haven.slaves += taken;
     victim.lastWar = w.year;
     w.stats.c.enslaved++;
-    log(w, "slave", `Corsairs of ${f.name} fall on ${victim.name} and carry off ${taken.toFixed(1)}M to the blocks of ${haven.name}.`, victim.id);
+    log(w, "slave", `Corsairs of ${f.name} fall on ${victim.name} and carry off ${taken.toFixed(1)}M to the blocks of ${haven.name}.`, victim.id, {
+      actors: [facRef(f)], targets: [sysRef(victim)], systems: [haven.id],
+      cause: "slave.raid", why: "a corsair haven works the slave trade off its neighbors",
+      effects: [{ k: "pop", d: -taken, u: "M" }, { k: "slaves", d: taken, u: "M" }],
+    });
   }
 }

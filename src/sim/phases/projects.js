@@ -1,5 +1,5 @@
 import { PROJECT_TYPES } from "../constants.js";
-import { log } from "../events.js";
+import { log, facRef, sysRef } from "../events.js";
 
 // Deliver a finished megaproject: flip its flags, apply its permanent effect,
 // and write the completion into the chronicle. Shared by the yearly funding
@@ -10,17 +10,23 @@ export function completeProject(w, p) {
   p.done = true;
   p.endedYear = w.year;
   w.stats.c.megaBuilt++;
+  const meta = (effects = []) => ({
+    actors: [facRef(p.fid), sysRef(s)], cause: "mega.completed",
+    why: `${w.year - p.started} years of treasury funding reached the finish`,
+    effects: [{ k: "build-years", v: w.year - p.started, u: "yr" }, ...effects],
+  });
   if (p.type === "nexus") {
     s.mega.nexus = true;
-    log(w, "mega", `The ${p.name} of ${s.name} is complete after ${w.year - p.started} years — freighters queue a hundred deep to ride its gates.`, s.id);
+    log(w, "mega", `The ${p.name} of ${s.name} is complete after ${w.year - p.started} years — freighters queue a hundred deep to ride its gates.`, s.id, meta());
   } else if (p.type === "arcology") {
     s.mega.arcology = true;
-    log(w, "mega", `The ${p.name} above ${s.name} opens its ring-cities after ${w.year - p.started} years. Millions look down on the old world.`, s.id);
+    log(w, "mega", `The ${p.name} above ${s.name} opens its ring-cities after ${w.year - p.started} years. Millions look down on the old world.`, s.id, meta());
   } else {
     s.fert = Math.min(1, s.fert + 0.35);
     s.hab = Math.min(1, s.hab + 0.25);
     s.mega.terraformed = true;
-    log(w, "mega", `After ${w.year - p.started} years the ${p.name} at ${s.name} falls quiet: the rains have come, and the rock is green.`, s.id);
+    log(w, "mega", `After ${w.year - p.started} years the ${p.name} at ${s.name} falls quiet: the rains have come, and the rock is green.`, s.id,
+      meta([{ k: "fertility", d: 0.35 }, { k: "habitability", d: 0.25 }]));
   }
 }
 
@@ -34,7 +40,13 @@ export function runProjects(w, rng) {
     if (!f || f.dead || s.fid !== p.fid || s.pop <= 0.05) {
       p.abandoned = true; p.endedYear = w.year;
       w.stats.c.megaAbandoned++;
-      log(w, "mega", `Work on the ${p.name} at ${s.name} falls silent, ${Math.round((p.progress / p.cost) * 100)}% built. The scaffolds will outlive their builders.`, p.sysId);
+      log(w, "mega", `Work on the ${p.name} at ${s.name} falls silent, ${Math.round((p.progress / p.cost) * 100)}% built. The scaffolds will outlive their builders.`, p.sysId, {
+        actors: [facRef(p.fid)], cause: "mega.abandoned",
+        why: !f || f.dead ? "its patron power fell"
+          : s.fid !== p.fid ? "the site changed hands"
+            : "the site went dark",
+        effects: [{ k: "built", v: Math.round((p.progress / p.cost) * 100), u: "%" }],
+      });
       continue;
     }
     if (f.treasury <= 60) continue;
@@ -81,6 +93,10 @@ export function runProjects(w, rng) {
     });
     w.stats.c.megaStarted++;
     const art = /^[AEIOU]/.test(spec.name) ? "an" : "a";
-    log(w, "mega", `The ${f.name} breaks ground on ${art} ${spec.name} at ${sys.name} — ${spec.blurb}. A work of generations.`, sys.id);
+    log(w, "mega", `The ${f.name} breaks ground on ${art} ${spec.name} at ${sys.name} — ${spec.blurb}. A work of generations.`, sys.id, {
+      actors: [facRef(f)], targets: [sysRef(sys)], cause: "mega.started",
+      why: "a rich, unburdened treasury turned to something monumental",
+      effects: [{ k: "cost", v: spec.cost, u: "cr" }],
+    });
   }
 }

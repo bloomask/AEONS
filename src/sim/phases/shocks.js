@@ -1,6 +1,6 @@
 import { GOODS, techFx } from "../constants.js";
 import { clamp, dist2 } from "../util.js";
-import { log } from "../events.js";
+import { log, sysRef } from "../events.js";
 import { rebuildAdj } from "../galaxy.js";
 import { skewDeaths } from "../society.js";
 
@@ -16,6 +16,7 @@ export function runShocks(w, rng, alive) {
       // it; each medical age since the founding blunts it further
       const med = clamp(s.stock.medicine / (s.pop * 0.25 + 0.01), 0, 1);
       const before = s.pop;
+      const med0 = s.stock.medicine;
       s.pop *= Math.min(0.97, rng.range(0.4, 0.7) + 0.25 * med + techFx(w).med);
       s.stock.medicine *= 0.2;
       skewDeaths(s, (before - s.pop) / before); // the poor quarters bury the most
@@ -25,24 +26,44 @@ export function runShocks(w, rng, alive) {
         med > 0.5
           ? `Plague sweeps ${s.name}, but its clinics hold the line; the pharmacopoeia is spent to the last vial.`
           : `Plague sweeps ${s.name}. Quarantine beacons burn for a generation.`,
-        s.id);
+        s.id, {
+          actors: [sysRef(s)], cause: "plague.outbreak",
+          why: med > 0.5
+            ? "an outbreak blunted by well-stocked clinics"
+            : "an outbreak against bare clinics — the toll ran high",
+          effects: [
+            { k: "pop", d: -(before - s.pop), u: "M" },
+            { k: "medicine", d: -(med0 - s.stock.medicine) },
+          ],
+        });
     }
     if (rng.chance(0.005 * w.cfg.oreStrikes)) {
-      s.minRes += s.minRes0 * rng.range(0.4, 1.2);
+      const found = s.minRes0 * rng.range(0.4, 1.2);
+      s.minRes += found;
       w.stats.c.strike++;
-      log(w, "strike", `Vast new ore seams discovered at ${s.name}. Prospectors flood in.`, s.id);
+      log(w, "strike", `Vast new ore seams discovered at ${s.name}. Prospectors flood in.`, s.id, {
+        actors: [sysRef(s)], cause: "strike.ore",
+        effects: [{ k: "ore-reserves", d: found }],
+      });
     }
     if (rng.chance(0.002 * w.cfg.flare)) {
       for (const g of GOODS) s.stock[g] *= 0.5;
       w.stats.c.flare++;
-      log(w, "flare", `A stellar flare scours the orbitals of ${s.name}; stockpiles are lost.`, s.id);
+      log(w, "flare", `A stellar flare scours the orbitals of ${s.name}; stockpiles are lost.`, s.id, {
+        actors: [sysRef(s)], cause: "flare.stellar",
+        why: "the system's own sun turned on it",
+        effects: [{ k: "stockpiles", v: -50, u: "%" }],
+      });
     }
   }
   if (rng.chance(0.02 * w.cfg.gateFlux) && w.edges.length > w.systems.length) {
     const ei = rng.int(0, w.edges.length - 1);
     const e = w.edges[ei];
     w.stats.c.gateClose++;
-    log(w, "gate", `The jumpgate between ${w.systems[e.a].name} and ${w.systems[e.b].name} collapses.`);
+    log(w, "gate", `The jumpgate between ${w.systems[e.a].name} and ${w.systems[e.b].name} collapses.`, null, {
+      systems: [e.a, e.b], cause: "gate.collapsed",
+      why: "gate flux — the lanes themselves are not forever",
+    });
     w.edges.splice(ei, 1); rebuildAdj(w);
   }
   if (rng.chance(0.02 * w.cfg.gateFlux)) {
@@ -53,7 +74,10 @@ export function runShocks(w, rng, alive) {
         w.edges.push({ a, b, d: dist2(w.systems[a], w.systems[b]), vol: 0, net: 0 });
         rebuildAdj(w);
         w.stats.c.gateOpen++;
-        log(w, "gate", `A new jumpgate opens between ${w.systems[a].name} and ${w.systems[b].name}.`);
+        log(w, "gate", `A new jumpgate opens between ${w.systems[a].name} and ${w.systems[b].name}.`, null, {
+          systems: [a, b], cause: "gate.opened",
+          why: "gate flux — a new lane where none was charted",
+        });
         break;
       }
     }

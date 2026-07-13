@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { GOVS } from "../../sim/constants.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
-import { relKey } from "../../sim/events.js";
+import { relKey, eventInvolves } from "../../sim/events.js";
+import { lastEvents } from "../chronicle.js";
 import { fmtPop, fmtCredits } from "../format.js";
 
 const GOV_DESC = {
@@ -115,7 +116,9 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
   const fp = members.reduce((a, s) => a + s.pop, 0);
   const myWars = wars.filter(({ k }) => k.split("|").map(Number).includes(f.id));
   const trace = f.trace || [];
-  const mentions = [...w.events].reverse().filter((ev) => ev.s.includes(f.name)).slice(0, 10);
+  // structured involvement — the power appears among the event's recorded
+  // actors or targets, never a text match against its (renameable) name
+  const mentions = lastEvents(w, (ev) => eventInvolves(ev, "faction", f.id), 10);
   const Trait = ({ label, v, color }) => (
     <div className="flex items-center gap-2">
       <span className="w-24 muted">{label}</span>
@@ -199,8 +202,8 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
       </Section>
       {mentions.length > 0 && (
         <Section title="in the chronicle">
-          {mentions.map((ev, i) => (
-            <div key={i} className="mb-1.5 flex gap-2.5">
+          {mentions.map((ev) => (
+            <div key={ev.i} className="mb-1.5 flex gap-2.5">
               <span style={{ color: "var(--amber)", minWidth: 34 }}>{ev.y}</span>
               <span className="muted">{ev.s}</span>
             </div>

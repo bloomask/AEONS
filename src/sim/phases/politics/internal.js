@@ -1,6 +1,6 @@
 import { T, GOVS } from "../../constants.js";
 import { clamp, dist2, cultDist, avgCult } from "../../util.js";
-import { log } from "../../events.js";
+import { log, facRef, sysRef } from "../../events.js";
 import { foundPirateHaven, killFaction } from "../../factions.js";
 import { revolt } from "./revolt.js";
 
@@ -16,7 +16,10 @@ export function runInternalPolitics(w, rng) {
     f.peakPop = Math.max(f.peakPop, members.reduce((a, s) => a + s.pop, 0));
     if (members.length > w.records.largestRealm) {
       w.records.largestRealm = members.length;
-      log(w, "era", `The ${f.name} now rules ${members.length} systems — the greatest realm the galaxy has yet known.`);
+      log(w, "era", `The ${f.name} now rules ${members.length} systems — the greatest realm the galaxy has yet known.`, null, {
+        actors: [facRef(f)], cause: "record.largest-realm",
+        effects: [{ k: "systems", v: members.length }],
+      });
     }
 
     const gov = GOVS[f.gov] || GOVS.republic;
@@ -61,10 +64,13 @@ export function runInternalPolitics(w, rng) {
     const crisis = f.treasury < -40 || f.stability < 0.45;
     if (f.gov === "empire" && crisis && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "republic", (oldName, newName) =>
-        `Revolution at ${cap.name}: crowds pull down the imperial sigils, and the ${oldName} is proclaimed the ${newName}.`);
+        `Revolution at ${cap.name}: crowds pull down the imperial sigils, and the ${oldName} is proclaimed the ${newName}.`,
+      "revolution.crisis",
+      f.treasury < -40 ? "a bankrupt crown could no longer pay for its own throne" : "a crumbling dynasty lost its grip");
     } else if (f.gov === "republic" && atWar && (crisis || f.stability < 0.5) && rng.chance(0.25 * w.cfg.upheaval)) {
       revolt(w, rng, f, "empire", (oldName, newName) =>
-        `The generals suspend the assembly of the ${oldName}. It wakes as the ${newName}.`);
+        `The generals suspend the assembly of the ${oldName}. It wakes as the ${newName}.`,
+      "revolution.crisis", "a desperate wartime republic fell to its own generals");
     }
 
     // a great trade hub under a heavy-handed crown may simply buy its way out
@@ -77,7 +83,11 @@ export function runInternalPolitics(w, rng) {
         hub.wealth -= 80;
         f.treasury += 60;
         w.stats.c.freePorts++;
-        log(w, "found", `${hub.name} buys its charter from the ${f.name} outright. The Free Port of ${hub.name} opens its docks to all flags.`, hub.id);
+        log(w, "found", `${hub.name} buys its charter from the ${f.name} outright. The Free Port of ${hub.name} opens its docks to all flags.`, hub.id, {
+          actors: [sysRef(hub)], targets: [facRef(f)], cause: "found.charter-bought",
+          why: `a great trade hub under a crown too unsteady to refuse the price`,
+          effects: [{ k: "owner", from: f.id, to: null }, { k: "credits", d: -80, u: "cr" }],
+        });
       }
     }
 
@@ -97,11 +107,18 @@ export function runInternalPolitics(w, rng) {
         if (rng.chance((0.04 + cultDist(s.cult, fCult) * 0.1 + (s.unrest || 0) * 0.04) * w.cfg.upheaval)) {
           s.fid = null;
           w.stats.c.secede++;
-          log(w, "secede", `${s.name} declares independence from the ${f.name}.`, s.id);
+          log(w, "secede", `${s.name} declares independence from the ${f.name}.`, s.id, {
+            actors: [sysRef(s)], targets: [facRef(f)], cause: "secede.unrest",
+            why: `the ${f.name}'s grip failed (stability ${(f.stability * 100).toFixed(0)}%) and the fringe slipped it`,
+            effects: [{ k: "owner", from: f.id, to: null }],
+          });
           if (s.wealth > 50) {
             s.freePort = true;
             w.stats.c.freePorts++;
-            log(w, "found", `${s.name} charters itself a Free Port. The customs men are put on the first ship out.`, s.id);
+            log(w, "found", `${s.name} charters itself a Free Port. The customs men are put on the first ship out.`, s.id, {
+              actors: [sysRef(s)], cause: "found.free-port",
+              why: "rich enough at independence to buy neutrality",
+            });
           } else if (s.wb < 0.55 && rng.chance(0.3)) foundPirateHaven(w, rng, s);
         }
       }
@@ -137,7 +154,11 @@ export function runInternalPolitics(w, rng) {
           tgt.fid = f.id;
           tgt.freePort = false; // bought out, charter and all
           w.stats.c.annex++;
-          log(w, "annex", `The ${f.name} purchases the charter of ${tgt.name}. The customs houses reopen under a company seal.`, tgt.id);
+          log(w, "annex", `The ${f.name} purchases the charter of ${tgt.name}. The customs houses reopen under a company seal.`, tgt.id, {
+            actors: [facRef(f)], targets: [sysRef(tgt)], cause: "annex.purchased",
+            why: "a charter is bought, not taken — and this port was worth the price",
+            effects: [{ k: "owner", from: null, to: f.id }, { k: "credits", d: -cost, u: "cr" }],
+          });
         }
       } else {
         // true free ports are beyond any state's reach: too connected,
@@ -150,14 +171,22 @@ export function runInternalPolitics(w, rng) {
         const resisted = tgt && tgt.wealth > 45 && rng.chance(f.gov === "empire" ? 0.55 : 0.75);
         // republics only welcome kin; empires take what borders them
         if (tgt && !resisted && (f.gov === "empire" || cd < 0.35)) {
+          const byAccord = f.gov === "republic" || cd < 0.25;
           f.treasury -= (20 + cd * 30) * (f.gov === "empire" ? 0.85 : 1);
           tgt.fid = f.id;
           w.stats.c.annex++;
           log(w, "annex",
-            f.gov === "republic" || cd < 0.25
+            byAccord
               ? `${tgt.name} joins the ${f.name} by accord.`
               : `The ${f.name} subjugates ${tgt.name}.`,
-            tgt.id);
+            tgt.id, {
+              actors: [facRef(f)], targets: [sysRef(tgt)],
+              cause: byAccord ? "annex.accord" : "annex.subjugation",
+              why: byAccord
+                ? "kindred culture on a shared frontier"
+                : "an empire takes what borders it",
+              effects: [{ k: "owner", from: null, to: f.id }],
+            });
         }
       }
     }

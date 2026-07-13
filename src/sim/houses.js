@@ -1,7 +1,7 @@
 import { T, GOOD_LABEL } from "./constants.js";
 import { dist2 } from "./util.js";
 import { genHouseName } from "./names.js";
-import { log } from "./events.js";
+import { log, houseRef } from "./events.js";
 
 export function foundHouse(w, rng, home, ships, wealth) {
   const h = {
@@ -15,7 +15,10 @@ export function foundHouse(w, rng, home, ships, wealth) {
   w.houses.push(h);
   if (w.year > 0) {
     w.stats.c.houseFounded++;
-    log(w, "house", `${h.name} is chartered at ${home.name}, ${ships.toFixed(0)} hulls under its banner.`, home.id);
+    log(w, "house", `${h.name} is chartered at ${home.name}, ${ships.toFixed(0)} hulls under its banner.`, home.id, {
+      actors: [houseRef(h)], cause: "house.chartered",
+      effects: [{ k: "ships", v: Math.round(ships) }],
+    });
   }
   return h;
 }
@@ -39,7 +42,11 @@ export function runHouseIntrigues(w, rng) {
       w.stats.c.cartelBroken++;
       log(w, "corp", memberDied
         ? `The ${c.name} dissolves with the ruin of its members; ${GOOD_LABEL[c.good]} prices tumble overnight.`
-        : `The ${c.name} breaks apart amid accusations of secret discounts. The ${GOOD_LABEL[c.good]} market is free again — for now.`);
+        : `The ${c.name} breaks apart amid accusations of secret discounts. The ${GOOD_LABEL[c.good]} market is free again — for now.`,
+      null, {
+        actors: c.members.map(houseRef), cause: "cartel.dissolved",
+        why: memberDied ? "a member house was ruined" : "the members fell to quarrelling over secret discounts",
+      });
     }
   }
   // formation: two or three rich corps corner a high-value good
@@ -55,7 +62,10 @@ export function runHouseIntrigues(w, rng) {
     members.forEach((hid) => inCartel.add(hid));
     cartelized.add(g);
     w.stats.c.cartelFormed++;
-    log(w, "corp", `${name} is signed in a closed room: ${members.map((hid) => w.houses[hid].name).join(" and ")} will set the price of ${GOOD_LABEL[g]} together.`);
+    log(w, "corp", `${name} is signed in a closed room: ${members.map((hid) => w.houses[hid].name).join(" and ")} will set the price of ${GOOD_LABEL[g]} together.`, null, {
+      actors: members.map(houseRef), cause: "cartel.formed",
+      why: `to corner the ${GOOD_LABEL[g]} trade`,
+    });
   }
   // the skim: importers pay a private duty on every cartelized unit
   w.cartelMul = {};
@@ -84,14 +94,21 @@ export function runHouseIntrigues(w, rng) {
     r.wealth -= r.wealth * 0.012 + 0.5;
     if (rng.chance(0.06)) {
       const [victim, culprit] = rng.chance(0.5) ? [h, r] : [r, h];
+      const hullsLost = victim.ships * 0.06;
       victim.ships *= 0.94;
       victim.wealth -= 8;
       w.stats.c.raids++;
-      log(w, "raid", `Freighters of ${victim.name} burn in the roads off ${w.systems[victim.home].name}. No flag claims the deed; everyone names ${culprit.name}.`, victim.home);
+      log(w, "raid", `Freighters of ${victim.name} burn in the roads off ${w.systems[victim.home].name}. No flag claims the deed; everyone names ${culprit.name}.`, victim.home, {
+        actors: [houseRef(culprit)], targets: [houseRef(victim)],
+        cause: "feud.sabotage", why: "an open feud over the same lanes",
+        effects: [{ k: "ships", d: -hullsLost }, { k: "wealth", d: -8, u: "cr" }],
+      });
     }
     if (rng.chance(0.05)) {
       h.feud = null; r.feud = null;
-      log(w, "house", `${h.name} and ${r.name} end their feud over a table at a neutral port. The insurers breathe again.`);
+      log(w, "house", `${h.name} and ${r.name} end their feud over a table at a neutral port. The insurers breathe again.`, null, {
+        actors: [houseRef(h), houseRef(r)], cause: "feud.settled",
+      });
       continue;
     }
     // the kill: a giant swallows a bleeding rival
@@ -102,7 +119,11 @@ export function runHouseIntrigues(w, rng) {
       small.dead = true; small.diedYear = w.year; small.absorbedBy = big.id;
       small.feud = null; big.feud = null;
       w.stats.c.takeover++;
-      log(w, "corp", `${big.name} swallows ${small.name} whole — hulls reflagged, name struck from the registries after ${w.year - small.foundedYear} years.`, big.home);
+      log(w, "corp", `${big.name} swallows ${small.name} whole — hulls reflagged, name struck from the registries after ${w.year - small.foundedYear} years.`, big.home, {
+        actors: [houseRef(big)], targets: [houseRef(small)],
+        cause: "feud.takeover", why: "the feud bled the smaller house until it could be bought",
+        effects: [{ k: "ships", d: small.ships * 0.8 }, { k: "lifespan", v: w.year - small.foundedYear, u: "yr" }],
+      });
     }
   }
   // new feuds: two rich houses working the same waters
@@ -115,7 +136,10 @@ export function runHouseIntrigues(w, rng) {
         if (!rng.chance(0.3)) continue;
         a.feud = b.id; b.feud = a.id;
         w.stats.c.feudStarted++;
-        log(w, "house", `${a.name} and ${b.name} fall into open feud over the same lanes. Dockside brawls first; burnt manifests will follow.`);
+        log(w, "house", `${a.name} and ${b.name} fall into open feud over the same lanes. Dockside brawls first; burnt manifests will follow.`, null, {
+          actors: [houseRef(a), houseRef(b)], cause: "feud.started",
+          why: "two rich houses working the same waters",
+        });
         return; // at most one new feud a year
       }
     }
@@ -130,6 +154,10 @@ export function runHouseIntrigues(w, rng) {
     const price = hulls * T.SHIP_COST * 0.4;
     buyer.wealth -= price;
     buyer.ships += hulls;
-    log(w, "house", `${buyer.name} buys ${hulls.toFixed(0)} seized hulls of ${h.name} at auction, for ${price.toFixed(0)}cr on the credit.`, buyer.home);
+    log(w, "house", `${buyer.name} buys ${hulls.toFixed(0)} seized hulls of ${h.name} at auction, for ${price.toFixed(0)}cr on the credit.`, buyer.home, {
+      actors: [houseRef(buyer)], targets: [houseRef(h)], cause: "house.salvage",
+      why: `${h.name} went under and its fleet went to auction`,
+      effects: [{ k: "ships", d: hulls }, { k: "credits", d: -price, u: "cr" }],
+    });
   }
 }

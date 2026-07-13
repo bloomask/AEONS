@@ -207,7 +207,10 @@ the `contraband` phase, so it is only guaranteed from `contraband` onward (pass
 - **Reads:** the whole settled world (pop, price, wb, unrest, classes, fid,
   faction/house liveness, `e.vol`, `w.loans`, `w.credit`, `w.tech`).
 - **Mutates:** appends `stats.series[year]`; per-system `s.trace`; per-faction
-  `f.trace`; `w.{peaceYears,popPeak100,era,eras}`.
+  `f.trace`; `w.{peaceYears,popPeak100,era,eras}`. Once a decade it also runs
+  `compactChronicle` (events.js): minor (sev 1) events past their keep window
+  are folded out of `w.events` into the per-decade digests in `w.eventAgg` —
+  major/notable events are never touched.
 - **Creates:** the yearly stats row (what `buildStats` and the balance lab read)
   and era-name events.
 - **Expects:** runs **last** — every other phase has finished mutating, so the

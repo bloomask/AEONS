@@ -1,6 +1,6 @@
 import { T, GOODS, FREIGHT_COST, techFx } from "../constants.js";
 import { dist2 } from "../util.js";
-import { log, getRel } from "../events.js";
+import { log, getRel, houseRef, sysRef } from "../events.js";
 import { foundHouse, runHouseIntrigues } from "../houses.js";
 import { foundCorporateState } from "../factions.js";
 
@@ -123,7 +123,11 @@ export function runTrade(w, rng) {
         `${base} TransStellar`, `The ${base} Group`,
       ]);
       w.stats.c.corpFounded++;
-      log(w, "corp", `${oldName} incorporates as ${h.name}. Its charters now span half the lanes of the galaxy.`, h.home);
+      log(w, "corp", `${oldName} incorporates as ${h.name}. Its charters now span half the lanes of the galaxy.`, h.home, {
+        actors: [houseRef(h)], cause: "corp.incorporated",
+        why: "a house grown past the threshold of wealth and hulls",
+        effects: [{ k: "ships", v: Math.round(h.ships) }],
+      });
     }
 
     // megacorps run depots at busy ports: the port gets docks, the corp a cut
@@ -141,7 +145,11 @@ export function runTrade(w, rng) {
           cand.depots.push(h.id);
           cand.infra.gate = Math.min(3, cand.infra.gate + 1);
           w.stats.c.depotBuilt++;
-          log(w, "corp", `${h.name} opens a freight depot at ${cand.name}; new docks rise over the port.`, cand.id);
+          log(w, "corp", `${h.name} opens a freight depot at ${cand.name}; new docks rise over the port.`, cand.id, {
+            actors: [houseRef(h)], targets: [sysRef(cand)], cause: "corp.depot",
+            why: "the busiest port within the corp's reach",
+            effects: [{ k: "credits", d: -60, u: "cr" }],
+          });
         }
       }
       for (const sid of h.depots) {
@@ -184,7 +192,10 @@ export function runTrade(w, rng) {
     if (h.trace.length > 240) h.trace.shift();
     if (h.wealth > w.records.richestHouse) {
       w.records.richestHouse = h.wealth;
-      log(w, "house", `${h.name} now commands the greatest fortune in galactic history.`, h.home);
+      log(w, "house", `${h.name} now commands the greatest fortune in galactic history.`, h.home, {
+        actors: [houseRef(h)], cause: "record.richest-house",
+        effects: [{ k: "wealth", v: Math.round(h.wealth), u: "cr" }],
+      });
     }
     if (h.wealth > 300) {
       const div = (h.wealth - 300) * 0.12;
@@ -196,7 +207,11 @@ export function runTrade(w, rng) {
       if (liv.length) {
         const next = liv.reduce((a, b) => (a.wealth > b.wealth ? a : b));
         h.home = next.id; h.wealth -= 30;
-        log(w, "house", `${h.name} abandons its dead seat and reflags at ${next.name}.`, next.id);
+        log(w, "house", `${h.name} abandons its dead seat and reflags at ${next.name}.`, next.id, {
+          actors: [houseRef(h)], targets: [sysRef(next)], cause: "house.reflagged",
+          why: "its home port went dark under it",
+          effects: [{ k: "credits", d: -30, u: "cr" }],
+        });
       }
     }
     // fleets are bought on credit — in a crunch only the very rich expand
@@ -207,7 +222,11 @@ export function runTrade(w, rng) {
     if (h.wealth < -30) {
       h.dead = true; h.diedYear = w.year;
       w.stats.c.houseBankrupt++;
-      log(w, "house", `${h.name} is declared bankrupt after ${w.year - h.foundedYear} years. Its hulls are seized at a dozen ports.`, h.home);
+      log(w, "house", `${h.name} is declared bankrupt after ${w.year - h.foundedYear} years. Its hulls are seized at a dozen ports.`, h.home, {
+        actors: [houseRef(h)], cause: "house.bankrupt",
+        why: "upkeep and losses sank it past its credit",
+        effects: [{ k: "lifespan", v: w.year - h.foundedYear, u: "yr" }],
+      });
     }
   }
   if (w.houses.filter((h) => !h.dead).length < 9 && rng.chance(0.03)) {

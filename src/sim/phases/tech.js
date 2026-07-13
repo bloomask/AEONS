@@ -29,6 +29,10 @@ export function runTech(w, rng, alive) {
     const era = TECH_ERAS[t.level];
     t.history.push({ level: t.level, year: w.year, name: era.name, tech: era.tech });
     w.stats.c.breakthrough++;
-    log(w, "tech", `${era.tech[0].toUpperCase() + era.tech.slice(1)} spreads from the great workshops. Chroniclers will call what follows ${era.name}.`);
+    log(w, "tech", `${era.tech[0].toUpperCase() + era.tech.slice(1)} spreads from the great workshops. Chroniclers will call what follows ${era.name}.`, null, {
+      cause: "tech.breakthrough",
+      why: "developed worlds with schooled classes and cheap electronics fed the research",
+      effects: [{ k: "tech-era", v: t.level }],
+    });
   }
 }

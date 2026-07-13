@@ -1,6 +1,6 @@
 import { CLASSES, GOODS, BASE_PRICE } from "../constants.js";
 import { techCost } from "./tech.js";
-import { log } from "../events.js";
+import { log, compactChronicle } from "../events.js";
 
 // --- yearly statistics snapshot, history traces, and era detection ---
 export function recordYear(w, rng) {
@@ -81,20 +81,28 @@ export function recordYear(w, rng) {
   w.peaceYears = activeWars === 0 ? w.peaceYears + 1 : 0;
   w.popPeak100 = Math.max(tp, w.popPeak100 * 0.995); // slowly forgetting peak
   const eraAge = w.year - w.era.since;
-  const setEra = (name) => {
+  const setEra = (name, cause, why) => {
     w.era = { name, since: w.year };
     w.eras.push(w.era);
-    log(w, "era", `A new age is spoken of across the lanes: ${name}.`);
+    log(w, "era", `A new age is spoken of across the lanes: ${name}.`, null, { cause, why });
   };
   if (eraAge > 40) {
     if (w.credit.crunch > 2 && w.stats.c.panic >= 2 && !w.era.name.includes("Default") && !w.era.name.includes("Lean")) {
-      setEra(rng.pick(["The Great Default", "The Lean Years", "The Age of Broken Credit"]));
+      setEra(rng.pick(["The Great Default", "The Lean Years", "The Age of Broken Credit"]),
+        "era.credit", "repeated panics have frozen the credit market for years");
     } else if (activeWars >= 2 && !w.era.name.includes("War") && !w.era.name.includes("Burning")) {
-      setEra(rng.pick(["The Burning Years", "The Gate Wars", "The Age of Iron", "The Long Reckoning"]));
+      setEra(rng.pick(["The Burning Years", "The Gate Wars", "The Age of Iron", "The Long Reckoning"]),
+        "era.war", `${activeWars} wars burn at once across the lanes`);
     } else if (tp < w.popPeak100 * 0.62 && !w.era.name.includes("Withering") && !w.era.name.includes("Dying")) {
-      setEra(rng.pick(["The Withering", "The Dying Years", "The Great Silence"]));
+      setEra(rng.pick(["The Withering", "The Dying Years", "The Great Silence"]),
+        "era.decline", "humanity has fallen far below its remembered peak");
     } else if (w.peaceYears >= 40 && !w.era.name.includes("Peace") && !w.era.name.includes("Golden")) {
-      setEra(rng.pick(["The Long Peace", "The Golden Lanes", "The Age of Commerce", "The Quiet Centuries"]));
+      setEra(rng.pick(["The Long Peace", "The Golden Lanes", "The Age of Commerce", "The Quiet Centuries"]),
+        "era.peace", `${w.peaceYears} years without a war anywhere`);
     }
   }
+
+  // once a decade, fold minor events past their keep window into the
+  // decade digests — the chronicle stays durable without growing unbounded
+  if (w.year % 10 === 0) compactChronicle(w);
 }

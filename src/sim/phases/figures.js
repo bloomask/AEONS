@@ -1,6 +1,6 @@
 import { makeRng } from "../rng.js";
 import { CULTURES } from "../constants.js";
-import { log } from "../events.js";
+import { log, facRef } from "../events.js";
 
 // --- the cast of history: who actually rules each power ---
 // A persistent named leader for every faction, with a title fitting its
@@ -73,7 +73,11 @@ export function runFigures(w) {
       if (reign >= 25) {
         log(w, "reign",
           `After ${reign} years, ${r.title} ${r.name} of the ${f.name} passes; ${heir.title} ${heir.name} accedes.`,
-          f.capital);
+          f.capital, {
+            actors: [facRef(f)], cause: "reign.succession",
+            why: `${r.title} ${r.name}'s long reign ran its natural course`,
+            effects: [{ k: "reign-years", v: reign, u: "yr" }],
+          });
       }
       f.ruler = heir;
     }

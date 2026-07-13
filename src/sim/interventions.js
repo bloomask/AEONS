@@ -1,6 +1,6 @@
 import { T, PROJECT_TYPES, techFx } from "./constants.js";
 import { clamp, dist2 } from "./util.js";
-import { log, relKey, getRel } from "./events.js";
+import { log, relKey, getRel, facRef, sysRef } from "./events.js";
 import { rebuildAdj } from "./galaxy.js";
 import { movePop, skewDeaths } from "./society.js";
 import { completeProject } from "./phases/projects.js";
@@ -155,7 +155,15 @@ export const INTERVENTIONS = [
       s.stock.grain += s.pop * CURATOR.RELIEF_GRAIN_YEARS;
       s.stock.medicine += s.pop * CURATOR.RELIEF_MED_PER_POP;
       s.unrest = clamp(s.unrest - CURATOR.RELIEF_CALM, 0, 1);
-      log(w, "curate", `Unflagged freighters descend on ${s.name}, holds heavy with grain and medicine. No power claims the kindness.`, s.id);
+      log(w, "curate", `Unflagged freighters descend on ${s.name}, holds heavy with grain and medicine. No power claims the kindness.`, s.id, {
+        targets: [sysRef(s)], cause: "curate.relief",
+        why: "the curator's unseen hand",
+        effects: [
+          { k: "grain", d: s.pop * CURATOR.RELIEF_GRAIN_YEARS },
+          { k: "medicine", d: s.pop * CURATOR.RELIEF_MED_PER_POP },
+          { k: "unrest", d: -CURATOR.RELIEF_CALM },
+        ],
+      });
     },
   },
 
@@ -221,7 +229,14 @@ export const INTERVENTIONS = [
         wasRuin
           ? `A benefactor no registry names pays the freight: settlers from ${from.name} raise new towers over the ruins of ${to.name}.`
           : `A benefactor no registry names pays the freight: ${from.name} founds a colony at ${to.name}.`,
-        to.id);
+        to.id, {
+          actors: [sysRef(from)], targets: [sysRef(to)], systems: [from.id],
+          cause: "curate.colony", why: "the curator paid the freight",
+          effects: [
+            { k: "pop", d: m, u: "M" },
+            ...(to.fid !== null ? [{ k: "owner", from: null, to: to.fid }] : []),
+          ],
+        });
     },
   },
 
@@ -270,7 +285,11 @@ export const INTERVENTIONS = [
         gate: `expanded jumpgate docks (level ${s.infra.gate})`,
         mine: `deep shafts into the played-out veins (level ${s.infra.mine})`,
       }[p.kind];
-      log(w, "curate", `An endowment with no donor's name raises ${what} at ${s.name}.`, s.id);
+      log(w, "curate", `An endowment with no donor's name raises ${what} at ${s.name}.`, s.id, {
+        targets: [sysRef(s)], cause: "curate.infrastructure",
+        why: "the curator's endowment",
+        effects: [{ k: p.kind, v: s.infra[p.kind] }],
+      });
     },
   },
 
@@ -311,7 +330,11 @@ export const INTERVENTIONS = [
       const s = w.systems[pr.sysId];
       const grant = Math.min(CURATOR.PROJECT_GRANT, pr.cost - pr.progress);
       pr.progress += grant;
-      log(w, "curate", `An anonymous endowment reaches the ${pr.name} at ${s.name}; the scaffolds swarm with new crews.`, s.id);
+      log(w, "curate", `An anonymous endowment reaches the ${pr.name} at ${s.name}; the scaffolds swarm with new crews.`, s.id, {
+        targets: [facRef(pr.fid), sysRef(s)], cause: "curate.project-grant",
+        why: "the curator's endowment",
+        effects: [{ k: "credits", d: grant, u: "cr" }, { k: "built", v: Math.round((pr.progress / pr.cost) * 100), u: "%" }],
+      });
       if (pr.progress >= pr.cost) completeProject(w, pr);
     },
   },
@@ -359,22 +382,33 @@ export const INTERVENTIONS = [
       const rel = getRel(w, A.id, B.id);
       if (rel.war) {
         const rec = w.stats.wars[rel.war.rec];
+        const dur = w.year - rel.war.since;
         if (rec) {
-          rec.end = w.year; rec.duration = w.year - rel.war.since;
+          rec.end = w.year; rec.duration = dur;
           rec.winner = "white peace"; rec.endReason = "brokered peace";
         }
         for (const s of w.systems) if (s.siege && s.siege.pair === key) s.siege = null;
         rel.war = null;
         rel.rivalry = CURATOR.BROKERED_RIVALRY;
         rel.embargo = false;
-        log(w, "curate", `Envoys nobody sent meet in a neutral hall, and the guns fall silent: the ${A.name} and the ${B.name} sign an unlooked-for peace.`);
+        log(w, "curate", `Envoys nobody sent meet in a neutral hall, and the guns fall silent: the ${A.name} and the ${B.name} sign an unlooked-for peace.`, null, {
+          targets: [facRef(A), facRef(B)], cause: "curate.brokered-peace",
+          why: "quiet diplomacy from a hand nobody saw",
+          effects: [{ k: "war-years", v: dur, u: "yr" }, { k: "rivalry", v: CURATOR.BROKERED_RIVALRY }],
+        });
       } else {
+        const before = rel.rivalry;
         rel.rivalry = Math.max(0, rel.rivalry - CURATOR.SOOTHE_RIVALRY);
+        const soothMeta = {
+          targets: [facRef(A), facRef(B)], cause: "curate.soothed",
+          why: "quiet diplomacy from a hand nobody saw",
+          effects: [{ k: "rivalry", d: -(before - rel.rivalry) }],
+        };
         if (rel.embargo && rel.rivalry < 35) {
           rel.embargo = false;
-          log(w, "curate", `Old grievances between the ${A.name} and the ${B.name} are quietly paid off; the embargo lifts, and freighters queue at the reopened gates.`);
+          log(w, "curate", `Old grievances between the ${A.name} and the ${B.name} are quietly paid off; the embargo lifts, and freighters queue at the reopened gates.`, null, soothMeta);
         } else {
-          log(w, "curate", `Back-channel envoys soothe the courts of the ${A.name} and the ${B.name}. The frontier watches stand down.`);
+          log(w, "curate", `Back-channel envoys soothe the courts of the ${A.name} and the ${B.name}. The frontier watches stand down.`, null, soothMeta);
         }
       }
     },
@@ -425,7 +459,12 @@ export const INTERVENTIONS = [
       log(w, "curate",
         wasAllied
           ? `Forged dispatches surface in both courts: the accord between the ${A.name} and the ${B.name} dies in a night of recalled ambassadors.`
-          : `Envoys vanish and letters lie: the ${A.name} and the ${B.name} each blame the other, and the frontier bristles.`);
+          : `Envoys vanish and letters lie: the ${A.name} and the ${B.name} each blame the other, and the frontier bristles.`,
+      null, {
+        targets: [facRef(A), facRef(B)], cause: "curate.discord",
+        why: "forged dispatches and vanished envoys — the curator's dark hand",
+        effects: [{ k: "rivalry", v: Math.round(rel.rivalry) }],
+      });
     },
   },
 
@@ -459,7 +498,11 @@ export const INTERVENTIONS = [
       s.unrest = clamp(s.unrest - CURATOR.CALM_UNREST, 0, 1);
       s.riotCd = Math.max(s.riotCd, CURATOR.CALM_RIOT_CD);
       s.stock.consumer += s.pop * CURATOR.CALM_GOODS_PER_POP;
-      log(w, "curate", `Grain doles and festival credits flood ${s.name} from purses no clerk can trace. The tenements go quiet.`, s.id);
+      log(w, "curate", `Grain doles and festival credits flood ${s.name} from purses no clerk can trace. The tenements go quiet.`, s.id, {
+        targets: [sysRef(s)], cause: "curate.calmed",
+        why: "bread and circuses from purses no clerk can trace",
+        effects: [{ k: "unrest", d: -CURATOR.CALM_UNREST }, { k: "consumer", d: s.pop * CURATOR.CALM_GOODS_PER_POP }],
+      });
     },
   },
 
@@ -489,7 +532,11 @@ export const INTERVENTIONS = [
       const s = sys(w, p.sysId);
       s.unrest = clamp(s.unrest + CURATOR.INFLAME_UNREST, 0, 1);
       s.riotCd = 0;
-      log(w, "curate", `Pamphlets nobody printed blow through ${s.name}'s tenements, and old grievances find new voices.`, s.id);
+      log(w, "curate", `Pamphlets nobody printed blow through ${s.name}'s tenements, and old grievances find new voices.`, s.id, {
+        targets: [sysRef(s)], cause: "curate.inflamed",
+        why: "provocateurs and pamphlets — the curator's dark hand",
+        effects: [{ k: "unrest", d: CURATOR.INFLAME_UNREST }],
+      });
     },
   },
 
@@ -529,7 +576,10 @@ export const INTERVENTIONS = [
       w.edges.push({ a: A.id, b: B.id, d: dist2(A, B), vol: 0, net: 0 });
       rebuildAdj(w);
       w.stats.c.gateOpen++;
-      log(w, "curate", `A jumpgate long thought impossible flares open between ${A.name} and ${B.name}. No engineer claims the work.`);
+      log(w, "curate", `A jumpgate long thought impossible flares open between ${A.name} and ${B.name}. No engineer claims the work.`, null, {
+        targets: [sysRef(A), sysRef(B)], systems: [A.id, B.id],
+        cause: "curate.gate-opened", why: "the curator's unseen hand",
+      });
     },
   },
 
@@ -568,7 +618,11 @@ export const INTERVENTIONS = [
       w.edges.splice(ei, 1);
       rebuildAdj(w);
       w.stats.c.gateClose++;
-      log(w, "curate", `The jumpgate between ${A.name} and ${B.name} shudders and dies. Sabotage, the gatekeepers whisper — but by whom?`);
+      log(w, "curate", `The jumpgate between ${A.name} and ${B.name} shudders and dies. Sabotage, the gatekeepers whisper — but by whom?`, null, {
+        targets: [sysRef(A), sysRef(B)], systems: [A.id, B.id],
+        cause: "curate.gate-collapsed", why: "sabotage by a hand nobody saw",
+        effects: [{ k: "trade-severed", v: +e.vol.toFixed(1) }],
+      });
     },
   },
 
@@ -602,7 +656,11 @@ export const INTERVENTIONS = [
       skewDeaths(s, (before - s.pop) / before);
       s.lastPlague = w.year;
       w.stats.c.plague++;
-      log(w, "plague", `Plague erupts on ${s.name} — a strange strain, come through the gate unbidden. Quarantine beacons burn for a generation.`, s.id);
+      log(w, "plague", `Plague erupts on ${s.name} — a strange strain, come through the gate unbidden. Quarantine beacons burn for a generation.`, s.id, {
+        targets: [sysRef(s)], cause: "plague.curated",
+        why: "a strange strain, loosed by a hand nobody saw",
+        effects: [{ k: "pop", d: -(before - s.pop), u: "M" }],
+      });
     },
   },
 ];

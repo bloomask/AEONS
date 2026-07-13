@@ -137,10 +137,20 @@ Full-screen and side panels live in `ui/panels/`.
   nondeterminism, not reordering).
 - **"Alive" means `s.pop > 0.05`.** That threshold is used everywhere a
   system is checked for life; keep it consistent.
-- Events go through `log(w, type, text, sysId?)` and short-lived map effects
-  through `fx(w, payload)` (both in `sim/events.js`). Don't push to
+- Events go through `log(w, type, text, sysId?, meta?)` and short-lived map
+  effects through `fx(w, payload)` (both in `sim/events.js`). Don't push to
   `w.events` directly. Increment the matching counter in `w.stats.c` when an
-  event is statistically interesting.
+  event is statistically interesting. **Events are structured**: `meta` carries
+  who acted (`actors`/`targets`, via `facRef`/`houseRef`/`sysRef`/`faithRef`),
+  every affected system (`systems`), a machine-readable `cause` code, a prose
+  `why`, and measurable `effects` — the UI filters and explains from these
+  fields, never from names embedded in the text, so give every new event real
+  metadata. Severity defaults per type (`EVENT_SEV`); override upward only.
+- **The chronicle is durable.** Major/notable events (sev 2–3) stay in
+  `w.events` for the whole session; minor recurring events (sev 1) are folded
+  into per-decade digests (`w.eventAgg`) after `MINOR_KEEP_YEARS` by the
+  chronicle phase — condensed, never discarded. A system's "local record" is
+  derived from this archive (`systemRecord`), not stored per system.
 - Pairwise faction state (rivalry, war, embargo) lives in `w.relations`
   keyed by `relKey(a, b)`; always use `getRel(w, a, b)`.
 - Tunable balance constants live in `sim/constants.js` (`T` for scalar

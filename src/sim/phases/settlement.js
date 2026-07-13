@@ -1,6 +1,6 @@
 import { T, GOODS } from "../constants.js";
 import { dist2 } from "../util.js";
-import { log } from "../events.js";
+import { log, facRef, houseRef, sysRef } from "../events.js";
 import { relocateCapital } from "../factions.js";
 import { movePop } from "../society.js";
 
@@ -76,7 +76,19 @@ export function runSettlement(w, rng, alive) {
               : wasRuin
                 ? `Settlers from ${s.name} raise new towers over the ruins of ${target.name}.`
                 : `${s.name} founds a colony at ${target.name}.`,
-            target.id);
+            target.id, {
+              actors: target.sponsor !== null
+                ? [sysRef(s), houseRef(target.sponsor)]
+                : [sysRef(s)],
+              targets: [sysRef(target)],
+              systems: [s.id],
+              cause: wasRuin ? "colony.resettled" : "colony.founded",
+              why: "a thriving world's surplus went looking for land next door",
+              effects: [
+                { k: "pop", d: m, u: "M" },
+                ...(target.fid !== null ? [{ k: "owner", from: null, to: target.fid }] : []),
+              ],
+            });
         }
       }
     }
@@ -86,14 +98,18 @@ export function runSettlement(w, rng, alive) {
   for (const s of alive) {
     if (s.wealth > T.BUILD_WEALTH && rng.chance(0.15)) {
       const i = s.infra;
-      let what = null;
-      if (s.fert > 0.45 && i.gran < 3) { i.gran++; s.wealth -= 25 * i.gran; what = `raises new orbital granaries (level ${i.gran})`; }
-      else if (s.tradeIn > 15 && i.gate < 3) { i.gate++; s.wealth -= 30; what = `expands its jumpgate docks (level ${i.gate})`; }
-      else if (s.min > 0.5 && s.minRes / s.minRes0 < 0.4 && i.mine < 2) { i.mine++; s.wealth -= 40; what = `sinks deep shafts into the played-out veins (level ${i.mine})`; }
-      else if (i.gran < 3) { i.gran++; s.wealth -= 25 * i.gran; what = `raises new orbital granaries (level ${i.gran})`; }
+      let what = null, kind = null;
+      if (s.fert > 0.45 && i.gran < 3) { i.gran++; s.wealth -= 25 * i.gran; what = `raises new orbital granaries (level ${i.gran})`; kind = "gran"; }
+      else if (s.tradeIn > 15 && i.gate < 3) { i.gate++; s.wealth -= 30; what = `expands its jumpgate docks (level ${i.gate})`; kind = "gate"; }
+      else if (s.min > 0.5 && s.minRes / s.minRes0 < 0.4 && i.mine < 2) { i.mine++; s.wealth -= 40; what = `sinks deep shafts into the played-out veins (level ${i.mine})`; kind = "mine"; }
+      else if (i.gran < 3) { i.gran++; s.wealth -= 25 * i.gran; what = `raises new orbital granaries (level ${i.gran})`; kind = "gran"; }
       if (what) {
         w.stats.c.build++;
-        log(w, "build", `${s.name} ${what}.`, s.id);
+        log(w, "build", `${s.name} ${what}.`, s.id, {
+          actors: [sysRef(s)], cause: `build.${kind}`,
+          why: "surplus wealth turned into durable capital",
+          effects: [{ k: kind, v: i[kind] }],
+        });
       }
     }
   }
@@ -127,7 +143,26 @@ export function runSettlement(w, rng, alive) {
         famine: `${s.name} goes dark — starved to silence. The last transmissions beg for grain that never came.`,
         "economic decline": `${s.name} goes dark, forgotten by the trade lanes long before the end.`,
       }[cause];
-      log(w, "death", deathText, s.id);
+      log(w, "death", deathText, s.id, {
+        actors: [sysRef(s)],
+        targets: f ? [facRef(f)] : [],
+        cause: `death.${{
+          plague: "plague", "war attrition": "war", "resource depletion": "depletion",
+          famine: "famine", "economic decline": "decline",
+        }[cause]}`,
+        why: {
+          plague: "the last plague broke it",
+          "war attrition": "the war ground it to dust",
+          "resource depletion": "its veins gave out and the money left",
+          famine: "the hunger years starved it to silence",
+          "economic decline": "the trade lanes forgot it long before the end",
+        }[cause],
+        effects: [
+          { k: "pop", v: 0, u: "M" },
+          { k: "peak-pop", v: +s.peakPop.toFixed(1), u: "M" },
+          ...(f ? [{ k: "owner", from: f.id, to: null }] : []),
+        ],
+      });
       if (f && f.capital === s.id) relocateCapital(w, f);
     }
   }

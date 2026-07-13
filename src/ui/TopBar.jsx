@@ -13,7 +13,7 @@ const Vital = ({ label, value, color }) => (
 // era · the clock · transport. The year is the hero readout; the four
 // screen buttons each summon a full-screen panel (toggle to dismiss).
 export default function TopBar({
-  seed, year, speed, setSpeed, onCentury, onNewGalaxy,
+  seed, year, speed, setSpeed, mode, setMode, onCentury, onNewGalaxy,
   screen, setScreen, w, liveSystems, totalPop, liveFactions, wars,
 }) {
   const ruins = w ? w.systems.filter((s) => s.ruined).length : 0;
@@ -35,7 +35,7 @@ export default function TopBar({
           <Vital label="systems" value={`${liveSystems.length}/${w.systems.length}`} />
           <Vital label="ruins" value={ruins} color={ruins ? "#B0453A" : undefined} />
           <Vital label="population" value={fmtPop(totalPop)} />
-          <Vital label="powers" value={fallen ? `${liveFactions.length} · ${fallen}†` : liveFactions.length} />
+          <Vital label="factions" value={fallen ? `${liveFactions.length} · ${fallen}†` : liveFactions.length} />
           <Vital label="wars" value={wars.length} color={wars.length ? "var(--red)" : undefined} />
         </div>
       )}
@@ -52,6 +52,26 @@ export default function TopBar({
             {s.glyph} {key}
           </button>
         ))}
+      </div>
+
+      {/* the interaction contract: watch the galaxy, or take up the instruments */}
+      <div className="seg" style={{ fontFamily: "var(--font-display)" }}>
+        <button
+          className={mode === "observe" ? "on" : ""}
+          onClick={() => setMode("observe")}
+          title="Observe: the galaxy runs itself; you watch and inspect"
+          style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10 }}
+        >
+          ◉ observe
+        </button>
+        <button
+          className={mode === "curate" ? "on" : ""}
+          onClick={() => setMode("curate")}
+          title="Curate: lightweight interventions — relief, colonies, intrigue. The engine decides what follows"
+          style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 10 }}
+        >
+          ✳ curate
+        </button>
       </div>
 
       <div className="flex-1" />

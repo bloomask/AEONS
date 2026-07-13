@@ -124,7 +124,7 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
   );
   return (
     <div className="space-y-5">
-      <button onClick={onBack} className="text-xs link" style={{ color: "var(--cyan)" }}>← all powers</button>
+      <button onClick={onBack} className="text-xs link" style={{ color: "var(--cyan)" }}>← all factions</button>
       <div>
         <div className="display text-lg leading-tight" style={{ fontWeight: 700, color: f.color }}>
           ■ {f.name}
@@ -211,7 +211,7 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
   );
 }
 
-export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
+export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem }) {
   const [detailFid, setDetailFid] = useState(null);
   const detail = detailFid !== null ? w.factions[detailFid] : null;
 
@@ -256,7 +256,7 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
 
       <RelationMatrix w={w} factions={ranked.map((r) => r.f).filter((f) => f.gov !== "pirate")} />
 
-      <Section title="powers">
+      <Section title="factions">
         {ranked.map(({ f, members }) => {
           const fp = members.reduce((a, s) => a + s.pop, 0);
           const myWars = wars.filter(({ k }) => k.split("|").map(Number).includes(f.id));
@@ -292,7 +292,7 @@ export default function PowersPanel({ w, liveFactions, wars, onOpenSystem }) {
       </Section>
 
       {w.factions.filter((f) => f.dead).length > 0 && (
-        <Section title="fallen powers">
+        <Section title="fallen factions">
           {w.factions.filter((f) => f.dead).map((f) => (
             <div key={f.id} className="muted mb-0.5">
               <span style={{ color: f.color, opacity: 0.5 }}>■</span> {f.name} ({f.foundedYear}–{f.diedYear})

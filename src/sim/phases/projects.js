@@ -1,6 +1,29 @@
 import { PROJECT_TYPES } from "../constants.js";
 import { log } from "../events.js";
 
+// Deliver a finished megaproject: flip its flags, apply its permanent effect,
+// and write the completion into the chronicle. Shared by the yearly funding
+// loop below and by curator grants (interventions.js) that push a project
+// over the line mid-year — the effects must be identical either way.
+export function completeProject(w, p) {
+  const s = w.systems[p.sysId];
+  p.done = true;
+  p.endedYear = w.year;
+  w.stats.c.megaBuilt++;
+  if (p.type === "nexus") {
+    s.mega.nexus = true;
+    log(w, "mega", `The ${p.name} of ${s.name} is complete after ${w.year - p.started} years — freighters queue a hundred deep to ride its gates.`, s.id);
+  } else if (p.type === "arcology") {
+    s.mega.arcology = true;
+    log(w, "mega", `The ${p.name} above ${s.name} opens its ring-cities after ${w.year - p.started} years. Millions look down on the old world.`, s.id);
+  } else {
+    s.fert = Math.min(1, s.fert + 0.35);
+    s.hab = Math.min(1, s.hab + 0.25);
+    s.mega.terraformed = true;
+    log(w, "mega", `After ${w.year - p.started} years the ${p.name} at ${s.name} falls quiet: the rains have come, and the rock is green.`, s.id);
+  }
+}
+
 // --- megaprojects: works of generations, paid for out of the treasury ---
 export function runProjects(w, rng) {
   // fund what is already under construction
@@ -18,22 +41,7 @@ export function runProjects(w, rng) {
     const pay = Math.min(10, f.treasury * 0.05);
     f.treasury -= pay;
     p.progress += pay;
-    if (p.progress >= p.cost) {
-      p.done = true; p.endedYear = w.year;
-      w.stats.c.megaBuilt++;
-      if (p.type === "nexus") {
-        s.mega.nexus = true;
-        log(w, "mega", `The ${p.name} of ${s.name} is complete after ${w.year - p.started} years — freighters queue a hundred deep to ride its gates.`, s.id);
-      } else if (p.type === "arcology") {
-        s.mega.arcology = true;
-        log(w, "mega", `The ${p.name} above ${s.name} opens its ring-cities after ${w.year - p.started} years. Millions look down on the old world.`, s.id);
-      } else {
-        s.fert = Math.min(1, s.fert + 0.35);
-        s.hab = Math.min(1, s.hab + 0.25);
-        s.mega.terraformed = true;
-        log(w, "mega", `After ${w.year - p.started} years the ${p.name} at ${s.name} falls quiet: the rains have come, and the rock is green.`, s.id);
-      }
-    }
+    if (p.progress >= p.cost) completeProject(w, p);
   }
 
   // rich, unburdened factions break ground on something monumental

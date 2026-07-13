@@ -18,6 +18,10 @@ export {
 export { CONFIG_GROUPS, CONFIG_PARAMS, PRESETS, defaultConfig, carryCap } from "./config.js";
 export { log, relKey, getRel } from "./events.js";
 export {
+  INTERVENTIONS, INTERVENTION_BY_KEY, CURATOR,
+  validateIntervention, previewIntervention, applyIntervention,
+} from "./interventions.js";
+export {
   T, GOODS, GOOD_CATS, GOOD_LABEL, BASE_PRICE, FREIGHT_COST, RECIPES,
   CLASSES, CLASS_DEF, FACTION_COLORS, CULTURES,
 } from "./constants.js";

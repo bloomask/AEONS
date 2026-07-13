@@ -24,6 +24,7 @@ export const EV_STYLE = {
   tech: { c: "#4FD0A5", tag: "EUREKA" },
   credit: { c: "#E8D14B", tag: "LEDGER" },
   reign: { c: "#E8B04B", tag: "REIGN" },
+  curate: { c: "#E8D14B", tag: "HAND" }, // the curator's unseen hand
 };
 
 export const EV_FILTERS = {
@@ -32,6 +33,7 @@ export const EV_FILTERS = {
   realm: new Set(["found", "collapse", "secede", "annex", "cap", "era", "faith", "revolution", "reign"]),
   economy: new Set(["house", "corp", "embargo", "build", "mega", "accord", "strike", "gate", "flare", "tech", "credit", "drug"]),
   life: new Set(["famine", "plague", "colony", "death", "riot", "slave"]),
+  curator: new Set(["curate"]),
 };
 
 // ---------- overlay colors ----------

@@ -46,6 +46,15 @@ export const T = {
   SUPP_BASE_COST: 18,   // fitting out a squadron
   SUPP_JUMP_COST: 6,    // supply train per gate to the target
   GRIEVANCE_DECAY: 0.9, // how long victims remember skimmed cargo
+  // a haven sinks plunder into teeth, not a vault: shore batteries, boom-
+  // chains, a standing squadron. Fortification saturates (one anchorage
+  // can mount only so much) and rots without upkeep — so only a haven that
+  // keeps earning stays hard to burn out, and hoards never balloon.
+  FORT_CAP_PER_SYS: 55, // fortification a single anchorage can carry
+  FORT_INVEST: 0.18,    // fraction of surplus treasury spent on works each year
+  FORT_RESERVE: 50,     // operating cash a haven keeps before it fortifies
+  FORT_DECAY: 0.93,     // works weather and decay without upkeep
+  FORT_GRAFT: 0.7,      // share of spend that becomes real defense (rest is graft)
   // arms & war readiness
   ARMS_PER_POP: 0.12,   // weapons a world wants stocked per million people
   ARMS_FLOOR: 0.4,      // combat strength of a totally disarmed world (vs 1.0 fully armed)

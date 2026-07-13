@@ -114,6 +114,9 @@
  * @property {{p:number,s:number,t:number,st:number}[]} trace  Yearly pop/systems/treasury/stability (last 240).
  * @property {number} [corpId]  Corporate states: id of the founding house.
  * @property {number} [lootY]   Pirate havens: loot taken this year.
+ * @property {number} [fort]    Pirate havens: fortification/standing-squadron strength,
+ *   funded by plunder (pirates.js). Saturates per anchorage, decays without upkeep;
+ *   this — not the raw treasury — is what makes a rooted haven hard to burn out.
  * @property {Object<string,number>} [grievance]  Pirate havens: decaying ledger of raid
  *   losses per victim faction id — what motivates punitive expeditions.
  */

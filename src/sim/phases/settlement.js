@@ -44,6 +44,7 @@ export function runSettlement(w, rng, alive) {
           target.pop = 0;
           movePop(s, target, m); // colony ships fill from the lower decks
           target.fid = s.fid; target.dev = 0.6;
+          target.freePort = false; // a colony raised under a flag is no free port
           target.unrest = 0; target.riotCd = 0;
           target.stock.grain = m * 4; target.stock.consumer = m;
           // the first generation plants fields before it builds factories

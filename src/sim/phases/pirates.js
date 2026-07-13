@@ -30,11 +30,14 @@ function pickHavenSite(w, rng, cands) {
   // traffic within striking range to be worth founding at all
   const scouted = cands
     .map((s) => ({ s, vol: reachableVolume(w, s.id) }))
-    .filter(({ vol }) => vol >= 12);
+    .filter(({ vol }) => vol >= 8);
   if (!scouted.length) return null;
+  // fat lanes and distant law draw crews; so does a world's own misery —
+  // the desperate turn corsair readiest of all, but a rich port perfectly
+  // placed on undefended lanes is its own kind of temptation (Nassau).
   const weights = scouted.map(({ s, vol }) => {
     const h = lawHops[s.id] < 0 ? 7 : lawHops[s.id];
-    return vol * (1 + h);
+    return vol * (1 + h) * (1.4 - Math.min(1, s.wb));
   });
   let r = rng.n() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < scouted.length; i++) {
@@ -50,13 +53,25 @@ function pickHavenSite(w, rng, cands) {
 // strikes back with what it can project down those same lanes. Remoteness
 // is not a buff — it is geography working both ways.
 export function runPirates(w, rng, alive) {
-  // desperation breeds havens: poor free systems raise the black flag.
-  // The year after a war ends, the odds jump — demobilized privateer
-  // crews don't go home, they go looking for an anchorage.
   const havens = w.factions.filter((f) => !f.dead && f.gov === "pirate");
+  // turmoil breeds havens: desperate poor worlds raise the black flag, but so
+  // do demobilized privateer crews the year a war ends and the masterless
+  // frontier worlds a collapsing power leaves behind — all going looking for
+  // an anchorage while the lanes are still ungoverned.
   const demob = w.stats.wars.some((r) => r.end === w.year) ? 4 : 1;
-  if (havens.length < 5 && rng.chance(0.05 * demob * w.cfg.piracy)) {
-    const cands = alive.filter((s) => s.fid === null && s.wb < 0.6 && s.pop > 0.5);
+  const collapse = w.stats.factionDeaths.some((d) => d.died === w.year && d.gov !== "pirate") ? 3 : 1;
+  // no arbitrary global count: a stretch of lanes can only feed so many
+  // crews, so a new haven simply can't rise within raiding range of one
+  // already working these waters. Any other lawless region is fair game —
+  // several havens can burn at once, each in its own shallows.
+  const havenSys = [];
+  for (const h of havens)
+    for (const s of w.systems) if (s.fid === h.id && s.pop > 0.05) havenSys.push(s.id);
+  const nearHaven = havenSys.length ? jumpHops(w, havenSys, T.RAID_JUMPS) : null;
+  if (havens.length < 12 && rng.chance(0.05 * Math.max(demob, collapse) * w.cfg.piracy)) {
+    const cands = alive.filter((s) =>
+      s.fid === null && !s.freePort && s.wb < 0.72 && s.pop > 0.35 &&
+      (!nearHaven || nearHaven[s.id] < 0 || nearHaven[s.id] > T.RAID_JUMPS));
     const site = cands.length ? pickHavenSite(w, rng, cands) : null;
     if (site) foundPirateHaven(w, rng, site);
   }
@@ -120,22 +135,42 @@ export function runPirates(w, rng, alive) {
       0, 1
     );
 
-    // hungry neighbors join the black banner
-    if (loot > 3 && rng.chance(0.06 * w.cfg.piracy)) {
-      for (const m of members) {
-        const o = w.adj[m.id]
-          .map(({ to }) => w.systems[to])
-          .find((s) => s.fid === null && s.pop > 0.05 && s.wb < 0.55);
-        if (o) {
-          o.fid = f.id;
-          o.freePort = false;
-          log(w, "pirate", `The black banners of ${f.name} rise over ${o.name}.`, o.id, {
-            actors: [facRef(f)], targets: [sysRef(o)], cause: "pirate.expansion",
-            why: "a hungry free neighbor joined a haven fat on plunder",
-            effects: [{ k: "owner", from: null, to: f.id }],
-          });
-          break;
-        }
+    // plunder buys teeth, not a bigger vault: a haven sinks its surplus into
+    // shore batteries, boom-chains, and a standing squadron. These works
+    // saturate — one anchorage mounts only so many guns — and rot without
+    // upkeep, so a haven that keeps earning grows genuinely hard to burn out
+    // while a lean one goes soft. This, not a raw hoard, is what a rooted old
+    // haven has that a newborn nest does not.
+    const fortCap = members.length * T.FORT_CAP_PER_SYS;
+    f.fort = Math.min(fortCap, (f.fort || 0) * T.FORT_DECAY);
+    const surplus = f.treasury - T.FORT_RESERVE;
+    if (surplus > 0 && f.fort < fortCap) {
+      const spend = Math.min(surplus * T.FORT_INVEST, (fortCap - f.fort) / T.FORT_GRAFT);
+      f.treasury -= spend;
+      f.fort = Math.min(fortCap, f.fort + spend * T.FORT_GRAFT);
+    }
+
+    // a fat, settled haven's overflow crews don't disband — they seed a
+    // daughter anchorage on any undefended lane the base borders. This is
+    // how an outpost grows into an archipelago (Nassau, the Barbary coast):
+    // success breeds consorts, and a haven of several nests can lose one and
+    // fight on rather than die with its only rock.
+    if (loot > 2 && f.stability > 0.6 && rng.chance(0.12 * w.cfg.piracy)) {
+      // a daughter nest need not touch the mother port — corsairs hold
+      // scattered anchorages, so any undefended world a couple of gates
+      // down the lanes will do
+      const seat = w.systems.find((s) =>
+        s.fid === null && !s.freePort && s.pop > 0.05 && s.wb < 0.72 &&
+        hops[s.id] >= 1 && hops[s.id] <= 2);
+      if (seat) {
+        seat.fid = f.id;
+        seat.freePort = false;
+        w.stats.c.pirateExpands++;
+        log(w, "pirate", `The black banners of ${f.name} rise over ${seat.name}.`, seat.id, {
+          actors: [facRef(f)], targets: [sysRef(seat)], cause: "pirate.expansion",
+          why: "a haven fat on plunder seeded a daughter anchorage on a nearby lane",
+          effects: [{ k: "owner", from: null, to: f.id }],
+        });
       }
     }
 
@@ -168,8 +203,12 @@ export function runPirates(w, rng, alive) {
     }
     if (expedition && rng.chance(0.5)) {
       const { V: hunter, cost, power } = expedition;
+      // the haven fights with its worlds, its fortifications, and whatever
+      // ready coin it can throw at hired guns — the works carry most of it now
       const pirateStr =
-        members.reduce((a, s) => a + s.pop * s.dev, 0) * 0.25 + Math.max(0, f.treasury) * 0.1;
+        members.reduce((a, s) => a + s.pop * s.dev, 0) * 0.25
+        + (f.fort || 0) * 0.1
+        + Math.max(0, f.treasury) * 0.03;
       hunter.treasury -= cost;
       f.grievance[hunter.id] = 0; // win or lose, the books are settled for now
       w.stats.c.suppressions++;
@@ -177,17 +216,17 @@ export function runPirates(w, rng, alive) {
         const haven = w.systems[f.capital];
         haven.fid = null;
         haven.lastWar = w.year;
+        f.fort = 0; // the shore batteries burn with the anchorage
         if (members.length <= 1) {
-          // a fleet with money left doesn't die with its anchorage — it
-          // slips away and drops anchor where prey passes and law doesn't
-          // unlike a founding, a fleet in being doesn't need local misery —
-          // it needs an undefended anchorage with prey in reach. Any modest
-          // free world will do; the crews are the new economy.
+          // a burned-out crew with money left rarely just vanishes — it
+          // scatters down the dark lanes and re-nests wherever an undefended
+          // world will have it. Prefer a site with prey in reach, but any
+          // refuge beats extinction; the crews are the new economy.
           const flee = alive.filter((s) =>
-            s.fid === null && !s.freePort && s.wb < 0.7 && s.pop > 0.3 &&
+            s.fid === null && !s.freePort && s.wb < 0.85 && s.pop > 0.15 &&
             s.id !== haven.id && hops[s.id] !== 1);
-          const refuge = f.treasury > 40 && flee.length
-            ? pickHavenSite(w, rng, flee)
+          const refuge = f.treasury > 15 && flee.length
+            ? (pickHavenSite(w, rng, flee) || rng.pick(flee))
             : null;
           if (refuge) {
             f.treasury = Math.max(10, f.treasury * 0.5 - 20);

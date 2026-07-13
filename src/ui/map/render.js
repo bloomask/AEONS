@@ -222,6 +222,46 @@ export function drawScene(ctx, w, v, frame) {
     }
   }
 
+  // curator targeting: light up the worlds/lanes the aimed act will accept, so
+  // the map itself is the target picker (see CuratorPanel / MapView). Valid
+  // targets pulse amber; the one under the cursor brightens; an already-picked
+  // element (e.g. the first party of a faction pair) locks in cyan.
+  const tg = frame.targeting;
+  if (tg) {
+    const pul = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(now * 0.005));
+    if (tg.kind === "edge") {
+      for (let ei = 0; ei < w.edges.length; ei++) {
+        const e = w.edges[ei];
+        const key = e.a < e.b ? `${e.a}|${e.b}` : `${e.b}|${e.a}`;
+        const valid = tg.valid.has(key), picked = tg.picked.has(key);
+        if (!valid && !picked) continue;
+        const A = w.systems[e.a], B = w.systems[e.b];
+        const ax = tx(A.x), ay = ty(A.y), bx = tx(B.x), by = ty(B.y);
+        const hov = ei === hoverEdge;
+        ctx.strokeStyle = picked ? "#5CC8DA" : hov ? "#F2A93B" : `rgba(242,169,59,${pul.toFixed(2)})`;
+        ctx.lineWidth = hov || picked ? 4 : 2.5;
+        ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      }
+    } else {
+      for (const s of w.systems) {
+        const valid = tg.valid.has(s.id), picked = tg.picked.has(s.id);
+        if (!valid && !picked) continue;
+        const X = tx(s.x), Y = ty(s.y);
+        const r = clamp(2 + Math.sqrt(Math.max(s.pop, 0)) * 0.85, 2, 9) + 5;
+        const hov = s.id === hover;
+        if (picked) {
+          ctx.strokeStyle = "#5CC8DA"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(X, Y, r, 0, 7); ctx.stroke();
+        } else {
+          ctx.strokeStyle = hov ? "#F2A93B" : `rgba(242,169,59,${pul.toFixed(2)})`;
+          ctx.lineWidth = hov ? 2.4 : 1.4;
+          ctx.beginPath(); ctx.arc(X, Y, r + (hov ? 1.5 : 0), 0, 7); ctx.stroke();
+        }
+      }
+    }
+  }
+
   // event pulses: expanding rings where history just happened
   const alivePulses = [];
   for (const p of frame.pulses) {

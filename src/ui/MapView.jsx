@@ -9,7 +9,7 @@ import { tooltipHtml, routeTooltipHtml } from "./map/tooltip.js";
 // The canvas map: owns the camera and input; the actual drawing lives in
 // map/render.js, territory rasterization in map/territory.js, and the
 // event→animation plumbing in map/effects.js.
-export default function MapView({ worldRef, selected, onSelect, selectedEdge, onSelectRoute, overlay, setOverlay, burn, mapApi }) {
+export default function MapView({ worldRef, selected, onSelect, selectedEdge, onSelectRoute, overlay, setOverlay, burn, mapApi, targeting }) {
   const canvasRef = useRef(null);
   const viewRef = useRef({ x: 0, y: 0, scale: 0.55 });
   const dragRef = useRef(null);
@@ -22,7 +22,25 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
   const focusRef = useRef(null);
   const burnRef = useRef(burn);
   burnRef.current = burn;
+  // the curator's live targeting request, read inside the RAF draw loop
+  const targetingRef = useRef(targeting);
+  targetingRef.current = targeting;
   const [showLegend, setShowLegend] = useState(false);
+
+  // canonical "a|b" key for an edge index, matching the curator's lane keys
+  const edgeKey = (ei) => {
+    const e = worldRef.current?.edges[ei];
+    if (!e) return null;
+    return e.a < e.b ? `${e.a}|${e.b}` : `${e.b}|${e.a}`;
+  };
+  // whether the element under the cursor is a valid curator target right now
+  const isValidTarget = (id, ei) => {
+    const t = targetingRef.current;
+    if (!t) return false;
+    return t.kind === "edge"
+      ? ei !== null && t.valid.has(edgeKey(ei))
+      : id !== null && (t.valid.has(id) || t.picked.has(id));
+  };
 
   const fitView = () => {
     const cv = canvasRef.current, w = worldRef.current;
@@ -107,6 +125,7 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
           territory: territoryRef.current,
           pulses: scene.pulses,
           fxAnims: scene.fxAnims,
+          targeting: targetingRef.current,
         });
       }
       raf = requestAnimationFrame(draw);
@@ -186,7 +205,12 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
     // a lane is only a hover target when no system sits under the cursor
     hoverEdgeRef.current = id === null ? nearestEdge(mx, my) : null;
     const cv = canvasRef.current;
-    if (cv) cv.style.cursor = (id !== null || hoverEdgeRef.current !== null) ? "pointer" : "crosshair";
+    if (cv) {
+      // while aiming a curator act, only valid targets take the pointer cursor
+      cv.style.cursor = targetingRef.current
+        ? (isValidTarget(id, hoverEdgeRef.current) ? "pointer" : "crosshair")
+        : ((id !== null || hoverEdgeRef.current !== null) ? "pointer" : "crosshair");
+    }
     const d = dragRef.current;
     if (d) {
       const dx = mx - d.sx, dy = my - d.sy;
@@ -205,6 +229,25 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
     if (d && !d.moved) {
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const id = nearest(mx, my);
+      const t = targetingRef.current;
+      // in targeting mode the map is dedicated to aiming: a click on a valid
+      // target fills the curator's field; anything else is ignored (the normal
+      // inspector selection is suspended until the act is aimed or cancelled)
+      if (t) {
+        if (t.kind === "edge") {
+          const ei = id === null ? nearestEdge(mx, my) : null;
+          const k = ei !== null ? edgeKey(ei) : null;
+          if (k !== null && t.valid.has(k)) {
+            const ed = worldRef.current.edges[ei];
+            t.pick(`${ed.a}|${ed.b}`);
+          }
+        } else if (id !== null && (t.valid.has(id) || t.picked.has(id))) {
+          // `picked` is clickable too: it lets a faction pair's first party be
+          // clicked again to reset it
+          t.pick(id);
+        }
+        return;
+      }
       if (id !== null) onSelect(id);
       else {
         const ei = nearestEdge(mx, my);
@@ -266,6 +309,16 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
           </button>
         ))}
       </div>
+      {targeting && !burn && (
+        <div
+          className="absolute top-3 left-1/2 flex items-center gap-3 px-3 py-1.5 text-xs glass"
+          style={{ transform: "translateX(-50%)", zIndex: 16, color: "var(--amber)", borderColor: "rgba(242,169,59,0.5)" }}
+        >
+          <span className="crt-blink">◎</span>
+          <span>{targeting.hint}</span>
+          <button onClick={targeting.onCancel} className="link" style={{ color: "var(--muted)", fontSize: 11 }}>✕ cancel</button>
+        </div>
+      )}
       <div className="absolute top-3 right-3 glass glass-seg">
         <button onClick={fitView} title="Fit galaxy in view">⛶ fit</button>
         <button className={showLegend ? "on" : ""} onClick={() => setShowLegend((s) => !s)} title="Toggle legend">

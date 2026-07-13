@@ -125,7 +125,8 @@ export const TUT_STEPS = [
     body: () =>
       "So far you have only watched. Switch to ✳ curate in the top bar and a " +
       "✳ curate tab joins the side window: bounded instruments like a relief " +
-      "shipment or sponsoring a colony. Pick one, choose a target, read the " +
+      "shipment or sponsoring a colony. Pick one, then aim it by clicking its " +
+      "target on the map — the valid worlds and lanes light up. Read the " +
       "anticipated pressure, and apply it. The engine — not your hand — " +
       "decides what follows.",
     done: (c) => ((c.w && c.w.commands ? c.w.commands.length : 0) > c.entry.commands),

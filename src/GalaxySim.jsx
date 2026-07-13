@@ -42,6 +42,9 @@ export default function GalaxySim() {
 
   const [, setVersion] = useState(0);
   const [selected, setSelected] = useState(null);
+  // the curator's live targeting request (Curate mode): what the map should
+  // highlight and accept clicks for. Null whenever nothing is being aimed.
+  const [curateTargeting, setCurateTargeting] = useState(null);
   // a selected lane is stored by its endpoint pair, not its index — gate
   // flux splices w.edges, so indices are not stable across years
   const [selEdge, setSelEdge] = useState(null);
@@ -316,6 +319,7 @@ export default function GalaxySim() {
             setOverlay={setOverlay}
             burn={burn}
             mapApi={mapApi}
+            targeting={mode === "curate" ? curateTargeting : null}
           />
           {w && !burn && (
             <Ticker
@@ -361,7 +365,7 @@ export default function GalaxySim() {
               />
             )}
             {sideTab === "curate" && w && mode === "curate" && !burn && (
-              <CuratorPanel w={w} selected={selected} onApplied={bump} />
+              <CuratorPanel w={w} selected={selected} onApplied={bump} onTargeting={setCurateTargeting} />
             )}
           </div>
         </div>

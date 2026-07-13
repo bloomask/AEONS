@@ -122,8 +122,16 @@ const fundableProjects = (w) => w.projects
 // The interventions. Each entry:
 //   key/label/glyph/blurb — identity, shown by the UI
 //   destructive           — the UI must ask for confirmation before applying
-//   fields                — param pickers: {key, label, options(w, sofar)};
-//                           option values are plain JSON scalars
+//   fields                — param pickers: {key, label, pick, options(w, sofar)};
+//                           option values are plain JSON scalars. `pick` tells
+//                           the UI how the target is chosen ON THE MAP rather
+//                           than from a dropdown:
+//                             "system"  — click a world (option value IS its id)
+//                             "project" — click the world hosting the project
+//                             "edge"    — click a jumpgate lane
+//                             "faction" — click a realm's territory (a pair is
+//                                         two such clicks; value is a relKey)
+//                             "choice"  — no map target; a small button group
 //   validate(w, params)   — null when applicable, else a human-readable reason
 //   preview(w, params)    — anticipated pressure: read-only prose lines
 //   apply(w, params)      — mutate the world + chronicle (assumes validated)
@@ -135,7 +143,7 @@ export const INTERVENTIONS = [
     glyph: "✚",
     blurb: "Unflagged freighters deliver grain and medicine to a struggling world.",
     destructive: false,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", pick: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";
@@ -175,11 +183,11 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "fromId", label: "source world",
+        key: "fromId", label: "source world", pick: "system",
         options: (w) => aliveSystems(w).filter((s) => s.pop > 4 && colonySites(w, s).length).map(sysOpt),
       },
       {
-        key: "toId", label: "colony site",
+        key: "toId", label: "colony site", pick: "system",
         options: (w, p) => colonySites(w, sys(w, p.fromId)).map(sysOpt),
       },
     ],
@@ -248,10 +256,10 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "sysId", label: "target world",
+        key: "sysId", label: "target world", pick: "system",
         options: (w) => aliveSystems(w).filter((s) => infraChoices(s).length).map(sysOpt),
       },
-      { key: "kind", label: "works", options: (w, p) => infraChoices(sys(w, p.sysId)) },
+      { key: "kind", label: "works", pick: "choice", options: (w, p) => infraChoices(sys(w, p.sysId)) },
     ],
     validate(w, p) {
       const s = sys(w, p.sysId);
@@ -300,7 +308,7 @@ export const INTERVENTIONS = [
     blurb: "Grant credits to a work of generations already under construction.",
     destructive: false,
     fields: [{
-      key: "projectIdx", label: "project",
+      key: "projectIdx", label: "project", pick: "project",
       options: (w) => fundableProjects(w).map(({ p, idx }) => ({
         v: idx,
         label: `${p.name} at ${w.systems[p.sysId].name} (${Math.round((p.progress / p.cost) * 100)}% built)`,
@@ -346,7 +354,7 @@ export const INTERVENTIONS = [
     blurb: "Quiet diplomacy ends a war or cools a dangerous rivalry.",
     destructive: false,
     fields: [{
-      key: "pair", label: "the parties",
+      key: "pair", label: "the parties", pick: "faction",
       options: (w) => statePairs(w)
         .filter(({ rel }) => rel && (rel.war || rel.rivalry > 20))
         .sort((x, y) => (y.rel.war ? 1000 : y.rel.rivalry) - (x.rel.war ? 1000 : x.rel.rivalry))
@@ -421,7 +429,7 @@ export const INTERVENTIONS = [
     blurb: "Forged dispatches and vanished envoys set two powers against each other.",
     destructive: true,
     fields: [{
-      key: "pair", label: "the parties",
+      key: "pair", label: "the parties", pick: "faction",
       options: (w) => statePairs(w)
         .filter(({ rel }) => !rel || !rel.war)
         .map(({ A, B, rel, key }) => ({ v: key, label: `${A.name} ↔ ${B.name} (${relStatus(rel)})` })),
@@ -475,7 +483,7 @@ export const INTERVENTIONS = [
     blurb: "Grain doles and festival credits take the heat out of a restless world.",
     destructive: false,
     fields: [{
-      key: "sysId", label: "target world",
+      key: "sysId", label: "target world", pick: "system",
       options: (w) => aliveSystems(w).filter((s) => s.unrest > 0.05).map(sysOpt),
     }],
     validate(w, p) {
@@ -512,7 +520,7 @@ export const INTERVENTIONS = [
     glyph: "🔥",
     blurb: "Provocateurs and pamphlets give a world's grievances new voices.",
     destructive: true,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", pick: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";
@@ -548,11 +556,11 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "a", label: "first system",
+        key: "a", label: "first system", pick: "system",
         options: (w) => w.systems.filter((s) => gateableFrom(w, s).length).map(sysOpt),
       },
       {
-        key: "b", label: "second system",
+        key: "b", label: "second system", pick: "system",
         options: (w, p) => (sys(w, p.a) ? gateableFrom(w, sys(w, p.a)).map(sysOpt) : []),
       },
     ],
@@ -590,7 +598,7 @@ export const INTERVENTIONS = [
     blurb: "A lane between two stars shudders and dies. Sabotage, the gatekeepers whisper.",
     destructive: true,
     fields: [{
-      key: "edge", label: "the lane",
+      key: "edge", label: "the lane", pick: "edge",
       options: (w) => w.edges.map((e) => ({
         v: `${e.a}|${e.b}`,
         label: `${w.systems[e.a].name} ⇌ ${w.systems[e.b].name}${e.vol > 0.5 ? ` (busy: ${e.vol.toFixed(1)} freight)` : ""}`,
@@ -632,7 +640,7 @@ export const INTERVENTIONS = [
     glyph: "☠",
     blurb: "A strange strain slips through the gates unbidden. Stocked clinics blunt it.",
     destructive: true,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", pick: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { EV_STYLE } from "./theme.js";
+import { lastEvents } from "./chronicle.js";
 
 // Rotating headline strip over the map: only history-book events make it.
 const HEADLINE_TYPES = new Set([
@@ -12,9 +13,8 @@ export default function Ticker({ worldRef, onOpen }) {
   const topSeqRef = useRef(0);
 
   const w = worldRef.current;
-  const list = w
-    ? [...w.events].reverse().filter((ev) => HEADLINE_TYPES.has(ev.t)).slice(0, 10)
-    : [];
+  // backward tail scan — the durable log is uncapped, so never copy it whole
+  const list = w ? lastEvents(w, (ev) => HEADLINE_TYPES.has(ev.t), 10) : [];
 
   // a fresh headline interrupts the rotation
   useEffect(() => {

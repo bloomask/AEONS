@@ -1,4 +1,4 @@
-import { log } from "../events.js";
+import { log, facRef, houseRef, sysRef } from "../events.js";
 
 // --- the galactic credit market: loans, defaults, and panics ---
 // Megacorps lend to struggling worlds and desperate governments. Interest
@@ -43,7 +43,10 @@ export function runFinance(w, rng) {
         l.principal -= chunk;
         if (l.principal < 2) {
           w.loans.splice(w.loans.indexOf(l), 1);
-          log(w, "credit", `${isSys ? b.name : "The " + b.name} retires its debt to ${lender.name}. The collection gunboats stand down.`, isSys ? b.id : null);
+          log(w, "credit", `${isSys ? b.name : "The " + b.name} retires its debt to ${lender.name}. The collection gunboats stand down.`, isSys ? b.id : null, {
+            actors: [isSys ? sysRef(b) : facRef(b)], targets: [houseRef(lender)],
+            cause: "credit.repaid", why: "a healthy borrower amortized the book down",
+          });
         }
       }
     } else if (++l.missed >= 4) {
@@ -71,7 +74,11 @@ export function runFinance(w, rng) {
         s.dev = Math.min(3, s.dev + 0.04); // the money builds docks and refineries
         w.loans.push({ kind: "sys", bid: s.id, lender: lender.id, principal: P, rate: rng.range(0.07, 0.1), since: w.year, missed: 0 });
         w.stats.c.loanMade++;
-        log(w, "credit", `${lender.name} floats a reconstruction loan to ${s.name} — ${P.toFixed(0)}cr against future dock fees.`, s.id);
+        log(w, "credit", `${lender.name} floats a reconstruction loan to ${s.name} — ${P.toFixed(0)}cr against future dock fees.`, s.id, {
+          actors: [houseRef(lender)], targets: [sysRef(s)], cause: "credit.loan",
+          why: "a promising world too broke to rebuild on its own",
+          effects: [{ k: "credits", d: P, u: "cr" }],
+        });
       }
       // war bonds and bailouts for desperate treasuries
       for (const f of w.factions) {
@@ -89,7 +96,12 @@ export function runFinance(w, rng) {
         w.stats.c.loanMade++;
         log(w, "credit", atWar
           ? `${lender.name} underwrites the ${f.name}'s war bonds — ${P.toFixed(0)}cr for the fleet yards, at a hard rate.`
-          : `${lender.name} bails out the treasury of the ${f.name} with ${P.toFixed(0)}cr. The customs houses now answer to two masters.`, f.capital);
+          : `${lender.name} bails out the treasury of the ${f.name} with ${P.toFixed(0)}cr. The customs houses now answer to two masters.`, f.capital, {
+          actors: [houseRef(lender)], targets: [facRef(f)],
+          cause: atWar ? "credit.war-bonds" : "credit.bailout",
+          why: atWar ? "a treasury bleeding for its fleets" : "a treasury sinking below its obligations",
+          effects: [{ k: "credits", d: P, u: "cr" }],
+        });
       }
     }
   }
@@ -102,7 +114,13 @@ export function runFinance(w, rng) {
     C.panics++;
     C.lastPanic = w.year;
     w.stats.c.panic++;
-    log(w, "credit", `THE PANIC OF ${w.year}: counting houses across the galaxy slam their shutters. Credit is dead; cargo waits on the docks for financing that never comes.`);
+    log(w, "credit", `THE PANIC OF ${w.year}: counting houses across the galaxy slam their shutters. Credit is dead; cargo waits on the docks for financing that never comes.`, null, {
+      sev: 3, cause: "credit.panic",
+      why: bigLenderDied
+        ? "a great creditor went under with its book still open"
+        : `${C.defaults.length} defaults inside a decade broke the market's nerve`,
+      effects: [{ k: "credit-frozen", v: C.crunch, u: "yr" }],
+    });
   }
 }
 
@@ -110,5 +128,9 @@ function defaultOn(w, l, lender, borrowerName) {
   w.loans.splice(w.loans.indexOf(l), 1);
   w.credit.defaults.push(w.year);
   w.stats.c.loanDefault++;
-  log(w, "credit", `${borrowerName[0].toUpperCase() + borrowerName.slice(1)} defaults on ${l.principal.toFixed(0)}cr owed to ${lender.name}. The paper is worthless.`, l.kind === "sys" ? l.bid : null);
+  log(w, "credit", `${borrowerName[0].toUpperCase() + borrowerName.slice(1)} defaults on ${l.principal.toFixed(0)}cr owed to ${lender.name}. The paper is worthless.`, l.kind === "sys" ? l.bid : null, {
+    actors: [l.kind === "sys" ? sysRef(l.bid) : facRef(l.bid)], targets: [houseRef(lender)],
+    cause: "credit.default", why: "the borrower could no longer service the paper",
+    effects: [{ k: "credits", d: -l.principal, u: "cr" }],
+  });
 }

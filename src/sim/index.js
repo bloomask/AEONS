@@ -16,7 +16,12 @@ export {
   STAR_TYPES, STAR_BY_KEY, BODY_TYPES,
 } from "./cosmos.js";
 export { CONFIG_GROUPS, CONFIG_PARAMS, PRESETS, defaultConfig, carryCap } from "./config.js";
-export { log, relKey, getRel } from "./events.js";
+export {
+  log, relKey, getRel,
+  facRef, houseRef, sysRef, faithRef, eventInvolves,
+  compactChronicle, chronicleRange, systemRecord,
+  EVENT_SEV, MINOR_KEEP_YEARS, SEV_MINOR, SEV_NOTABLE, SEV_MAJOR,
+} from "./events.js";
 export {
   INTERVENTIONS, INTERVENTION_BY_KEY, CURATOR,
   validateIntervention, previewIntervention, applyIntervention,

@@ -28,7 +28,7 @@ export function makeSystem(id, overrides = {}) {
     classWb: Object.fromEntries(CLASSES.map((c) => [c, 0.7])),
     wbEma: 0.7,
     unrest: 0, riotCd: 0, wb: 0.7, fid: null, ruined: false, diedYear: null,
-    famineCd: 0, tradeIn: 0, tradeOut: 0, history: [],
+    famineCd: 0, tradeIn: 0, tradeOut: 0,
     settledYear: 0, peakPop: 10, lastFamine: -99, lastPlague: -99, lastWar: -99,
     siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
     infra: { gran: 0, gate: 0, mine: 0 },
@@ -91,7 +91,7 @@ export function makeWorld({ systems, factions = [], houses = [], edges = [], cfg
   w.projects = [];
   w.cartels = []; w.cartelMul = {};
   w.credit = { crunch: 0, defaults: [], panics: 0, lastPanic: -99 };
-  w.events = []; w.eventSeq = 0; w.fx = []; w.fxSeq = 0;
+  w.events = []; w.eventSeq = 0; w.eventAgg = []; w.fx = []; w.fxSeq = 0;
   // keep the counter KEYS (so a phase's `c.foo++` never hits undefined) but zero them
   for (const k of Object.keys(w.stats.c)) w.stats.c[k] = 0;
   w.stats.seeded = 0; w.stats.series = []; w.stats.deaths = [];

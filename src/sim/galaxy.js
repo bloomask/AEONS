@@ -4,7 +4,7 @@ import { startMix } from "./society.js";
 import { makeRng } from "./rng.js";
 import { clamp, dist2 } from "./util.js";
 import { genName } from "./names.js";
-import { log } from "./events.js";
+import { log, facRef, sysRef } from "./events.js";
 import { foundFaction } from "./factions.js";
 import { foundHouse } from "./houses.js";
 import { genComposition } from "./cosmos.js";
@@ -20,7 +20,11 @@ export function genGalaxy(seed, cfgIn) {
   const nFactions = Math.min(Math.round(cfg.factions), nSeeded);
   const w = {
     seed, cfg, year: 0, systems: [], edges: [], factions: [],
-    events: [], relations: {}, nextFid: 0, warCount: 0,
+    // the chronicle: `events` holds every retained record (majors forever,
+    // minors for MINOR_KEEP_YEARS), `eventAgg` the decade digests of
+    // compacted minors — see events.js
+    events: [], eventSeq: 0, eventAgg: [],
+    relations: {}, nextFid: 0, warCount: 0,
     era: { name: "The Age of Foundation", since: 0 },
     eras: [{ name: "The Age of Foundation", since: 0 }],
     faiths: [], projects: [], fx: [], fxSeq: 0,
@@ -114,7 +118,7 @@ export function genGalaxy(seed, cfgIn) {
       wbEma: 0.7, // smoothed worker wellbeing driving labor allocation (breaks the grain cobweb)
       unrest: 0, riotCd: 0,
       wb: 0.7, fid: null, ruined: false, diedYear: null,
-      famineCd: 0, tradeIn: 0, tradeOut: 0, history: [],
+      famineCd: 0, tradeIn: 0, tradeOut: 0,
       settledYear: null, peakPop: 0, lastFamine: -99, lastPlague: -99, lastWar: -99,
       siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
@@ -209,14 +213,20 @@ export function genGalaxy(seed, cfgIn) {
     .forEach((s) => {
       s.freePort = true;
       w.stats.c.freePorts++;
-      log(w, "found", `${s.name} declares itself a Free Port: no duties, no navy, no master.`, s.id);
+      log(w, "found", `${s.name} declares itself a Free Port: no duties, no navy, no master.`, s.id, {
+        actors: [sysRef(s)], cause: "found.free-port",
+        why: "too well-connected for any single flag to hold",
+      });
     });
 
   [...w.systems].filter((s) => s.pop > 0).sort((a, b) => b.pop - a.pop)
     .slice(0, Math.round(cfg.houses))
     .forEach((s) => foundHouse(w, rng, s, T.START_SHIPS, 80));
 
-  log(w, "era", `The Age of Foundation begins. ${caps.length} powers rise among ${nSys} known systems.`);
+  log(w, "era", `The Age of Foundation begins. ${caps.length} powers rise among ${nSys} known systems.`, null, {
+    cause: "era.foundation", actors: caps.map((c) => facRef(w.systems[c.id].fid)),
+    effects: [{ k: "powers", v: caps.length }, { k: "systems", v: nSys }],
+  });
   w.rng = rng;
   return w;
 }

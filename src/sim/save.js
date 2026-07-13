@@ -1,5 +1,6 @@
 import { makeRng } from "./rng.js";
 import { rebuildAdj } from "./galaxy.js";
+import { EVENT_SEV } from "./events.js";
 
 // ---------------------------------------------------------------------------
 // Versioned save / load of the world object.
@@ -19,7 +20,7 @@ import { rebuildAdj } from "./galaxy.js";
 
 // Bump when the world shape changes in a way an old save can't be loaded as-is,
 // and add a step to MIGRATIONS below to carry old saves forward.
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 // Human-readable tag stored on every save so a stray blob is recognizable and
 // we can refuse to load something that isn't one of ours.
@@ -101,9 +102,29 @@ export function migrateSave(snap) {
 }
 
 // Ordered migration steps: MIGRATIONS[n] upgrades a v(n) snapshot to v(n+1).
-// Each is a pure transform of the snapshot object. There are none yet (v1 is
-// the first format); future world-shape changes add their upgrade here so old
-// saves keep loading.
+// Each is a pure transform of the snapshot object; future world-shape changes
+// add their upgrade here so old saves keep loading.
 const MIGRATIONS = {
-  // 1: (snap) => { ...snap, world: { ...snap.world, newField: default } },
+  // v1 → v2: structured, durable chronicle. Old events carried only
+  // {y, t, s, sysId, i}; give them the structured fields (with severity
+  // derived from type), add the decade-digest store, and drop the retired
+  // per-system 12-entry history (the local record is now derived from the
+  // global archive). Old saves had already trimmed their log to 800 entries,
+  // so a migrated archive simply starts at its earliest surviving record.
+  1: (snap) => {
+    const world = { ...snap.world };
+    world.events = (world.events || []).map((ev) => ({
+      sev: EVENT_SEV[ev.t] ?? 2,
+      actors: [], targets: [],
+      systems: ev.sysId !== null && ev.sysId !== undefined ? [ev.sysId] : [],
+      cause: null, why: null, effects: [],
+      ...ev,
+    }));
+    world.eventAgg = world.eventAgg || [];
+    world.systems = (world.systems || []).map((s) => {
+      const { history, ...rest } = s;
+      return rest;
+    });
+    return { ...snap, world };
+  },
 };

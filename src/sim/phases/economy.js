@@ -1,7 +1,7 @@
 import { T, GOODS, BASE_PRICE, RECIPES, MFG_YIELD, CLASSES, CLASS_DEF, techFx } from "../constants.js";
 import { carryCap } from "../config.js";
 import { clamp } from "../util.js";
-import { log } from "../events.js";
+import { log, facRef, sysRef } from "../events.js";
 import { laborForce, skewDeaths, socialMobility, computeUnrest } from "../society.js";
 
 // --- production, consumption, prices, and the social pyramid ---
@@ -128,19 +128,37 @@ export function runEconomy(w, rng, alive) {
       s.lastFamine = w.year;
       if (s.famineCd <= 0) {
         w.stats.c.famine++;
-        let why = "";
-        if (s.siege) why = " under the blockade";
-        else if (s.min > 0.35 && s.minRes / s.minRes0 < 0.15) why = " as the great mines fail and the ore money dries up";
-        else if (s.fert < 0.15) why = ", a barren world cut off from the grain lanes";
+        let why = "", cause = "famine.harvest", causeWhy = "local demand outran the harvest and the lanes";
+        if (s.siege) {
+          why = " under the blockade";
+          cause = "famine.siege";
+          causeWhy = `the blockade by the ${w.factions[s.siege.by]?.name ?? "besiegers"} lets no grain dock`;
+        } else if (s.min > 0.35 && s.minRes / s.minRes0 < 0.15) {
+          why = " as the great mines fail and the ore money dries up";
+          cause = "famine.mines-failed";
+          causeWhy = "the ore money that bought imported grain dried up with the veins";
+        } else if (s.fert < 0.15) {
+          why = ", a barren world cut off from the grain lanes";
+          cause = "famine.barren";
+          causeWhy = "a barren world that lives or dies by the grain lanes";
+        }
         const v = rng.pick([
           `Famine grips ${s.name}${why}. Granaries empty; the exodus begins.`,
           `The hunger years come to ${s.name}${why}. Ration queues stretch past the starports.`,
           `${s.name} starves${why}. Freighters that once carried ore now carry refugees.`,
         ]);
-        log(w, "famine", v, s.id);
+        log(w, "famine", v, s.id, {
+          actors: [sysRef(s)],
+          targets: s.siege ? [facRef(s.siege.by)] : [],
+          cause, why: causeWhy,
+          effects: [{ k: "pop", d: -lost, u: "M" }],
+        });
         if (lost > w.records.worstFamine && lost > 4) {
           w.records.worstFamine = lost;
-          log(w, "era", `${lost.toFixed(0)} million perish at ${s.name} — the worst famine the galaxy has recorded.`, s.id);
+          log(w, "era", `${lost.toFixed(0)} million perish at ${s.name} — the worst famine the galaxy has recorded.`, s.id, {
+            actors: [sysRef(s)], cause: "record.worst-famine", why: causeWhy,
+            effects: [{ k: "pop", d: -lost, u: "M" }],
+          });
         }
         s.famineCd = 5;
       }
@@ -149,6 +167,7 @@ export function runEconomy(w, rng, alive) {
 
     // when the gap gets loud enough, it spills into the streets
     if (s.unrest > 0.8 && s.pop > 2 && s.riotCd <= 0 && rng.chance(0.08)) {
+      const unrest0 = s.unrest, wealth0 = s.wealth;
       s.wealth = Math.max(-20, s.wealth - s.wealth * 0.1 - 5);
       s.stock.consumer *= 0.85;
       s.unrest *= 0.6; // the streets have spoken; the pressure vents
@@ -158,7 +177,14 @@ export function runEconomy(w, rng, alive) {
         `Bread riots at ${s.name}: the lower quarters burn the counting houses while the towers dine above the smoke.`,
         `${s.name} erupts — dock crews and mine gangs storm the upper rings. The militia holds, barely.`,
         `A general strike paralyzes ${s.name}. The elite pay for peace, this time.`,
-      ]), s.id);
+      ]), s.id, {
+        actors: [sysRef(s)], cause: "riot.unrest",
+        why: `class anger reached ${(unrest0 * 100).toFixed(0)}% — the gap spilled into the streets`,
+        effects: [
+          { k: "wealth", d: -(wealth0 - s.wealth), u: "cr" },
+          { k: "unrest", d: -(unrest0 - s.unrest) },
+        ],
+      });
     }
     s.riotCd--;
 

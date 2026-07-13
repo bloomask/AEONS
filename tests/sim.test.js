@@ -38,7 +38,9 @@ test("300 years produce a coherent galaxy", () => {
   const alive = w.systems.filter((s) => s.pop > 0.05);
   assert.ok(alive.length > 0, "civilization survived");
   assert.ok(w.factions.some((f) => !f.dead), "at least one power still stands");
-  assert.ok(w.events.length > 0 && w.events.length <= 800, "event log populated and capped");
+  assert.ok(w.events.length > 0, "event log populated");
+  // the chronicle is durable: the founding record still stands three centuries on
+  assert.ok(w.events.some((ev) => ev.y === 0 && ev.t === "era"), "the founding era record survives");
   assert.ok(w.stats.series.length === 300, "one stats row per year");
 
   // every claimed system points at a real, living faction

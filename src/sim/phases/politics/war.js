@@ -1,6 +1,6 @@
 import { clamp } from "../../util.js";
 import { T, allowsSlaves } from "../../constants.js";
-import { log, fx, relKey } from "../../events.js";
+import { log, fx, relKey, facRef, sysRef } from "../../events.js";
 import { relocateCapital } from "../../factions.js";
 import { addWorkers } from "../../society.js";
 import { revolt } from "./revolt.js";
@@ -48,6 +48,7 @@ export function runWarYear(w, rng, A, B, rel, border) {
     w.stats.c.battle++;
     if (rec) rec.battles++;
     fx(w, { t: "battle", a: e.a, b: e.b });
+    const popLost = (sa.pop + sb.pop) * 0.015;
     sa.pop *= 0.985; sb.pop *= 0.985;
     sa.stock.weapons *= 1 - T.ARMS_BATTLE_USE; // munitions spent at the front
     sb.stock.weapons *= 1 - T.ARMS_BATTLE_USE;
@@ -57,22 +58,35 @@ export function runWarYear(w, rng, A, B, rel, border) {
     const lostSys = winSys === sa ? sb : sa;
     if (winSys.siege && winSys.siege.by === loseF.id) {
       // the besieged side won the gate: siege broken
+      const siegeYears = w.year - winSys.siege.since;
       winSys.siege = null;
       w.stats.c.siegeLift++;
-      log(w, "siege", `The siege of ${winSys.name} is broken at the ${gate} gate. Relief convoys pour in.`, winSys.id);
+      log(w, "siege", `The siege of ${winSys.name} is broken at the ${gate} gate. Relief convoys pour in.`, winSys.id, {
+        actors: [facRef(winF)], targets: [facRef(loseF)], systems: [e.a, e.b],
+        cause: "siege.broken", why: `the besieged side won the ${gate} gate`,
+        effects: [{ k: "siege-years", v: siegeYears, u: "yr" }, { k: "pop", d: -popLost, u: "M" }],
+      });
     } else if (!lostSys.siege && lostSys.fid === loseF.id) {
       lostSys.siege = { by: winF.id, since: w.year, pair: key };
       fx(w, { t: "siege", sys: lostSys.id });
       log(w, "siege", rng.pick([
         `${winF.name} forces win the ${gate} gate and lay siege to ${lostSys.name}. Nothing flies in or out.`,
         `Victory at ${gate}: the ${winF.name} throws a blockade around ${lostSys.name}.`,
-      ]), lostSys.id);
+      ]), lostSys.id, {
+        actors: [facRef(winF)], targets: [facRef(loseF), sysRef(lostSys)], systems: [e.a, e.b],
+        cause: "siege.laid", why: `the ${winF.name} won the ${gate} gate and sealed the world behind it`,
+        effects: [{ k: "pop", d: -popLost, u: "M" }],
+      });
     } else {
       log(w, "battle", rng.pick([
         `Battle at the ${gate} gate: ${winF.name} forces rout the ${loseF.name}.`,
         `The fleets of the ${winF.name} scatter the ${loseF.name} line at ${gate}.`,
         `A bloody stalemate at ${gate} breaks in the ${winF.name}'s favor.`,
-      ]));
+      ]), null, {
+        actors: [facRef(winF)], targets: [facRef(loseF)], systems: [e.a, e.b],
+        cause: "war.battle", why: `a contested gate on the ${A.name}–${B.name} front`,
+        effects: [{ k: "pop", d: -popLost, u: "M" }],
+      });
     }
   }
 
@@ -95,19 +109,35 @@ export function runWarYear(w, rng, A, B, rel, border) {
         const taken = s.pop * rng.range(0.05, 0.15);
         s.pop -= taken; s.slaves += taken;
         w.stats.c.enslaved++;
-        log(w, "slave", `${taken.toFixed(1)}M of ${s.name} are dragged into bondage as the ${taker.name} sacks the world.`, s.id);
+        log(w, "slave", `${taken.toFixed(1)}M of ${s.name} are dragged into bondage as the ${taker.name} sacks the world.`, s.id, {
+          sev: 2, actors: [facRef(taker)], targets: [sysRef(s)],
+          cause: "slave.conquest", why: "a slaving power sacked the world",
+          effects: [{ k: "pop", d: -taken, u: "M" }, { k: "slaves", d: taken, u: "M" }],
+        });
       } else if (!allowsSlaves(taker.gov, false) && s.slaves > 0.1) {
         const freed = s.slaves; s.slaves = 0;
         addWorkers(s, freed);
         w.stats.c.slavesFreed++;
-        log(w, "slave", `The ${taker.name} strike the chains from ${freed.toFixed(1)}M at ${s.name}; the freed swell the workers' ranks.`, s.id);
+        log(w, "slave", `The ${taker.name} strike the chains from ${freed.toFixed(1)}M at ${s.name}; the freed swell the workers' ranks.`, s.id, {
+          sev: 2, actors: [facRef(taker)], targets: [sysRef(s)],
+          cause: "slave.liberation", why: "an abolitionist conqueror outlaws bondage",
+          effects: [{ k: "slaves", d: -freed, u: "M" }, { k: "pop", d: freed, u: "M" }],
+        });
       }
       rel.war.score += taker.id === A.id ? 2 : -2;
       w.stats.c.siegeFall++; w.stats.c.cede++;
       if (rec) rec.systemsCeded++;
       log(w, "capture", wasCapital
         ? `${s.name} FALLS. The ${loserF.name}'s own capital is sacked after a ${siegeDur}-year siege.`
-        : `${s.name} falls to the ${taker.name} after ${siegeDur} years under blockade.`, s.id);
+        : `${s.name} falls to the ${taker.name} after ${siegeDur} years under blockade.`, s.id, {
+        actors: [facRef(taker)], targets: [facRef(loserF), sysRef(s)],
+        cause: wasCapital ? "capture.capital" : "capture.siege",
+        why: `starved out by a ${siegeDur}-year blockade`,
+        effects: [
+          { k: "owner", from: loserF.id, to: taker.id },
+          { k: "siege-years", v: siegeDur, u: "yr" },
+        ],
+      });
       if (wasCapital) {
         loserF.stability = clamp(loserF.stability - 0.3, 0, 1);
         relocateCapital(w, loserF);
@@ -133,26 +163,48 @@ export function runWarYear(w, rng, A, B, rel, border) {
       rec.endReason = reason;
     }
     const taken = rec ? rec.systemsCeded : 0;
+    const peaceMeta = {
+      actors: [facRef(A), facRef(B)],
+      cause: `peace.${{
+        "capital sacked": "capital-sacked", decisive: "decisive",
+        exhaustion: "exhaustion", stalemate: "stalemate",
+      }[reason]}`,
+      why: {
+        "capital sacked": "a capital was sacked and the war was decided",
+        decisive: "one side was decisively broken in the field",
+        exhaustion: "both treasuries were bled white",
+        stalemate: "a generation of stalemate exhausted everyone",
+      }[reason],
+      effects: [
+        { k: "war-years", v: dur, u: "yr" },
+        ...(taken > 0 ? [{ k: "systems-ceded", d: taken }] : []),
+      ],
+    };
     if (winner && taken > 0) {
-      log(w, "peace", `The Treaty of ${w.systems[winner.capital].name} ends ${dur} years of war. ${taken} system${taken > 1 ? "s" : ""} remain${taken > 1 ? "" : "s"} in ${winner.name} hands.`);
+      log(w, "peace", `The Treaty of ${w.systems[winner.capital].name} ends ${dur} years of war. ${taken} system${taken > 1 ? "s" : ""} remain${taken > 1 ? "" : "s"} in ${winner.name} hands.`, null, peaceMeta);
     } else if (winner) {
-      log(w, "peace", `Peace between the ${A.name} and the ${B.name} after ${dur} years. The ${winner.name} claims victory, though the borders barely moved.`);
+      log(w, "peace", `Peace between the ${A.name} and the ${B.name} after ${dur} years. The ${winner.name} claims victory, though the borders barely moved.`, null, peaceMeta);
     } else {
-      log(w, "peace", `Exhausted and bankrupt, the ${A.name} and the ${B.name} lay down arms after ${dur} years. Nobody calls it victory.`);
+      log(w, "peace", `Exhausted and bankrupt, the ${A.name} and the ${B.name} lay down arms after ${dur} years. Nobody calls it victory.`, null, peaceMeta);
     }
     if (dur > w.records.longestWar && dur >= 8) {
       w.records.longestWar = dur;
-      log(w, "era", `${dur} years of war between the ${A.name} and the ${B.name} — the longest anyone living can remember.`);
+      log(w, "era", `${dur} years of war between the ${A.name} and the ${B.name} — the longest anyone living can remember.`, null, {
+        actors: [facRef(A), facRef(B)], cause: "record.longest-war",
+        effects: [{ k: "war-years", v: dur, u: "yr" }],
+      });
     }
     // defeat is the great regime-changer
     if (winner && taken > 0) {
       const loser = winner === A ? B : A;
       if (loser.gov === "empire" && rng.chance(0.4 * w.cfg.upheaval)) {
         revolt(w, rng, loser, "republic", (oldName, newName) =>
-          `The defeat breaks the dynasty: the ${oldName} is swept away, and the ${newName} rises from the wreckage.`);
+          `The defeat breaks the dynasty: the ${oldName} is swept away, and the ${newName} rises from the wreckage.`,
+        "revolution.defeat", `defeat by the ${winner.name} broke the dynasty`);
       } else if (loser.gov === "republic" && rng.chance(0.25 * w.cfg.upheaval)) {
         revolt(w, rng, loser, "empire", (oldName, newName) =>
-          `Humiliated, the assembly of the ${oldName} hands power to a strongman. It wakes as the ${newName}.`);
+          `Humiliated, the assembly of the ${oldName} hands power to a strongman. It wakes as the ${newName}.`,
+        "revolution.defeat", `humiliation by the ${winner.name} handed power to a strongman`);
       }
     }
     rel.war = null; rel.rivalry = 25;

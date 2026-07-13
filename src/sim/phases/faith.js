@@ -1,6 +1,6 @@
 import { T, FAITH_COLORS, CULTURES } from "../constants.js";
 import { clamp } from "../util.js";
-import { log } from "../events.js";
+import { log, faithRef, sysRef } from "../events.js";
 import { genName } from "../names.js";
 
 // --- faith: creeds travel the trade lanes; isolation breeds schism ---
@@ -13,13 +13,18 @@ export function runFaith(w, rng, alive) {
     if (!rng.chance(clamp(e.vol * 0.004, 0, 0.02))) continue;
     const big = A.pop >= B.pop ? A : B;
     const small = big === A ? B : A;
+    const oldFaith = small.faith;
     small.faith = big.faith;
     w.stats.c.conversion++;
     if (small.pop > 6) {
       log(w, "faith", rng.pick([
         `${small.name} embraces ${w.faiths[big.faith].name}; the old shrines empty with the grain ships.`,
         `Missionaries riding the freighters win ${small.name} over to ${w.faiths[big.faith].name}.`,
-      ]), small.id);
+      ]), small.id, {
+        actors: [faithRef(big.faith), sysRef(big)], targets: [sysRef(small), faithRef(oldFaith)],
+        systems: [big.id],
+        cause: "faith.conversion", why: "creeds travel the busy lanes, from the greater world to the lesser",
+      });
     }
   }
 
@@ -42,7 +47,10 @@ export function runFaith(w, rng, alive) {
     const old = w.faiths[s.faith];
     s.faith = f.id;
     w.stats.c.schism++;
-    log(w, "faith", `Schism at ${s.name}: preachers cast out ${old.name} and proclaim ${f.name}.`, s.id);
+    log(w, "faith", `Schism at ${s.name}: preachers cast out ${old.name} and proclaim ${f.name}.`, s.id, {
+      sev: 3, actors: [sysRef(s), faithRef(f.id)], targets: [faithRef(old.id)],
+      cause: "faith.schism", why: "a great world grown too isolated to keep another's creed",
+    });
   }
 }
 

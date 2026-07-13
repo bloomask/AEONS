@@ -44,7 +44,6 @@
  * @property {number} famineCd
  * @property {number} tradeIn  Import volume this year (set by the trade phase).
  * @property {number} tradeOut Export volume this year.
- * @property {{y:number,t:string,s:string}[]} history  Last 12 events touching this system.
  * @property {?number} settledYear
  * @property {number} peakPop
  * @property {number} lastFamine  Year of last famine (-99 = never).
@@ -217,12 +216,53 @@
  */
 
 /**
+ * @typedef {Object} EventRef  A typed reference to an entity in an event.
+ * @property {"faction"|"house"|"system"|"faith"} k
+ * @property {number} id  Index into the matching world array (dead entries stay resolvable).
+ */
+
+/**
+ * @typedef {Object} EventEffect  One measurable change an event caused.
+ * Numeric form: {k, d?, v?, u?} — `d` a signed delta, `v` an absolute value,
+ * `u` a unit ("M", "cr", "yr", "%"). Transition form: {k:"owner", from, to}
+ * (faction ids or null = free) or {k:"gov", from, to} (government keys).
+ * @property {string} k   What changed ("pop", "slaves", "credits", "owner", …).
+ * @property {number} [d] Signed delta.
+ * @property {number} [v] Absolute value (records, levels).
+ * @property {string} [u] Unit label.
+ * @property {*} [from]   Transition start (owner/gov).
+ * @property {*} [to]     Transition end.
+ */
+
+/**
  * @typedef {Object} WorldEvent  One chronicle entry (see events.js `log`).
  * @property {number} y   Year.
  * @property {string} t   Type key (styled via EV_STYLE in ui/theme.js).
  * @property {string} s   Prose text — written as in-world history.
- * @property {?number} sysId
- * @property {number} i   Monotonic sequence number (survives log trimming).
+ * @property {?number} sysId  The primary system, if any.
+ * @property {number} i   Monotonic sequence number (survives compaction).
+ * @property {1|2|3} sev  Severity tier (events.js SEV_*): 1 minor (folded into
+ *   decade digests after MINOR_KEEP_YEARS), 2 notable, 3 major — 2/3 are
+ *   retained verbatim for the whole session.
+ * @property {EventRef[]} actors   Who did it.
+ * @property {EventRef[]} targets  Who/what it was done to.
+ * @property {number[]} systems    Every affected system id (includes sysId).
+ * @property {?string} cause  Machine-readable cause code ("war.creed", "famine.siege"…).
+ * @property {?string} why    Prose reason — the event's "Why".
+ * @property {EventEffect[]} effects  Measurable changes — the event's "What changed".
+ */
+
+/**
+ * @typedef {Object} EventDigest  A decade rollup of compacted minor events
+ * (events.js `compactChronicle`): all sev-1 events of one type at one system
+ * in one decade, condensed to a count, a span, and summed numeric effects.
+ * @property {number} dec    Decade start year (e.g. 340 for the 340s).
+ * @property {string} t      Event type key.
+ * @property {?number} sysId System, or null for galaxy-wide events.
+ * @property {number} n      How many events were folded in.
+ * @property {number} y0     Earliest year folded.
+ * @property {number} y1     Latest year folded.
+ * @property {Object<string,number>} eff  Summed numeric effect deltas by key.
  */
 
 /**
@@ -244,7 +284,10 @@
  * @property {Faith[]} faiths
  * @property {Object<string,Relation>} relations  Keyed by `relKey(a,b)`.
  * @property {Command[]} commands  Ledger of curator interventions, in order (never trimmed).
- * @property {WorldEvent[]} events  Capped at 800; use `log()`, never push directly.
+ * @property {WorldEvent[]} events  The durable chronicle, in year order; use `log()`,
+ *   never push directly. Sev 2–3 events are kept for the whole session; sev 1
+ *   events are folded into `eventAgg` after MINOR_KEEP_YEARS (events.js).
+ * @property {EventDigest[]} eventAgg  Decade digests of compacted minor events.
  * @property {number} eventSeq
  * @property {Object[]} fx        Short-lived map effect queue (capped 120); use `fx()`.
  * @property {number} fxSeq

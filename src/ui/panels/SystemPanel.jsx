@@ -7,6 +7,8 @@ import { dearestStaple, explainScarcity } from "../../sim/explain.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
 import { fmtPop, fmtCredits } from "../format.js";
 import { describeSystem } from "../describe.js";
+import { systemRecord } from "../../sim/events.js";
+import { digestText } from "../chronicle.js";
 
 const SEV_STYLE = {
   [SEV_CRISIS]: { color: "var(--red)", raw: "#E4572E", label: "CRISIS" },
@@ -86,16 +88,38 @@ function SystemBodies({ sel }) {
   );
 }
 
-function LocalRecord({ sel }) {
-  if (!sel.history.length) return null;
+function LocalRecord({ w, sel }) {
+  // the local record is derived from the durable global archive: every
+  // retained event that touched this system plus its decade digests — the
+  // whole session's history, paged
+  const [limit, setLimit] = useState(12);
+  const rec = systemRecord(w, sel.id);
+  if (!rec.length) return null;
+  const shown = rec.slice(0, limit);
+  const oldest = rec[rec.length - 1];
   return (
-    <Section title="local record">
-      {[...sel.history].reverse().map((h, i) => (
-        <div key={i} className="mb-1.5 flex gap-2.5">
-          <span style={{ color: "var(--amber)", minWidth: 30 }}>{h.y}</span>
-          <span className="muted">{h.s}</span>
-        </div>
-      ))}
+    <Section
+      title="local record"
+      right={<span className="faint">back to year {oldest.agg ? oldest.agg.y0 : oldest.y}</span>}
+    >
+      {shown.map((r, i) =>
+        r.agg ? (
+          <div key={`a${i}`} className="mb-1.5 flex gap-2.5" style={{ opacity: 0.65 }}>
+            <span style={{ color: "var(--amber)", minWidth: 30 }}>{r.agg.y1}</span>
+            <span className="italic" style={{ color: "#8F8A80" }}>{digestText(w, r.agg)}</span>
+          </div>
+        ) : (
+          <div key={r.ev.i} className="mb-1.5 flex gap-2.5">
+            <span style={{ color: "var(--amber)", minWidth: 30 }}>{r.y}</span>
+            <span className="muted">{r.ev.s}</span>
+          </div>
+        )
+      )}
+      {rec.length > limit && (
+        <button className="chip" onClick={() => setLimit((l) => l + 25)}>
+          ▾ earlier records — showing {shown.length} of {rec.length}
+        </button>
+      )}
     </Section>
   );
 }
@@ -213,7 +237,7 @@ function Overview({ w, sel }) {
           </div>
         </Section>
       )}
-      <LocalRecord sel={sel} />
+      <LocalRecord w={w} sel={sel} />
     </div>
   );
 }
@@ -446,7 +470,7 @@ export default function SystemPanel({ w, sel, sub: subProp, onSub }) {
         <>
           <SystemBodies sel={sel} />
           <Endowments sel={sel} />
-          <LocalRecord sel={sel} />
+          <LocalRecord w={w} sel={sel} />
         </>
       )}
     </div>

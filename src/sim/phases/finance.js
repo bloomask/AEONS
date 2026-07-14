@@ -59,9 +59,13 @@ export function runFinance(w, rng) {
   if (C.crunch <= 0) {
     const pool = lenders();
     if (pool.length) {
-      // reconstruction loans to promising but broke worlds
+      // reconstruction loans to promising but broke worlds. A lender underwrites
+      // against the ability to SERVICE the paper, not just against need: a world
+      // has to be earning on the lanes (real export income) to carry the interest.
+      // Lending on development or import appetite alone floated loans to worlds
+      // that could never cover a coupon — the book defaulted more often than not.
       const borrowers = w.systems.filter((s) =>
-        s.pop > 3 && s.wealth < 10 && !s.siege && (s.dev > 0.75 || s.tradeIn > 6) &&
+        s.pop > 3 && s.wealth < 10 && !s.siege && s.tradeOut > 10 &&
         w.year - s.lastFamine > 8 &&
         !w.loans.some((l) => l.kind === "sys" && l.bid === s.id));
       for (const s of borrowers) {

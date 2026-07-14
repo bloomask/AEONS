@@ -23,6 +23,14 @@ export const T = {
   // this the equilibrium is a majority starving under a growing census.
   GROWTH_WORKER_WT: 0.4,
   FAMINE_THRESHOLD: 0.4, // grain satisfaction below this is famine
+  // settlers weigh a world's graves before they land. A colony that starves
+  // out young (not felled by a passing war or plague, but simply unable to
+  // feed itself) marks the world; after ABANDON_LIMIT such failures inside a
+  // human span it is written off as a graveyard and no one raises towers there
+  // again. This stops the resettle→starve→die→resettle thrash on barren,
+  // isolated, prospector worlds that can never sustain a population.
+  ABANDON_AGE: 60,      // a death younger than this counts as "starved out", not old age
+  ABANDON_LIMIT: 5,     // that many quick failures and the world is a permanent graveyard
   ADMIN_BASE: 0.55,
   ADMIN_EXP: 1.35,
   TAX_RATE: 0.02,

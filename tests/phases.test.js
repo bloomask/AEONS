@@ -56,7 +56,9 @@ test("trade: goods flow down the price gradient across a gate", () => {
 // ---------------- finance ----------------
 test("finance: a corp lender floats a loan to a promising, broke world", () => {
   const home = makeSystem(0, { pop: 5, wealth: 300 });
-  const borrower = makeSystem(1, { pop: 8, wealth: 3, dev: 0.9, lastFamine: -99 });
+  // broke but earning on the lanes (tradeOut) — a world that can service the
+  // coupon is what a lender underwrites, not one that is merely developed
+  const borrower = makeSystem(1, { pop: 8, wealth: 3, tradeOut: 12, lastFamine: -99 });
   const lender = makeHouse(0, { home: 0, corp: true, wealth: 400 });
   const w = makeWorld({ systems: [home, borrower], houses: [lender], rng: fixedRng(0) });
   runFinance(w, w.rng); // fixedRng(0) forces the rng.chance gate

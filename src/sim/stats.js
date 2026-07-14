@@ -22,6 +22,14 @@ export function buildStats(w) {
   const S = w.stats;
   const centuries = Math.max(0.01, w.year / 100);
   const settlements = S.seeded + S.c.colony + S.c.resettle;
+  // Distinct worlds, not founding/death *events*: a world that is resettled and
+  // starves out ten times is one world that died, not ten dead worlds. Counting
+  // events made extinctionPct inflate without bound over a long game (the same
+  // handful of unviable worlds thrashing), so the metric is distinct-based —
+  // "what share of the worlds ever settled have fallen" — and stays horizon-stable.
+  const diedNames = new Set(S.deaths.map((d) => d.system));
+  const liveNames = new Set(w.systems.filter((s) => s.pop > 0.05).map((s) => s.name));
+  const everSettled = new Set([...diedNames, ...liveNames]).size;
   const ages = S.deaths.map((d) => d.age).filter((a) => a !== null);
   const endedWars = S.wars.filter((x) => x.end !== null);
   const durs = endedWars.map((x) => x.duration);
@@ -36,7 +44,11 @@ export function buildStats(w) {
       systemDeaths: {
         totalDeaths: S.deaths.length,
         totalSettlements: settlements,
-        pctOfSettlementsDied: +((S.deaths.length / Math.max(1, settlements)) * 100).toFixed(1),
+        distinctWorldsDied: diedNames.size,
+        worldsEverSettled: everSettled,
+        // share of DISTINCT worlds ever settled that have fallen at least once —
+        // "worlds fall, but not all", not a churn counter (see everSettled above)
+        pctOfSettlementsDied: +((diedNames.size / Math.max(1, everSettled)) * 100).toFixed(1),
         deathsPerCentury: +(S.deaths.length / centuries).toFixed(2),
         ageAtDeath: {
           median: median(ages), mean: meanOf(ages),
@@ -47,12 +59,18 @@ export function buildStats(w) {
       },
       factions: {
         founded: S.c.factionsFounded,
+        // every faction ever raised: starting powers, colonial foundings, pirate
+        // havens, corporate charter-states, and revolutionary successors alike.
+        // `factionsFounded` only counts one of those kinds, so dividing deaths by
+        // it produced a nonsense >100% "share dead". w.factions never shrinks
+        // (dead factions are retained), so its length is the true denominator.
+        everExisted: w.factions.length,
         dead: S.factionDeaths.length,
         livingByGov: w.factions.filter((f) => !f.dead).reduce((acc, f) => {
           acc[f.gov || "republic"] = (acc[f.gov || "republic"] || 0) + 1;
           return acc;
         }, {}),
-        pctDead: +((S.factionDeaths.length / Math.max(1, S.c.factionsFounded)) * 100).toFixed(1),
+        pctDead: +((S.factionDeaths.length / Math.max(1, w.factions.length)) * 100).toFixed(1),
         lifespan: { median: median(fLifespans), mean: meanOf(fLifespans) },
         deathCauses: pctBreakdown(S.factionDeaths, "cause"),
         concentrationNow: { largestShare: now.largestShare ?? 0, hhi: now.hhi ?? 0 },

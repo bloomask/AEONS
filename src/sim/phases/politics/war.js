@@ -19,6 +19,15 @@ export function runWarYear(w, rng, A, B, rel, border) {
   const dur = w.year - rel.war.since;
   const key = relKey(A.id, B.id);
   const rec = w.stats.wars[rel.war.rec];
+  // how hard the era fights. The aggression knob drove how OFTEN war broke out
+  // but not how much it BLED — so cranking it produced more declarations that
+  // still cost only a rounding-error of lives. Scale the killing with it: a
+  // blood-and-iron age grinds worlds down at the front and under blockade, so
+  // aggression finally shows up in the death rolls (=1 at default, no change to
+  // the calmer presets). Territorial conquest is left as-is on purpose — this
+  // makes war deadlier, not more annexing, so no single power runs away with the
+  // map (the concentration guard-rail stays honest).
+  const aggr = w.cfg.aggression;
   const localStrength = (f, e) => {
     const near = new Set([e.a, e.b]);
     for (const { to } of w.adj[e.a]) near.add(to);
@@ -48,8 +57,9 @@ export function runWarYear(w, rng, A, B, rel, border) {
     w.stats.c.battle++;
     if (rec) rec.battles++;
     fx(w, { t: "battle", a: e.a, b: e.b });
-    const popLost = (sa.pop + sb.pop) * 0.015;
-    sa.pop *= 0.985; sb.pop *= 0.985;
+    const bleed = 0.015 * aggr;
+    const popLost = (sa.pop + sb.pop) * bleed;
+    sa.pop *= 1 - bleed; sb.pop *= 1 - bleed;
     sa.stock.weapons *= 1 - T.ARMS_BATTLE_USE; // munitions spent at the front
     sb.stock.weapons *= 1 - T.ARMS_BATTLE_USE;
     sa.lastWar = w.year; sb.lastWar = w.year;
@@ -94,7 +104,7 @@ export function runWarYear(w, rng, A, B, rel, border) {
   let capitalSacked = false;
   for (const s of w.systems) {
     if (!s.siege || s.siege.pair !== key || s.pop <= 0.05) continue;
-    s.pop *= 0.97; s.lastWar = w.year;
+    s.pop *= 1 - 0.03 * aggr; s.lastWar = w.year;
     const siegeDur = w.year - s.siege.since;
     if ((siegeDur >= 2 && s.wb < 0.45) || siegeDur >= 4) {
       const taker = w.factions[s.siege.by];

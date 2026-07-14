@@ -41,6 +41,9 @@
  * @property {?number} fid     Owning faction id, or null = free system.
  * @property {boolean} ruined  Dead forever (rendered as ruins).
  * @property {?number} diedYear
+ * @property {number} [abandons]  Times this world starved/withered young (age < T.ABANDON_AGE,
+ *   not war/plague). At T.ABANDON_LIMIT it becomes a permanent graveyard settlers won't return
+ *   to — stops the resettle→starve→die thrash on unviable worlds. Absent (=0) on fresh worlds.
  * @property {number} famineCd
  * @property {number} tradeIn  Import volume this year (set by the trade phase).
  * @property {number} tradeOut Export volume this year.

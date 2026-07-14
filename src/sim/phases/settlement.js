@@ -25,6 +25,7 @@ export function runSettlement(w, rng, alive) {
         .map(({ to }) => w.systems[to])
         .filter((o) =>
           o.pop <= 0.05 && o.hab > 0.3 &&
+          (o.abandons ?? 0) < T.ABANDON_LIMIT && // graveyards stay graveyards
           (!o.ruined || w.year - o.diedYear > 25)
         )
         .sort((a, b) => (b.fert * 2 + b.min + b.rare) - (a.fert * 2 + a.min + a.rare))[0];
@@ -36,9 +37,17 @@ export function runSettlement(w, rng, alive) {
             dist2(w.systems[h.home], target) < T.HOUSE_RANGE * 1.3
         );
         const sponsored = !!backer && rng.chance(0.35);
-        // land that can't feed a family is a prospector colony:
-        // corp-provisioned to mine the veins, or not settled at all
-        const viable = target.fert >= 0.3 || (sponsored && target.min + target.rare > 0.7);
+        // land that can't feed a family is a prospector colony: corp-provisioned
+        // to mine the veins, or not settled at all. But grain has to come from
+        // SOMEWHERE — a barren world with no fertile neighbour to ship from can
+        // never be fed, so even a corp charter just starves it. Require a live
+        // breadbasket within one jump before betting a colony on imported grain.
+        const grainLifeline = w.adj[target.id].some(({ to }) => {
+          const o = w.systems[to];
+          return o.pop > 0.05 && o.fert >= 0.45;
+        });
+        const viable = target.fert >= 0.3 ||
+          (sponsored && target.min + target.rare > 0.7 && grainLifeline);
         if (viable) {
           const m = Math.min(2.0, s.pop * 0.07);
           target.pop = 0;
@@ -124,9 +133,15 @@ export function runSettlement(w, rng, alive) {
       else if (w.year - s.lastWar <= 6) cause = "war attrition";
       else if (s.min > 0.35 && s.minRes / s.minRes0 < 0.08) cause = "resource depletion";
       else if (w.year - s.lastFamine <= 10) cause = "famine";
+      const age = s.settledYear === null ? null : w.year - s.settledYear;
+      // a young world that starved or withered (not one felled by a passing
+      // war or plague) proved it cannot sustain life — mark the graveyard so
+      // settlers eventually stop returning to it (see the colony filter above).
+      if (age !== null && age < T.ABANDON_AGE && cause !== "plague" && cause !== "war attrition")
+        s.abandons = (s.abandons ?? 0) + 1;
       w.stats.deaths.push({
         system: s.name, year: w.year,
-        age: s.settledYear === null ? null : w.year - s.settledYear,
+        age,
         peakPop: +s.peakPop.toFixed(1), cause,
       });
       s.siege = null;

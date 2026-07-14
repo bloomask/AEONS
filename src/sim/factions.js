@@ -38,6 +38,59 @@ export function foundFaction(w, rng, cap, spread) {
   return f;
 }
 
+// A curator-founded power is deliberately constructed without rng. Its
+// complete specification is stored in the command ledger, so replaying the
+// command creates the same faction and colony byte-for-byte.
+export function foundCuratedFaction(w, cap, spec) {
+  const f = {
+    id: w.nextFid++, capital: cap.id, gov: spec.gov,
+    name: spec.name,
+    color: spec.color || factionColor(w.nextFid - 1),
+    aggr: spec.aggr, expans: spec.expans,
+    treasury: spec.treasury, stability: spec.stability,
+    dead: false, foundedYear: w.year,
+    peakSystems: 1, peakPop: spec.pop,
+    tariff: spec.tariff,
+    trace: [],
+  };
+
+  cap.pop = spec.pop;
+  cap.dev = spec.dev;
+  cap.wealth = Math.max(cap.wealth, spec.treasury * 0.35);
+  cap.fid = f.id;
+  cap.colonyFrom = null;
+  cap.freePort = false;
+  cap.ruined = false;
+  cap.failure = null;
+  cap.diedYear = null;
+  cap.settledYear = w.year;
+  cap.peakPop = Math.max(cap.peakPop, cap.pop);
+  cap.unrest = 0;
+  cap.riotCd = 0;
+  cap.siege = null;
+  cap.sponsor = null;
+  cap.slaves = 0;
+  cap.drugs = 0;
+  cap.drugLoad = 0;
+  cap.stock.grain = cap.pop * 6;
+  cap.stock.consumer = cap.pop * 2;
+  cap.stock.metals = cap.pop * 0.6;
+  cap.stock.fuel = cap.pop * 0.6;
+  cap.stock.medicine = cap.pop * 0.25;
+
+  w.factions.push(f);
+  w.stats.c.factionsFounded++;
+  log(w, "curate", `${f.name} is proclaimed at ${cap.name}, a new flag raised where no settlement stood before.`, cap.id, {
+    actors: [facRef(f)], targets: [sysRef(cap)], cause: "curate.faction-founded",
+    why: "the curator prepared a new people and charter",
+    effects: [
+      { k: "owner", from: null, to: f.id },
+      { k: "pop", d: cap.pop, u: "M" },
+    ],
+  });
+  return f;
+}
+
 export function foundPirateHaven(w, rng, sys) {
   sys.freePort = false; // whatever charter it had dies with the black flag
   const base = sys.name.split(" ")[0];
@@ -109,7 +162,7 @@ export function killFaction(w, f, verb, cause = "extinction") {
   f.dead = true; f.diedYear = w.year;
   if (f.corpId != null && w.houses[f.corpId]) w.houses[f.corpId].stateId = null;
   w.stats.factionDeaths.push({
-    faction: f.name, gov: f.gov, founded: f.foundedYear, died: w.year,
+    factionId: f.id, faction: f.name, gov: f.gov, founded: f.foundedYear, died: w.year,
     lifespan: w.year - f.foundedYear, cause,
     peakSystems: f.peakSystems, peakPop: +f.peakPop.toFixed(1),
   });

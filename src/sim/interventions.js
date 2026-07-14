@@ -1,9 +1,10 @@
-import { T, PROJECT_TYPES, techFx } from "./constants.js";
+import { T, PROJECT_TYPES, FACTION_COLORS, GOVS, factionColor, techFx } from "./constants.js";
 import { clamp, dist2 } from "./util.js";
 import { log, relKey, getRel, facRef, sysRef } from "./events.js";
 import { rebuildAdj } from "./galaxy.js";
 import { movePop, skewDeaths } from "./society.js";
 import { completeProject } from "./phases/projects.js";
+import { foundCuratedFaction } from "./factions.js";
 
 // ---------------------------------------------------------------------------
 // Curator interventions — the Curate half of the product contract
@@ -49,6 +50,27 @@ export const CURATOR = {
   PLAGUE_SURVIVAL: 0.55,   // base survival of a triggered plague (midpoint of shocks.js roll)
 };
 
+export const FACTION_PRESETS = [
+  {
+    key: "republic", name: "Frontier Republic",
+    blurb: "A stable civic colony inclined toward accords and measured expansion.",
+    values: { gov: "republic", pop: 5, dev: 0.85, treasury: 90, stability: 0.84, aggr: 0.2, expans: 0.58, tariff: 0.08 },
+  },
+  {
+    key: "empire", name: "Imperial Expedition",
+    blurb: "A well-funded command colony built to claim neighbors and endure wars.",
+    values: { gov: "empire", pop: 7, dev: 0.9, treasury: 120, stability: 0.76, aggr: 0.72, expans: 0.78, tariff: 0.22 },
+  },
+  {
+    key: "corporate", name: "Commercial Charter",
+    blurb: "A compact trade state with deep reserves, low duties, and little appetite for war.",
+    values: { gov: "corporate", pop: 4, dev: 1.05, treasury: 150, stability: 0.88, aggr: 0.1, expans: 0.42, tariff: 0.03 },
+  },
+];
+
+const FACTION_DEFAULTS = FACTION_PRESETS[0].values;
+export const CURATED_FACTION_COLORS = FACTION_COLORS;
+
 const ALIVE = 0.05;
 const sys = (w, id) => w.systems[Number(id)];
 const fac = (w, id) => w.factions[Number(id)];
@@ -58,6 +80,27 @@ const pop1 = (n) => `${n.toFixed(1)}M`;
 const sysOpt = (s) => ({ v: s.id, label: s.name });
 const aliveSystems = (w) => w.systems.filter(isAlive);
 const liveStates = (w) => w.factions.filter((f) => !f.dead && f.gov !== "pirate");
+const emptySystems = (w) => w.systems.filter((s) => s.pop <= ALIVE && !s.ruined);
+
+function curatedFactionSpec(w, p) {
+  const site = sys(w, p.sysId);
+  const base = site?.name?.split(" ")[0] || "Frontier";
+  const gov = GOVS[p.gov] && p.gov !== "pirate" ? p.gov : FACTION_DEFAULTS.gov;
+  const suffix = gov === "empire" ? "Dominion" : gov === "corporate" ? "Charter" : "Republic";
+  const n = String(p.name || `${base} ${suffix}`).trim().slice(0, 48);
+  return {
+    name: n,
+    gov,
+    color: /^#[0-9a-f]{6}$/i.test(String(p.color || "")) ? p.color : factionColor(w.nextFid),
+    pop: Number(p.pop ?? FACTION_DEFAULTS.pop),
+    dev: Number(p.dev ?? FACTION_DEFAULTS.dev),
+    treasury: Number(p.treasury ?? FACTION_DEFAULTS.treasury),
+    stability: Number(p.stability ?? FACTION_DEFAULTS.stability),
+    aggr: Number(p.aggr ?? FACTION_DEFAULTS.aggr),
+    expans: Number(p.expans ?? FACTION_DEFAULTS.expans),
+    tariff: Number(p.tariff ?? FACTION_DEFAULTS.tariff),
+  };
+}
 
 // faction-pair params travel as a "lo|hi" relKey string so a command record
 // stays a flat JSON object; parse back to the two live factions (or null)
@@ -130,12 +173,46 @@ const fundableProjects = (w) => w.projects
 // ---------------------------------------------------------------------------
 export const INTERVENTIONS = [
   {
+    key: "foundFaction",
+    label: "Start a new faction",
+    glyph: "\u2691",
+    blurb: "Prepare a new people and charter, then raise their flag on an uncolonised system.",
+    destructive: false,
+    fields: [{ key: "sysId", label: "founding system", mapKind: "system", options: (w) => emptySystems(w).map(sysOpt) }],
+    validate(w, p) {
+      const s = sys(w, p.sysId);
+      if (!s || s.pop > ALIVE || s.ruined) return "the founding site must be an uncolonised system";
+      const spec = curatedFactionSpec(w, p);
+      if (!spec.name) return "the faction needs a name";
+      if (!GOVS[spec.gov] || spec.gov === "pirate") return "choose a civil government";
+      if (!(spec.pop >= 1 && spec.pop <= 20)) return "starting population must be between 1M and 20M";
+      if (!(spec.dev >= 0.5 && spec.dev <= 1.5)) return "development must be between 0.5 and 1.5";
+      if (!(spec.treasury >= 20 && spec.treasury <= 300)) return "treasury must be between 20 and 300 credits";
+      for (const k of ["stability", "aggr", "expans"])
+        if (!(spec[k] >= 0 && spec[k] <= 1)) return `${k} must be between 0 and 1`;
+      if (!(spec.tariff >= 0 && spec.tariff <= 0.5)) return "tariff must be between 0% and 50%";
+      return null;
+    },
+    preview(w, p) {
+      const s = sys(w, p.sysId), spec = curatedFactionSpec(w, p);
+      return [
+        `${spec.name} begins at ${s.name} with ${spec.pop.toFixed(1)}M settlers and ${spec.treasury.toFixed(0)} credits`,
+        `${GOVS[spec.gov].label.toLowerCase()} government \u00b7 stability ${Math.round(spec.stability * 100)}% \u00b7 tariff ${Math.round(spec.tariff * 100)}%`,
+        `aggression ${Math.round(spec.aggr * 100)}% \u00b7 expansionism ${Math.round(spec.expans * 100)}% \u00b7 development \u00d7${spec.dev.toFixed(2)}`,
+      ];
+    },
+    apply(w, p) {
+      foundCuratedFaction(w, sys(w, p.sysId), curatedFactionSpec(w, p));
+    },
+  },
+
+  {
     key: "relief",
     label: "Relief shipment",
     glyph: "✚",
     blurb: "Unflagged freighters deliver grain and medicine to a struggling world.",
     destructive: false,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", mapKind: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";
@@ -175,11 +252,11 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "fromId", label: "source world",
+        key: "fromId", label: "source world", mapKind: "system",
         options: (w) => aliveSystems(w).filter((s) => s.pop > 4 && colonySites(w, s).length).map(sysOpt),
       },
       {
-        key: "toId", label: "colony site",
+        key: "toId", label: "colony site", mapKind: "system",
         options: (w, p) => colonySites(w, sys(w, p.fromId)).map(sysOpt),
       },
     ],
@@ -208,6 +285,7 @@ export const INTERVENTIONS = [
       to.pop = 0;
       movePop(from, to, m); // colony ships fill from the lower decks
       to.fid = from.fid;
+      to.colonyFrom = from.id;
       to.dev = 0.75; // curator-provisioned, like a house-sponsored charter
       to.unrest = 0; to.riotCd = 0;
       // provisioned exactly like a house-sponsored expedition (settlement.js):
@@ -219,6 +297,7 @@ export const INTERVENTIONS = [
       for (const g of Object.keys(to.shares))
         to.shares[g] = g === "grain" ? 0.55 : 0.45 / (Object.keys(to.shares).length - 1);
       to.ruined = false;
+      to.failure = null;
       to.settledYear = w.year; to.peakPop = m;
       to.lastFamine = -99; to.lastPlague = -99; to.lastWar = -99;
       to.faith = from.faith; to.sponsor = null;
@@ -248,7 +327,7 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "sysId", label: "target world",
+        key: "sysId", label: "target world", mapKind: "system",
         options: (w) => aliveSystems(w).filter((s) => infraChoices(s).length).map(sysOpt),
       },
       { key: "kind", label: "works", options: (w, p) => infraChoices(sys(w, p.sysId)) },
@@ -300,7 +379,7 @@ export const INTERVENTIONS = [
     blurb: "Grant credits to a work of generations already under construction.",
     destructive: false,
     fields: [{
-      key: "projectIdx", label: "project",
+      key: "projectIdx", label: "project", mapKind: "project",
       options: (w) => fundableProjects(w).map(({ p, idx }) => ({
         v: idx,
         label: `${p.name} at ${w.systems[p.sysId].name} (${Math.round((p.progress / p.cost) * 100)}% built)`,
@@ -346,7 +425,7 @@ export const INTERVENTIONS = [
     blurb: "Quiet diplomacy ends a war or cools a dangerous rivalry.",
     destructive: false,
     fields: [{
-      key: "pair", label: "the parties",
+      key: "pair", label: "the parties", mapKind: "factionPair",
       options: (w) => statePairs(w)
         .filter(({ rel }) => rel && (rel.war || rel.rivalry > 20))
         .sort((x, y) => (y.rel.war ? 1000 : y.rel.rivalry) - (x.rel.war ? 1000 : x.rel.rivalry))
@@ -421,7 +500,7 @@ export const INTERVENTIONS = [
     blurb: "Forged dispatches and vanished envoys set two powers against each other.",
     destructive: true,
     fields: [{
-      key: "pair", label: "the parties",
+      key: "pair", label: "the parties", mapKind: "factionPair",
       options: (w) => statePairs(w)
         .filter(({ rel }) => !rel || !rel.war)
         .map(({ A, B, rel, key }) => ({ v: key, label: `${A.name} ↔ ${B.name} (${relStatus(rel)})` })),
@@ -475,7 +554,7 @@ export const INTERVENTIONS = [
     blurb: "Grain doles and festival credits take the heat out of a restless world.",
     destructive: false,
     fields: [{
-      key: "sysId", label: "target world",
+      key: "sysId", label: "target world", mapKind: "system",
       options: (w) => aliveSystems(w).filter((s) => s.unrest > 0.05).map(sysOpt),
     }],
     validate(w, p) {
@@ -512,7 +591,7 @@ export const INTERVENTIONS = [
     glyph: "🔥",
     blurb: "Provocateurs and pamphlets give a world's grievances new voices.",
     destructive: true,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", mapKind: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";
@@ -548,11 +627,11 @@ export const INTERVENTIONS = [
     destructive: false,
     fields: [
       {
-        key: "a", label: "first system",
+        key: "a", label: "first system", mapKind: "system",
         options: (w) => w.systems.filter((s) => gateableFrom(w, s).length).map(sysOpt),
       },
       {
-        key: "b", label: "second system",
+        key: "b", label: "second system", mapKind: "system",
         options: (w, p) => (sys(w, p.a) ? gateableFrom(w, sys(w, p.a)).map(sysOpt) : []),
       },
     ],
@@ -590,7 +669,7 @@ export const INTERVENTIONS = [
     blurb: "A lane between two stars shudders and dies. Sabotage, the gatekeepers whisper.",
     destructive: true,
     fields: [{
-      key: "edge", label: "the lane",
+      key: "edge", label: "the lane", mapKind: "edge",
       options: (w) => w.edges.map((e) => ({
         v: `${e.a}|${e.b}`,
         label: `${w.systems[e.a].name} ⇌ ${w.systems[e.b].name}${e.vol > 0.5 ? ` (busy: ${e.vol.toFixed(1)} freight)` : ""}`,
@@ -632,7 +711,7 @@ export const INTERVENTIONS = [
     glyph: "☠",
     blurb: "A strange strain slips through the gates unbidden. Stocked clinics blunt it.",
     destructive: true,
-    fields: [{ key: "sysId", label: "target world", options: (w) => aliveSystems(w).map(sysOpt) }],
+    fields: [{ key: "sysId", label: "target world", mapKind: "system", options: (w) => aliveSystems(w).map(sysOpt) }],
     validate(w, p) {
       const s = sys(w, p.sysId);
       return isAlive(s) ? null : "the target must be a living world";

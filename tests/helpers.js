@@ -30,6 +30,7 @@ export function makeSystem(id, overrides = {}) {
     unrest: 0, riotCd: 0, wb: 0.7, fid: null, ruined: false, diedYear: null,
     famineCd: 0, tradeIn: 0, tradeOut: 0,
     settledYear: 0, peakPop: 10, lastFamine: -99, lastPlague: -99, lastWar: -99,
+    lastColonyYear: -99, failedSettlements: 0, failure: null, colonyFrom: null,
     siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
     infra: { gran: 0, gate: 0, mine: 0 },
     faith: 0, mega: {}, depots: [], sponsor: null, freePort: false,

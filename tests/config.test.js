@@ -6,6 +6,25 @@ import assert from "node:assert/strict";
 import {
   defaultConfig, galaxyIntensity, INTENSITY_TIERS, PRESETS, CONFIG_PARAMS,
 } from "../src/sim/config.js";
+import { genGalaxy } from "../src/sim/galaxy.js";
+import { checkInvariants } from "../src/sim/invariants.js";
+
+test("a galaxy can begin with no founding powers", () => {
+  const w = genGalaxy(31415, { factions: 0, burnYears: 0 });
+  assert.equal(w.factions.length, 0);
+  assert.equal(w.nextFid, 0);
+  assert.ok(w.systems.every((s) => s.fid === null));
+  assert.deepEqual(checkInvariants(w), []);
+});
+
+test("a galaxy can begin with no people", () => {
+  const w = genGalaxy(27182, { settled: 0, factions: 0, burnYears: 0 });
+  assert.equal(w.stats.seeded, 0);
+  assert.equal(w.factions.length, 0);
+  assert.equal(w.houses.length, 0);
+  assert.ok(w.systems.every((s) => s.pop === 0 && s.fid === null));
+  assert.deepEqual(checkInvariants(w), []);
+});
 
 test("every preset resolves to a known intensity tier", () => {
   const keys = new Set(INTENSITY_TIERS.map((t) => t.key));

@@ -1,6 +1,7 @@
 import { GOVS } from "../../sim/constants.js";
 import { relKey, getRel } from "../../sim/events.js";
 import { Section, Tile } from "../widgets.jsx";
+import WarsPanel from "./WarsPanel.jsx";
 
 // Every diplomatic tie in the galaxy: the standings matrix, plus the pacts,
 // trade wars, and simmering rivalries spelled out. Corsairs keep no treaties,
@@ -46,7 +47,7 @@ function Matrix({ w, factions }) {
   );
 }
 
-export default function DiplomacyPanel({ w, liveFactions, onOpenSystem }) {
+export default function DiplomacyPanel({ w, liveFactions, wars: activeWars, onOpenSystem }) {
   // states only — corsair havens are outlaws, not diplomatic actors
   const states = liveFactions
     .filter((f) => f.gov !== "pirate")
@@ -131,6 +132,10 @@ export default function DiplomacyPanel({ w, liveFactions, onOpenSystem }) {
       {wars.length === 0 && allies.length === 0 && embargoes.length === 0 && rivalries.length === 0 && (
         <div className="muted italic">The galaxy is at peace — no wars, no pacts, no quarrels worth the name. For now.</div>
       )}
+
+      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 24 }}>
+        <WarsPanel w={w} wars={activeWars} onOpenSystem={onOpenSystem} />
+      </div>
     </div>
   );
 }

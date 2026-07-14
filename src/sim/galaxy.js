@@ -16,7 +16,7 @@ export function genGalaxy(seed, cfgIn) {
   // the map scales with system count to keep the same stellar density
   const nSys = Math.round(cfg.systems);
   const R = clamp(T.GALAXY_R * Math.sqrt(nSys / 96), 260, 620);
-  const nSeeded = Math.max(4, Math.round(nSys * (cfg.settled / 100)));
+  const nSeeded = Math.max(0, Math.round(nSys * (cfg.settled / 100)));
   const nFactions = Math.min(Math.round(cfg.factions), nSeeded);
   const w = {
     seed, cfg, year: 0, systems: [], edges: [], factions: [],
@@ -120,6 +120,7 @@ export function genGalaxy(seed, cfgIn) {
       wb: 0.7, fid: null, ruined: false, diedYear: null,
       famineCd: 0, tradeIn: 0, tradeOut: 0,
       settledYear: null, peakPop: 0, lastFamine: -99, lastPlague: -99, lastWar: -99,
+      lastColonyYear: -99, failedSettlements: 0, failure: null, colonyFrom: null,
       siege: null, flow: Object.fromEntries(GOODS.map((g) => [g, 0])), trace: [],
       infra: { gran: 0, gate: 0, mine: 0 },
       faith: c.faith, mega: {}, depots: [], sponsor: null, freePort: false,
@@ -199,8 +200,8 @@ export function genGalaxy(seed, cfgIn) {
   const spacing = clamp(130 * Math.sqrt((nSys / 96) * (12 / Math.max(1, nFactions))), 60, 160);
   const caps = [];
   for (const s of ranked.slice(0, nSeeded).sort((a, b) => b.pop - a.pop)) {
-    if (caps.every((c) => dist2(c, s) > spacing)) caps.push(s);
     if (caps.length >= nFactions) break;
+    if (caps.every((c) => dist2(c, s) > spacing)) caps.push(s);
   }
   caps.forEach((cap) => foundFaction(w, rng, cap, true));
 

@@ -10,9 +10,9 @@ export const CONFIG_GROUPS = [
     params: [
       { key: "systems", label: "star systems", def: 96, min: 32, max: 160, step: 8, kind: "int",
         blurb: "how many systems the galaxy holds; the map scales to keep the same density" },
-      { key: "settled", label: "settled at dawn", def: 42, min: 15, max: 70, step: 1, kind: "pct",
+      { key: "settled", label: "settled at dawn", def: 42, min: 0, max: 70, step: 1, kind: "pct",
         blurb: "% of systems carrying people in year zero — the rest wait for colony ships" },
-      { key: "factions", label: "founding powers", def: 12, min: 4, max: 24, step: 1, kind: "int",
+      { key: "factions", label: "founding powers", def: 12, min: 0, max: 24, step: 1, kind: "int",
         blurb: "empires and republics standing at the start (capped by settled worlds)" },
       { key: "houses", label: "merchant houses", def: 5, min: 2, max: 10, step: 1, kind: "int",
         blurb: "chartered trading houses flying at the start" },

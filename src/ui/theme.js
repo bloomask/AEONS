@@ -54,8 +54,8 @@ export const OVERLAYS = ["realm", "worlds", "stars", "wealth", "life", "trade", 
 // full-screen panels summoned from the command bar; the side window is
 // reserved for system/power inspection
 export const SCREENS = {
+  factions: { glyph: "♜", title: "Factions & Powers", narrow: false },
   diplomacy: { glyph: "⚑", title: "Diplomacy & Relations", narrow: true },
-  wars: { glyph: "⚔", title: "Wars & Campaigns", narrow: true },
   trade: { glyph: "⇌", title: "Trade & Commerce", narrow: false },
   market: { glyph: "◈", title: "The Galactic Market", narrow: false },
   galaxy: { glyph: "✦", title: "The Long View", narrow: false },

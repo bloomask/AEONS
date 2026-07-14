@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { GOVS } from "../../sim/constants.js";
 import { Bar, Spark, Section, Tile } from "../widgets.jsx";
-import { relKey, eventInvolves } from "../../sim/events.js";
+import { eventInvolves } from "../../sim/events.js";
 import { lastEvents } from "../chronicle.js";
 import { fmtPop, fmtCredits } from "../format.js";
 
@@ -24,92 +24,6 @@ const GovBadge = ({ gov }) => {
     </span>
   );
 };
-
-function WarCard({ w, k, rel }) {
-  const [ia, ib] = k.split("|").map(Number);
-  const A = w.factions[ia], B = w.factions[ib];
-  const dur = w.year - rel.war.since;
-  const rec = w.stats.wars[rel.war.rec];
-  const sieges = w.systems.filter((s) => s.siege && s.siege.pair === k);
-  // war score leans the bar toward whoever is winning
-  const lean = Math.tanh(rel.war.score / 5);
-  return (
-    <div className="p-3 rounded-lg mb-2" style={{ background: "rgba(228,87,46,0.07)", border: "1px solid rgba(228,87,46,0.3)" }}>
-      <div className="flex items-baseline gap-1.5 flex-wrap">
-        <b style={{ color: A.color }}>{A.name}</b>
-        <span style={{ color: "var(--red)" }}>⚔</span>
-        <b style={{ color: B.color }}>{B.name}</b>
-        <span className="ml-auto muted">year {dur} of war</span>
-      </div>
-      {rec?.causeText && <div className="faint" style={{ fontSize: 11 }}>casus belli — {rec.causeText}</div>}
-      <div className="flex h-1.5 rounded-full overflow-hidden my-2" style={{ background: "rgba(233,228,214,0.1)" }}>
-        <div style={{ width: `${50 + lean * 50}%`, background: A.color, opacity: 0.85 }} />
-        <div style={{ flex: 1, background: B.color, opacity: 0.85 }} />
-      </div>
-      <div className="muted">
-        {rec ? `${rec.battles} battles · ${rec.systemsCeded} systems taken` : ""}
-        {sieges.length > 0 && (
-          <span style={{ color: "var(--amber)" }}> · under siege: {sieges.map((s) => s.name).join(", ")}</span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function RelationMatrix({ w, factions }) {
-  const top = factions.slice(0, 10);
-  if (top.length < 2) return null;
-  const cellStyle = (a, b) => {
-    if (a.id === b.id) return { background: "rgba(233,228,214,0.04)" };
-    const rel = w.relations[relKey(a.id, b.id)];
-    if (!rel) return { background: "rgba(233,228,214,0.07)" };
-    if (rel.war) return { background: "#E4572E" };
-    if (rel.allied) return { background: "#5CC8DA" };
-    if (rel.embargo) return { background: "#F2A93B" };
-    return { background: `rgba(228,120,60,${(rel.rivalry / 100) * 0.55 + 0.04})` };
-  };
-  const cellTitle = (a, b) => {
-    if (a.id === b.id) return a.name;
-    const rel = w.relations[relKey(a.id, b.id)];
-    if (!rel) return `${a.name} ↔ ${b.name}: no contact`;
-    if (rel.war) return `${a.name} ↔ ${b.name}: AT WAR since ${rel.war.since}`;
-    if (rel.allied) return `${a.name} ↔ ${b.name}: open-lanes accord`;
-    if (rel.embargo) return `${a.name} ↔ ${b.name}: embargo · rivalry ${rel.rivalry.toFixed(0)}`;
-    return `${a.name} ↔ ${b.name}: rivalry ${rel.rivalry.toFixed(0)}/100`;
-  };
-  return (
-    <Section title="standings">
-      <table style={{ borderCollapse: "separate", borderSpacing: 2 }}>
-        <tbody>
-          <tr>
-            <td />
-            {top.map((f) => (
-              <td key={f.id} title={f.name} style={{ color: f.color, fontSize: 10, textAlign: "center" }}>■</td>
-            ))}
-          </tr>
-          {top.map((a) => (
-            <tr key={a.id}>
-              <td title={a.name} style={{ color: a.color, fontSize: 10 }}>■</td>
-              {top.map((b) => (
-                <td
-                  key={b.id}
-                  title={cellTitle(a, b)}
-                  style={{ width: 15, height: 15, borderRadius: 3, ...cellStyle(a, b) }}
-                />
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="faint mt-1.5" style={{ fontSize: 10 }}>
-        <span style={{ color: "var(--red)" }}>■</span> war ·{" "}
-        <span style={{ color: "var(--amber)" }}>■</span> embargo ·{" "}
-        <span style={{ color: "var(--cyan)" }}>■</span> accord ·{" "}
-        <span style={{ color: "rgba(228,120,60,0.7)" }}>■</span> rivalry (darker = calmer)
-      </div>
-    </Section>
-  );
-}
 
 function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
   const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
@@ -218,6 +132,7 @@ function FactionDetail({ w, f, wars, onBack, onOpenSystem }) {
 // guided tour listens for it
 export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem, onInspect }) {
   const [detailFid, setDetailFid] = useState(null);
+  const [sort, setSort] = useState("population");
   const detail = detailFid !== null ? w.factions[detailFid] : null;
 
   if (detail && !detail.dead) {
@@ -231,8 +146,18 @@ export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem, onI
   }
 
   const ranked = liveFactions
-    .map((f) => ({ f, members: w.systems.filter((s) => s.fid === f.id && s.pop > 0.05) }))
-    .sort((a, b) => b.members.reduce((x, s) => x + s.pop, 0) - a.members.reduce((x, s) => x + s.pop, 0));
+    .map((f) => {
+      const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
+      return { f, members, pop: members.reduce((x, s) => x + s.pop, 0) };
+    })
+    .sort((a, b) => {
+      if (sort === "name") return a.f.name.localeCompare(b.f.name);
+      if (sort === "systems") return b.members.length - a.members.length || b.pop - a.pop;
+      if (sort === "treasury") return b.f.treasury - a.f.treasury;
+      if (sort === "stability") return b.f.stability - a.f.stability;
+      if (sort === "age") return a.f.foundedYear - b.f.foundedYear;
+      return b.pop - a.pop;
+    });
 
   const freeCount = w.systems.filter((s) => s.fid === null && s.pop > 0.05).length;
   const govCounts = liveFactions.reduce((acc, f) => {
@@ -253,17 +178,17 @@ export default function FactionsPanel({ w, liveFactions, wars, onOpenSystem, onI
         <span><b style={{ color: "var(--text)" }}>{freeCount}</b> free system{freeCount !== 1 ? "s" : ""}</span>
       </div>
 
-      {wars.length > 0 && (
-        <Section title="active wars">
-          {wars.map(({ k, r }) => <WarCard key={k} w={w} k={k} rel={r} />)}
-        </Section>
-      )}
-
-      <RelationMatrix w={w} factions={ranked.map((r) => r.f).filter((f) => f.gov !== "pirate")} />
-
-      <Section title="factions">
-        {ranked.map(({ f, members }) => {
-          const fp = members.reduce((a, s) => a + s.pop, 0);
+      <Section
+        title="factions"
+        right={(
+          <div className="flex flex-wrap justify-end gap-1">
+            {["population", "systems", "treasury", "stability", "age", "name"].map((k) => (
+              <button key={k} className={`chip${sort === k ? " on" : ""}`} onClick={() => setSort(k)}>{k}</button>
+            ))}
+          </div>
+        )}
+      >
+        {ranked.map(({ f, members, pop: fp }) => {
           const myWars = wars.filter(({ k }) => k.split("|").map(Number).includes(f.id));
           return (
             <div

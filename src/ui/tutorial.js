@@ -49,10 +49,10 @@ export const TUT_STEPS = [
     key: "faction", title: "Meet the powers",
     body: () =>
       "The map is carved up by factions — empires, republics, corporate " +
-      "charters. Open the ♜ factions tab in the side window and click any " +
+      "charters. Open the ♜ factions panel in the command bar and click any " +
       "faction to read its temperament, its wars, and its worlds.",
     done: (c) => c.flags.factionOpened,
-    action: { label: "open the factions tab", run: (a) => a.setSideTab("factions") },
+    action: { label: "open factions", run: (a) => a.setScreen("factions") },
   },
   {
     key: "troubled", title: "Find a world in trouble",

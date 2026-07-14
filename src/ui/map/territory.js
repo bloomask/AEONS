@@ -7,7 +7,43 @@ import { hexToRgb } from "../theme.js";
 export const WORLD_R = 640;   // half-extent of the rasterized world square (covers the largest configurable galaxy)
 const GRID = 448;             // cells per side
 const CELL = (WORLD_R * 2) / GRID;
-const REACH = 60;             // world units a system projects territory over
+export const REACH = 60;      // world units a system projects territory over
+
+// Connected components of a faction's projected territory. Two member worlds
+// belong to the same component when their REACH-radius regions overlap. This
+// gives map labels a real occupied anchor for every separated realm fragment.
+export function territoryClusters(w, fid) {
+  const members = w.systems.filter((s) => s.pop > 0.05 && s.fid === fid);
+  const unseen = new Set(members.map((s) => s.id));
+  const clusters = [];
+  const touch2 = (REACH * 2) ** 2;
+  while (unseen.size) {
+    const first = unseen.values().next().value;
+    unseen.delete(first);
+    const queue = [w.systems[first]];
+    const group = [];
+    while (queue.length) {
+      const s = queue.pop();
+      group.push(s);
+      for (const id of [...unseen]) {
+        const o = w.systems[id];
+        const dx = s.x - o.x, dy = s.y - o.y;
+        if (dx * dx + dy * dy <= touch2) {
+          unseen.delete(id);
+          queue.push(o);
+        }
+      }
+    }
+    const pop = group.reduce((sum, s) => sum + s.pop, 0);
+    clusters.push({
+      members: group,
+      pop,
+      cx: group.reduce((sum, s) => sum + s.x * s.pop, 0) / pop,
+      cy: group.reduce((sum, s) => sum + s.y * s.pop, 0) / pop,
+    });
+  }
+  return clusters;
+}
 
 export function computeTerritory(w, cache) {
   if (!cache.canvas) {

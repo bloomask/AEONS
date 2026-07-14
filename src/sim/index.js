@@ -23,7 +23,7 @@ export {
   EVENT_SEV, MINOR_KEEP_YEARS, SEV_MINOR, SEV_NOTABLE, SEV_MAJOR,
 } from "./events.js";
 export {
-  INTERVENTIONS, INTERVENTION_BY_KEY, CURATOR,
+  INTERVENTIONS, INTERVENTION_BY_KEY, CURATOR, FACTION_PRESETS, CURATED_FACTION_COLORS,
   validateIntervention, previewIntervention, applyIntervention,
 } from "./interventions.js";
 export {

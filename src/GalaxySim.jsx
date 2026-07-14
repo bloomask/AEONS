@@ -23,14 +23,10 @@ import GalaxyPanel from "./ui/panels/GalaxyPanel.jsx";
 import SavesPanel from "./ui/panels/SavesPanel.jsx";
 import RoutePanel from "./ui/panels/RoutePanel.jsx";
 import DiplomacyPanel from "./ui/panels/DiplomacyPanel.jsx";
-import WarsPanel from "./ui/panels/WarsPanel.jsx";
 
-// inspection lives in the side window; everything else takes the full screen.
-// "factions" inspects the simulation's powers (never the player's — see
-// docs/PRODUCT.md); "curate" appears only in Curate mode.
+// Local map inspection lives in the side window; galaxy-wide views are full screen.
 const SIDE_TABS = [
   { key: "system", glyph: "⊙" },
-  { key: "factions", glyph: "♜" },
   { key: "curate", glyph: "✳", curateOnly: true },
 ];
 
@@ -66,8 +62,25 @@ export default function GalaxySim() {
   // when the step began (so "change the speed" means "since this step")}
   const [tut, setTut] = useState(null);
   const [tutFlags, setTutFlags] = useState({ factionOpened: false, eventFollowed: false });
+  const [mapSelection, setMapSelection] = useState(null);
+  const mapSelectionCallback = useRef(null);
 
   const bump = useCallback(() => setVersion((v) => v + 1), []);
+  const cancelMapSelection = useCallback(() => {
+    mapSelectionCallback.current = null;
+    setMapSelection(null);
+  }, []);
+  const requestMapSelection = useCallback((spec, callback) => {
+    mapSelectionCallback.current = callback;
+    setMapSelection(spec);
+  }, []);
+  const acceptMapSelection = useCallback((target) => {
+    const callback = mapSelectionCallback.current;
+    if (!callback) return;
+    mapSelectionCallback.current = null;
+    setMapSelection(null);
+    callback(target);
+  }, []);
 
   // ---- the guided tour (skippable, replayable from the top bar) ----
   const tutEntry = useCallback((spd) => ({
@@ -92,8 +105,11 @@ export default function GalaxySim() {
   // leaving Curate mode closes the curator tab it owns
   const switchMode = useCallback((m) => {
     setMode(m);
-    if (m === "observe") setSideTab((t) => (t === "curate" ? "system" : t));
-  }, []);
+    if (m === "observe") {
+      cancelMapSelection();
+      setSideTab((t) => (t === "curate" ? "system" : t));
+    }
+  }, [cancelMapSelection]);
 
   // rotating autosave: once the clock has advanced a full interval past the
   // last one, snapshot the live world (best-effort — never interrupts play)
@@ -122,6 +138,7 @@ export default function GalaxySim() {
 
   // founding: generate the configured galaxy and burn its pre-history
   const begin = useCallback((newSeed, newCfg, opts) => {
+    cancelMapSelection();
     setSetupOpen(false);
     setSpeed(0);
     setSeed(newSeed);
@@ -143,12 +160,13 @@ export default function GalaxySim() {
     const armAutosave = () => { lastAutoRef.current = worldRef.current?.year ?? 0; };
     if (burnY > 0) runBurn(w, burnY, () => { armAutosave(); setSpeed(1); });
     else { armAutosave(); setSpeed(1); bump(); }
-  }, [runBurn, bump, startTutorial, endTutorial]);
+  }, [runBurn, bump, startTutorial, endTutorial, cancelMapSelection]);
 
   // install a loaded galaxy (from a slot id, or an already-parsed world from a
   // file import) in place of the running one. May throw (bad/newer save) — the
   // Saves panel catches and surfaces the message.
   const loadGame = useCallback((id, preloaded) => {
+    cancelMapSelection();
     const w = preloaded || loadWorld(id);
     setSpeed(0);
     setSetupOpen(false);
@@ -166,7 +184,7 @@ export default function GalaxySim() {
     worldRef.current = w;
     lastAutoRef.current = w.year;
     bump();
-  }, [bump, endTutorial]);
+  }, [bump, endTutorial, cancelMapSelection]);
 
   // sim clock — render rate capped at 10/s; higher speeds batch years per tick
   useEffect(() => {
@@ -182,12 +200,12 @@ export default function GalaxySim() {
     return () => clearInterval(iv);
   }, [speed, burn, bump, maybeAutosave]);
 
-  // Esc closes an open full-screen panel
+  // Esc closes an open full-screen panel or leaves map-targeting mode.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") setScreen(null); };
+    const onKey = (e) => { if (e.key === "Escape") { cancelMapSelection(); setScreen(null); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [cancelMapSelection]);
 
   // the tour's "follow an event" step also accepts opening the chronicle
   // directly — latch it so esc-ing back out doesn't undo the deed
@@ -316,6 +334,9 @@ export default function GalaxySim() {
             setOverlay={setOverlay}
             burn={burn}
             mapApi={mapApi}
+            selectionMode={mapSelection}
+            onPickTarget={acceptMapSelection}
+            onCancelSelection={cancelMapSelection}
           />
           {w && !burn && (
             <Ticker
@@ -330,7 +351,7 @@ export default function GalaxySim() {
           {w && !burn && <Timeline w={w} onScrub={scrubTo} focusYear={focusYear} />}
         </div>
 
-        {/* the inspection window: system & power details only */}
+        {/* the local inspection window: systems, routes, and curator tools */}
         <div
           className="w-full md:w-[26rem] flex-1 md:flex-none flex flex-col min-h-0"
           style={{ background: "var(--panel)", borderLeft: "1px solid var(--line)" }}
@@ -354,14 +375,12 @@ export default function GalaxySim() {
                   : <div className="muted italic leading-relaxed">This jumpgate lane has since collapsed — its stars drift apart on the map. Pick another lane or a system to inspect.</div>)
                 : <SystemPanel w={w} sel={sel} sub={sysSub} onSub={setSysSub} />
             )}
-            {sideTab === "factions" && w && (
-              <FactionsPanel
-                w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem}
-                onInspect={() => setTutFlags((f) => (f.factionOpened ? f : { ...f, factionOpened: true }))}
-              />
-            )}
             {sideTab === "curate" && w && mode === "curate" && !burn && (
-              <CuratorPanel w={w} selected={selected} onApplied={bump} />
+              <CuratorPanel
+                w={w} selected={selected} selectionMode={mapSelection}
+                onRequestSelection={requestMapSelection} onCancelSelection={cancelMapSelection}
+                onApplied={bump}
+              />
             )}
           </div>
         </div>
@@ -386,8 +405,8 @@ export default function GalaxySim() {
             </div>
             <div className="flex-1 overflow-y-auto">
               <div className={`mx-auto p-6 text-xs ${scr.narrow ? "max-w-3xl" : "max-w-6xl fs-cols"}`} style={{ lineHeight: 1.6 }}>
-                {screen === "diplomacy" && <DiplomacyPanel w={w} liveFactions={liveFactions} onOpenSystem={openSystem} />}
-                {screen === "wars" && <WarsPanel w={w} wars={wars} onOpenSystem={openSystem} />}
+                {screen === "factions" && <FactionsPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} onInspect={() => setTutFlags((f) => (f.factionOpened ? f : { ...f, factionOpened: true }))} />}
+                {screen === "diplomacy" && <DiplomacyPanel w={w} liveFactions={liveFactions} wars={wars} onOpenSystem={openSystem} />}
                 {screen === "trade" && <TradePanel w={w} onOpenSystem={openSystem} />}
                 {screen === "market" && <MarketPanel w={w} liveSystems={liveSystems} onOpenSystem={openSystem} />}
                 {screen === "galaxy" && <GalaxyPanel w={w} />}

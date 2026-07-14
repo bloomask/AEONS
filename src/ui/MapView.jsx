@@ -9,7 +9,10 @@ import { tooltipHtml, routeTooltipHtml } from "./map/tooltip.js";
 // The canvas map: owns the camera and input; the actual drawing lives in
 // map/render.js, territory rasterization in map/territory.js, and the
 // event→animation plumbing in map/effects.js.
-export default function MapView({ worldRef, selected, onSelect, selectedEdge, onSelectRoute, overlay, setOverlay, burn, mapApi }) {
+export default function MapView({
+  worldRef, selected, onSelect, selectedEdge, onSelectRoute, overlay, setOverlay, burn, mapApi,
+  selectionMode, onPickTarget, onCancelSelection,
+}) {
   const canvasRef = useRef(null);
   const viewRef = useRef({ x: 0, y: 0, scale: 0.55 });
   const dragRef = useRef(null);
@@ -107,13 +110,14 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
           territory: territoryRef.current,
           pulses: scene.pulses,
           fxAnims: scene.fxAnims,
+          selectionMode,
         });
       }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [worldRef, selected, selectedEdge, overlay]);
+  }, [worldRef, selected, selectedEdge, overlay, selectionMode]);
 
   // input
   const screenToWorld = (mx, my) => {
@@ -186,7 +190,14 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
     // a lane is only a hover target when no system sits under the cursor
     hoverEdgeRef.current = id === null ? nearestEdge(mx, my) : null;
     const cv = canvasRef.current;
-    if (cv) cv.style.cursor = (id !== null || hoverEdgeRef.current !== null) ? "pointer" : "crosshair";
+    if (cv) {
+      const validSystem = id !== null && (!selectionMode || selectionMode.kind !== "system" || selectionMode.validSystemIds.includes(id));
+      const validEdge = hoverEdgeRef.current !== null && (!selectionMode || selectionMode.kind !== "edge" || (() => {
+        const edge = worldRef.current.edges[hoverEdgeRef.current];
+        return selectionMode.validEdgeKeys.includes(`${edge.a}|${edge.b}`) || selectionMode.validEdgeKeys.includes(`${edge.b}|${edge.a}`);
+      })());
+      cv.style.cursor = validSystem || validEdge ? "pointer" : "crosshair";
+    }
     const d = dragRef.current;
     if (d) {
       const dx = mx - d.sx, dy = my - d.sy;
@@ -205,6 +216,22 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
     if (d && !d.moved) {
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const id = nearest(mx, my);
+      if (selectionMode) {
+        if (selectionMode.kind === "system" && id !== null && selectionMode.validSystemIds.includes(id)) {
+          onPickTarget?.({ kind: "system", id });
+        } else if (selectionMode.kind === "edge" && id === null) {
+          const ei = nearestEdge(mx, my);
+          if (ei !== null) {
+            const edge = worldRef.current.edges[ei];
+            const edgeKey = `${edge.a}|${edge.b}`;
+            const reverse = `${edge.b}|${edge.a}`;
+            if (selectionMode.validEdgeKeys.includes(edgeKey) || selectionMode.validEdgeKeys.includes(reverse)) {
+              onPickTarget?.({ kind: "edge", edgeKey: selectionMode.validEdgeKeys.includes(edgeKey) ? edgeKey : reverse, ei });
+            }
+          }
+        }
+        return;
+      }
       if (id !== null) onSelect(id);
       else {
         const ei = nearestEdge(mx, my);
@@ -248,6 +275,13 @@ export default function MapView({ worldRef, selected, onSelect, selectedEdge, on
         className="absolute pointer-events-none px-2.5 py-2 text-xs glass"
         style={{ display: "none", maxWidth: 230, zIndex: 10, color: "var(--text)", lineHeight: 1.55 }}
       />
+      {selectionMode && !burn && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 glass px-3 py-2 flex items-center gap-3" style={{ zIndex: 18, maxWidth: "calc(100% - 24px)" }}>
+          <span style={{ color: "var(--amber)" }}>{"\u2299"}</span>
+          <span className="text-xs">{selectionMode.prompt}</span>
+          <button className="btn" onClick={onCancelSelection}>Cancel</button>
+        </div>
+      )}
       {burn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: "rgba(4,7,12,0.88)", zIndex: 20 }}>
           <div className="display text-sm" style={{ letterSpacing: "0.25em", color: "var(--bright)" }}>

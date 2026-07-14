@@ -93,7 +93,62 @@ test("settlement: a world below the life threshold dies and is wiped clean", () 
   assert.equal(dying.slaves, 0, "a ruin holds no bonded population");
   assert.equal(dying.siege, null, "a ruin holds no siege");
   assert.equal(w.stats.deaths.length, 1, "the death is chronicled");
+  assert.equal(dying.failedSettlements, 1, "the failed site remembers its collapse");
+  assert.equal(dying.failure.ownerId, f.id, "the failure ledger records the responsible power");
+  assert.equal(dying.failure.finalPop, 0.03, "the final population is preserved before cleanup");
+  assert.ok(dying.failure.factors.length > 0, "the failure ledger explains contributing conditions");
   assert.deepEqual(checkInvariants(w), [], "a settled ruin passes every invariant");
+});
+
+test("settlement: powers launch provisioned colonies only from durable surplus", () => {
+  const source = makeSystem(0, {
+    pop: 20, fid: 0, wb: 0.82, wealth: 100, settledYear: 0,
+    stock: { grain: 100 },
+  });
+  const target = makeSystem(1, { pop: 0, hab: 0.8, fert: 0.6, settledYear: null, peakPop: 0 });
+  const f = makeFaction(0, { capital: 0, treasury: 120 });
+  const w = makeWorld({
+    systems: [source, target], factions: [f], edges: [makeEdge(0, 1, [source, target])],
+    year: 50, rng: fixedRng(0),
+  });
+  runSettlement(w, w.rng, alive(w));
+  assert.ok(target.pop >= 1.5, `a viable expedition carries a durable population, got ${target.pop}`);
+  assert.ok(target.stock.grain >= target.pop * 8, "the colony begins with at least eight years of grain reserves");
+  assert.equal(target.fid, f.id);
+  assert.equal(source.lastColonyYear, w.year, "the source enters a launch cooldown");
+  assert.ok(f.treasury < 120, "the sponsoring power pays for the expedition");
+});
+
+test("settlement: powers support young colonies instead of abandoning them", () => {
+  const parent = makeSystem(0, { pop: 20, fid: 0, settledYear: 0 });
+  const colony = makeSystem(1, {
+    pop: 2, fid: 0, settledYear: 92, colonyFrom: 0,
+    stock: { grain: 0 },
+  });
+  const f = makeFaction(0, { capital: 0, treasury: 100 });
+  const w = makeWorld({
+    systems: [parent, colony], factions: [f], edges: [makeEdge(0, 1, [parent, colony])],
+    year: 100, rng: fixedRng(0.9999),
+  });
+  runSettlement(w, w.rng, alive(w));
+  assert.equal(colony.stock.grain, colony.pop * 2, "the colony receives a two-year strategic grain reserve");
+  assert.ok(f.treasury < 100, "the owning power bears the support cost");
+});
+
+test("settlement: repeatedly failed sites are not immediately recolonised", () => {
+  const source = makeSystem(0, { pop: 20, fid: 0, wb: 0.82, wealth: 100, stock: { grain: 100 } });
+  const ruin = makeSystem(1, {
+    pop: 0, hab: 0.8, fert: 0.7, ruined: true, diedYear: 30,
+    settledYear: 0, failedSettlements: 1,
+  });
+  const f = makeFaction(0, { capital: 0, treasury: 120 });
+  const w = makeWorld({
+    systems: [source, ruin], factions: [f], edges: [makeEdge(0, 1, [source, ruin])],
+    year: 100, rng: fixedRng(0),
+  });
+  runSettlement(w, w.rng, alive(w));
+  assert.equal(ruin.pop, 0, "one prior failure requires 90 quiet years before another autonomous attempt");
+  assert.ok(ruin.ruined);
 });
 
 // ---------------- contraband ----------------

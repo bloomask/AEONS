@@ -4,7 +4,7 @@ import { relKey } from "../../sim/events.js";
 import { classifySystem, classifyContext } from "../../sim/classify.js";
 import { STAR_BY_KEY } from "../../sim/cosmos.js";
 import { mixHex, wbColor } from "../theme.js";
-import { computeTerritory, WORLD_R } from "./territory.js";
+import { computeTerritory, territoryClusters, WORLD_R } from "./territory.js";
 
 // The whole map scene for one animation frame. Pure canvas drawing — no
 // React, no DOM beyond the 2d context. `frame` carries everything the
@@ -85,6 +85,17 @@ export function drawScene(ctx, w, v, frame) {
       ctx.strokeStyle = "rgba(230,225,211,0.9)"; ctx.lineWidth = 1.4;
       ctx.beginPath(); ctx.arc(ax, ay, 7, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(bx, by, 7, 0, 7); ctx.stroke();
+    }
+  }
+
+  if (frame.selectionMode?.kind === "edge") {
+    const valid = new Set(frame.selectionMode.validEdgeKeys);
+    ctx.strokeStyle = "rgba(242,169,59,0.9)";
+    ctx.lineWidth = 2.4;
+    for (const e of w.edges) {
+      if (!valid.has(`${e.a}|${e.b}`) && !valid.has(`${e.b}|${e.a}`)) continue;
+      const A = w.systems[e.a], B = w.systems[e.b];
+      ctx.beginPath(); ctx.moveTo(tx(A.x), ty(A.y)); ctx.lineTo(tx(B.x), ty(B.y)); ctx.stroke();
     }
   }
 
@@ -189,6 +200,18 @@ export function drawScene(ctx, w, v, frame) {
     }
   }
 
+
+  if (frame.selectionMode?.kind === "system") {
+    ctx.strokeStyle = "rgba(242,169,59,0.95)";
+    ctx.lineWidth = 1.5;
+    for (const id of frame.selectionMode.validSystemIds) {
+      const s = w.systems[id];
+      if (!s) continue;
+      const pulse = 10 + Math.sin(now * 0.005 + id) * 1.5;
+      ctx.beginPath(); ctx.arc(tx(s.x), ty(s.y), pulse, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
   // megaproject construction sites: pulsing scaffold + progress arc
   if (overlay === "realm" || overlay === "trade") {
     for (const p of w.projects) {
@@ -272,26 +295,23 @@ export function drawScene(ctx, w, v, frame) {
     const cands = [];
     for (const f of w.factions) {
       if (f.dead) continue;
-      const members = w.systems.filter((s) => s.fid === f.id && s.pop > 0.05);
-      if (!members.length) continue;
-      const fp = members.reduce((a, s) => a + s.pop, 0);
-      if (fp < 8) continue;
-      let cx = 0, cy = 0;
-      for (const s of members) { cx += s.x * s.pop; cy += s.y * s.pop; }
-      cands.push({ f, fp, cx: cx / fp, cy: cy / fp });
+      const clusters = territoryClusters(w, f.id);
+      const totalPop = clusters.reduce((sum, c) => sum + c.pop, 0);
+      if (totalPop < 8) continue;
+      for (const cluster of clusters) cands.push({ f, fp: cluster.pop, totalPop, cx: cluster.cx, cy: cluster.cy });
     }
     cands.sort((a, b) => b.fp - a.fp);
     const placed = [];
     ctx.textAlign = "center";
-    for (const { f, fp, cx, cy } of cands) {
-      const size = clamp(8 + Math.sqrt(fp) * 0.2, 9, 13.5) * clamp(v.scale / 0.55, 0.75, 1.15);
+    for (const { f, fp, totalPop, cx, cy } of cands) {
+      const size = clamp(8 + Math.sqrt(Math.max(fp, totalPop * 0.2)) * 0.2, 9, 13.5) * clamp(v.scale / 0.55, 0.75, 1.15);
       ctx.font = `700 ${size.toFixed(1)}px 'Chakra Petch', sans-serif`;
       try { ctx.letterSpacing = `${(size * 0.14).toFixed(1)}px`; } catch { /* older engines */ }
       const label = f.name.toUpperCase();
       const tw = ctx.measureText(label).width;
       const X = tx(cx), Y = ty(cy) - size * 0.8;
-      const box = { x0: X - tw / 2 - 4, x1: X + tw / 2 + 4, y0: Y - size - 2, y1: Y + 4 };
-      if (placed.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)) {
+      const box = { fid: f.id, x0: X - tw / 2 - 4, x1: X + tw / 2 + 4, y0: Y - size - 2, y1: Y + 4 };
+      if (placed.some((b) => b.fid !== f.id && box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)) {
         try { ctx.letterSpacing = "0px"; } catch { /* older engines */ }
         continue;
       }

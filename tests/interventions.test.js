@@ -236,3 +236,29 @@ test("the sharpest interventions do what they claim", () => {
     assert.deepEqual(checkInvariants(w), []);
   }
 });
+
+test("a curated faction uses its fine-tuned settings and an empty founding system", () => {
+  const w = genGalaxy(2026, { factions: 0, burnYears: 0 });
+  const site = w.systems.find((s) => s.pop <= 0.05 && !s.ruined);
+  assert.ok(site);
+  const params = {
+    sysId: site.id, name: "Orison Compact", gov: "corporate", color: "#5CC8DA",
+    pop: 9.5, dev: 1.2, treasury: 210, stability: 0.91,
+    aggr: 0.12, expans: 0.67, tariff: 0.04,
+  };
+  const rng0 = w.rng.snapshot();
+  const res = applyIntervention(w, "foundFaction", params);
+  assert.ok(res.ok);
+  assert.equal(w.rng.snapshot(), rng0, "founding consumes no rng");
+  const f = w.factions[0];
+  assert.equal(f.name, params.name);
+  assert.equal(f.gov, params.gov);
+  assert.equal(f.color, params.color);
+  assert.equal(f.capital, site.id);
+  assert.equal(f.aggr, params.aggr);
+  assert.equal(f.expans, params.expans);
+  assert.equal(f.tariff, params.tariff);
+  assert.equal(site.fid, f.id);
+  assert.equal(site.pop, params.pop);
+  assert.deepEqual(checkInvariants(w), []);
+});

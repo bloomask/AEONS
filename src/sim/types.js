@@ -49,6 +49,10 @@
  * @property {number} lastFamine  Year of last famine (-99 = never).
  * @property {number} lastPlague
  * @property {number} lastWar
+ * @property {number} lastColonyYear  Last autonomous colony launched from here (-99 = never).
+ * @property {number} failedSettlements  Number of times this site has gone dark; lengthens autonomous resettlement caution.
+ * @property {?Object} failure  Structured snapshot explaining the latest collapse; retained while the system is ruined.
+ * @property {?number} colonyFrom  System id that launched the current settlement, when known.
  * @property {?{by:number, since:number, pair:string}} siege  Blockade: besieging fid, start year, relKey of the war.
  * @property {Object<string,number>} flow   Net import flow per good this year.
  * @property {{p:number,f:number,g:number}[]} trace  Yearly pop/grain-price/consumer-price trace (last 120).
@@ -97,7 +101,7 @@
  * @property {number} id       Unique, from `w.nextFid` (never reused; dead factions stay in the array).
  * @property {string} name
  * @property {string} color    Hex color for map/UI.
- * @property {"empire"|"republic"|"corporate"|"pirate"} gov  Key into GOVS (constants.js).
+ * @property {"empire"|"republic"|"corporate"|"pirate"} gov  Key into GOVS (constants.js). Curated factions may begin as any civil government.
  * @property {number} capital  System id of the seat.
  * @property {number} aggr     Aggression 0..1 (war/embargo appetite).
  * @property {number} expans   Expansionism 0..1 (annexation appetite).

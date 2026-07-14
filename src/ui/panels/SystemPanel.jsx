@@ -18,6 +18,50 @@ const SEV_STYLE = {
 
 const SUBTABS = ["overview", "society", "market", "problems"];
 
+function FailureReport({ w, sel }) {
+  const recorded = [...(w.stats.deaths || [])].reverse().find((d) => d.system === sel.name && d.year === sel.diedYear);
+  const failure = sel.failure || recorded?.failure || null;
+  const cause = failure?.cause || recorded?.cause || "unknown causes";
+  const owner = failure?.ownerId !== null && failure?.ownerId !== undefined
+    ? w.factions[failure.ownerId]
+    : null;
+  const factionDeath = owner?.dead
+    ? [...(w.stats.factionDeaths || [])].reverse().find((d) => d.factionId === owner.id || d.faction === owner.name)
+    : null;
+
+  return (
+    <Section title="why this system failed">
+      <div className="p-3" style={{ background: "rgba(228,87,46,0.06)", border: "1px solid rgba(228,87,46,0.28)", borderRadius: 6 }}>
+        <div className="display uppercase mb-1" style={{ color: "var(--red)", fontWeight: 700 }}>
+          {cause}
+        </div>
+        {failure ? (
+          <>
+            <div className="muted mb-2">
+              The population fell from a peak of {failure.peakPop.toFixed(2)}M to {failure.finalPop.toFixed(4)}M
+              {failure.age !== null ? ` over ${failure.age} years` : ""}; below 0.05M, the settlement could no longer function.
+            </div>
+            <div className="space-y-1.5">
+              {failure.factors.map((factor, i) => (
+                <div key={i} className="flex gap-2"><span style={{ color: "var(--amber)" }}>▸</span><span className="muted">{factor}</span></div>
+              ))}
+            </div>
+            {owner && (
+              <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--line)" }}>
+                {owner.dead
+                  ? `Its owner, the ${owner.name}, also failed in year ${owner.diedYear}${factionDeath?.cause ? ` from ${factionDeath.cause}` : ""}.`
+                  : `Its owner, the ${owner.name}, survived the loss but could not keep this settlement supplied.`}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="muted">The old record identifies {cause}, but this ruin predates detailed failure ledgers.</div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
 function Endowments({ sel }) {
   const mineLeft = Math.max(0, sel.minRes / sel.minRes0);
   const rows = [
@@ -468,6 +512,7 @@ export default function SystemPanel({ w, sel, sub: subProp, onSub }) {
         </>
       ) : (
         <>
+          {sel.ruined && <FailureReport w={w} sel={sel} />}
           <SystemBodies sel={sel} />
           <Endowments sel={sel} />
           <LocalRecord w={w} sel={sel} />

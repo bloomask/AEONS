@@ -142,10 +142,10 @@ export default function NewGameScreen({ initialSeed, initialCfg, canCancel, onBe
     ? (matched.key === "standard" ? "BEGIN STANDARD GALAXY" : `BEGIN — ${matched.name.toUpperCase()}`)
     : "BEGIN — CUSTOM GALAXY";
 
-  const settledCount = Math.max(4, Math.round(cfg.systems * (cfg.settled / 100)));
+  const settledCount = Math.max(0, Math.round(cfg.systems * (cfg.settled / 100)));
   const summary =
     `${Math.round(cfg.systems)} systems · ${settledCount} settled · ` +
-    `${Math.min(Math.round(cfg.factions), settledCount)} powers · ${Math.round(cfg.houses)} houses · ` +
+    `${Math.min(Math.round(cfg.factions), settledCount)} powers · ${Math.min(Math.round(cfg.houses), settledCount)} houses · ` +
     (cfg.burnYears > 0 ? `${Math.round(cfg.burnYears)} years of history before you arrive` : "you arrive at the founding");
 
   const BeginButton = () => (
